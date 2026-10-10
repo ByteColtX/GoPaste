@@ -23,7 +23,7 @@ func (a *application) settingsPage(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
-	ui.Column(c).Width(secondarySidebarWidth).FillHeight().Shrink(0).
+	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, 6), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
 		ui.Text(c, "设置").FontSize(font(theme, fontSection)).FontWeight(600).

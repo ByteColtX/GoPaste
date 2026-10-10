@@ -26,7 +26,7 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 		onlineColor = theme.Success
 	}
 
-	ui.Column(c).Width(secondarySidebarWidth).FillHeight().Shrink(0).
+	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, 6), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
 		ui.Text(c, "本设备").FontSize(font(theme, fontSubheading)).FontWeight(600).

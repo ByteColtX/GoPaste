@@ -29,6 +29,7 @@ func (a *application) view(c *ui.Context) {
 	theme := c.Theme()
 	titleBar := c.TitleBar()
 	chromeHeight := float32(windowChromeMinHeight)
+	a.globalShortcuts(c)
 
 	ui.Column(c).Fill().Background(theme.Background).Children(func() {
 		// 这条透明区域同时承担红绿灯避让和窗口拖拽两个职责。
@@ -42,6 +43,12 @@ func (a *application) view(c *ui.Context) {
 		})
 	})
 	a.dangerousConfirmation(c, theme)
+}
+
+func (a *application) globalShortcuts(c *ui.Context) {
+	c.OnShortcut(ui.Cmd, ui.Key1, func() { a.setPage(pageHistory) })
+	c.OnShortcut(ui.Cmd, ui.Key2, func() { a.setPage(pageDevices) })
+	c.OnShortcut(ui.Cmd, ui.Key3, func() { a.setPage(pageSettings) })
 }
 
 func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
@@ -86,25 +93,35 @@ func (a *application) dangerousActionDetails(action dangerousAction, deviceID st
 
 // navigationRail 是窄导航轨道，避免额外占用历史列表的横向空间。
 func (a *application) navigationRail(c *ui.Context, theme *ui.Theme) {
-	rail := ui.Column(c).Width(navigationRailWidth).FillHeight().Shrink(0).
+	railWidth := navigationRailSize(c, theme)
+	expanded := railWidth > navigationRailCompactWidth
+	rail := ui.Column(c).Width(railWidth).FillHeight().Shrink(0).
 		Padding(space(theme, 3), space(theme, 2), space(theme, 2.5), space(theme, 2)).
 		Gap(space(theme, 1.5)).Background(sidebarFill(theme)).
 		Border(1, dividerColor(theme)).
 		DragWindow()
 	rail.Children(func() {
-		a.navigationButton(c, theme, pageHistory, icons.history, "历史记录")
+		if expanded {
+			ui.Text(c, "GoPaste").FontSize(font(theme, fontSection)).FontWeight(600).
+				Padding(space(theme, 1), space(theme, 1)).Role(ui.RoleHeading).SingleLine()
+		} else {
+			ui.Text(c, "GP").FontSize(font(theme, fontSubheading)).FontWeight(700).
+				Padding(space(theme, 1), space(theme, 1)).Role(ui.RoleHeading).SingleLine()
+		}
+		a.navigationButton(c, theme, pageHistory, icons.history, "历史记录", expanded)
 		ui.Spacer(c)
-		a.navigationButton(c, theme, pageDevices, icons.devices, "设备")
-		a.navigationButton(c, theme, pageSettings, icons.settings, "设置")
+		a.navigationButton(c, theme, pageDevices, icons.devices, "设备", expanded)
+		a.navigationButton(c, theme, pageSettings, icons.settings, "设置", expanded)
 	})
 }
 
-func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, target page, icon *ui.SVG, label string) {
-	button := ui.ButtonBase(c.Key("navigation-" + label)).
-		Height(space(theme, 11)).FillWidth().Shrink(0).
-		Radius(radius(theme, cardRadius)).Center().
+func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, target page, icon *ui.SVG, label string, expanded bool) {
+	button := ui.ButtonBase(c.Key("navigation-"+label)).
+		Height(space(theme, controlHeight)).FillWidth().Shrink(0).
+		Padding(space(theme, 1), space(theme, 2)).
+		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).
 		TextColor(secondaryText(theme)).
-		Label(label).Tooltip(label)
+		Label(label).Tooltip(label).Role(ui.RoleToggleButton).Selected(a.page == target)
 	if a.page == target {
 		button.Background(selectedFill(theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {
@@ -113,7 +130,14 @@ func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, target pa
 		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5))
+		if expanded {
+			ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
+				ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0)
+				ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+			})
+			return
+		}
+		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5))
 	})
 	if button.Clicked() {
 		a.page = target
@@ -134,7 +158,7 @@ func (a *application) pageContent(c *ui.Context, theme *ui.Theme) {
 func (a *application) historyPage(c *ui.Context, theme *ui.Theme) {
 	view := a.history.Snapshot(history.Query{Text: a.query, Filter: a.filter})
 
-	a.constrainHistoryPaneWidth(c)
+	a.constrainHistoryPaneWidth(c, theme)
 
 	ui.Split(c, &a.historyPaneWidth,
 		func() { a.historyList(c, theme, view) },
@@ -143,13 +167,13 @@ func (a *application) historyPage(c *ui.Context, theme *ui.Theme) {
 }
 
 // constrainHistoryPaneWidth 在窗口缩放时保持左右面板都可用。
-func (a *application) constrainHistoryPaneWidth(c *ui.Context) {
+func (a *application) constrainHistoryPaneWidth(c *ui.Context, theme *ui.Theme) {
 	if a.historyPaneWidth <= 0 {
 		a.historyPaneWidth = defaultHistoryPaneWidth
 	}
 
 	windowWidth, _ := c.Size()
-	maxWidth := windowWidth - navigationRailWidth - minPreviewPaneWidth - splitDividerWidth
+	maxWidth := windowWidth - navigationRailSize(c, theme) - minPreviewPaneWidth - splitDividerWidth
 	maxWidth = max(maxWidth, float32(minHistoryPaneWidth))
 	a.historyPaneWidth = min(max(a.historyPaneWidth, float32(minHistoryPaneWidth)), maxWidth)
 }

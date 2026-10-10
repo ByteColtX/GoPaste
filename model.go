@@ -11,7 +11,7 @@ import (
 
 const (
 	// 窗口和分栏的最小尺寸，保证窄窗口下内容仍然可读。
-	navigationRailWidth   = 64
+	navigationRailWidth   = navigationRailCompactWidth
 	minHistoryPaneWidth   = 300
 	minPreviewPaneWidth   = 460
 	splitDividerWidth     = 1
