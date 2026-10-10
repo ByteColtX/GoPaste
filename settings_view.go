@@ -39,8 +39,6 @@ func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 		ui.Text(c, "设置").FontSize(font(theme, fontSection)).FontWeight(600).
 			Padding(space(theme, 0.5), space(theme, 1), space(theme, 0.5), space(theme, 1)).SingleLine()
 
-		ui.Text(c, "应用").FontSize(font(theme, fontSubheading)).FontWeight(600).
-			TextColor(secondaryText(theme)).Padding(space(theme, 2.25), space(theme, 2), space(theme, 0.25), space(theme, 2)).SingleLine()
 		ui.Column(c).Gap(space(theme, 0.5)).Children(func() {
 			for _, item := range settingsNavigationItems() {
 				a.settingsNavButton(c, theme, item)
@@ -55,10 +53,10 @@ func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 
 func settingsNavigationItems() []settingsNavItem {
 	return []settingsNavItem{
-		{area: settingsGeneral, icon: icons.devices, title: "常规"},
-		{area: settingsAppearance, icon: icons.settings, title: "外观"},
-		{area: settingsStorage, icon: icons.file, title: "存储"},
-		{area: settingsAbout, icon: icons.history, title: "关于"},
+		{area: settingsGeneral, icon: icons.settings, title: "通用"},
+		{area: settingsAppearance, icon: icons.appearance, title: "外观"},
+		{area: settingsStorage, icon: icons.storage, title: "存储"},
+		{area: settingsAbout, icon: icons.about, title: "关于"},
 	}
 }
 
@@ -115,7 +113,7 @@ func (a *application) settingsHeader(c *ui.Context, title, description string, t
 }
 
 func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
-	a.settingsHeader(c, "常规", "设备身份和 GoPaste 的基础使用偏好。", theme)
+	a.settingsHeader(c, "通用", "设备身份和 GoPaste 的基础使用偏好。", theme)
 	a.settingsSubheading(c, "基本设置", theme)
 	settingsGroup(c, theme, "settings-general-group", func() {
 		a.settingsRow(c, theme, "设备名称", "用于在设备列表中识别本机", func() {
