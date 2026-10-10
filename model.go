@@ -36,7 +36,7 @@ const (
 
 var languageOptions = []string{"简体中文", "English"}
 
-// desktopPlatforms 限定演示版支持的桌面端平台。
+// desktopPlatforms 限定当前同步协议支持的桌面端平台。
 var desktopPlatforms = []string{"macOS", "Windows", "Linux"}
 
 const defaultSyncDirection = "双向同步"
@@ -131,8 +131,8 @@ type clipboardImage struct {
 	height int
 }
 
-// pairedDevice 保存一个已配对设备的演示状态。
-// 这些字段先保存在内存中，后续接入真实同步服务时可直接替换数据来源。
+// pairedDevice 保存一个已配对设备的运行时状态。
+// 这些字段先保存在内存中，后续接入持久化同步服务时可直接替换数据来源。
 type pairedDevice struct {
 	id       string
 	name     string
@@ -234,4 +234,12 @@ func (item clipboardItem) resolutionLabel() string {
 		return "图片"
 	}
 	return fmt.Sprintf("%dx%d", item.image.width, item.image.height)
+}
+
+func displayValue(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "—"
+	}
+	return value
 }

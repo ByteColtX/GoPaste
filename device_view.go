@@ -6,17 +6,12 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-const (
-	devicesSidebarWidth = 230
-	devicesDetailWidth  = 1080
-)
-
 // devicesPage 使用侧栏选择设备，右侧展示当前 Peer 的同步设置。
 func (a *application) devicesPage(c *ui.Context, theme *ui.Theme) {
 	ui.Row(c).Fill().MinWidth(0).Children(func() {
 		a.deviceSidebar(c, theme)
 		ui.Box(c).Width(1).FillHeight().Shrink(0).
-			Background(theme.Border.Alpha(0.38))
+			Background(dividerColor(theme))
 		a.deviceDetail(c, theme)
 	})
 
@@ -36,52 +31,62 @@ func (a *application) devicesPage(c *ui.Context, theme *ui.Theme) {
 
 // deviceSidebar 是设备页的主从导航。侧栏保持固定宽度，避免设备名称变化时右侧内容跳动。
 func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
-	ui.Column(c).Width(devicesSidebarWidth).FillHeight().Shrink(0).
-		Padding(30, 16, 14, 16).Gap(10).
-		Background(theme.Surface.Alpha(0.16)).Children(func() {
-		ui.Text(c, "本设备").FontSize(15).FontWeight(600).
-			TextColor(theme.TextMuted).Padding(4, 10, 3, 10).SingleLine()
+	ui.Column(c).Width(secondarySidebarWidth).FillHeight().Shrink(0).
+		Padding(space(theme, 6), space(theme, 4), space(theme, 5), space(theme, 4)).
+		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
+		ui.Text(c, "本设备").FontSize(font(theme, fontMeta)).FontWeight(600).
+			TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2.5), space(theme, 0.75), space(theme, 2.5)).SingleLine()
 		a.localDeviceEntry(c, theme)
 
-		ui.Row(c).Height(32).Shrink(0).AlignItems(ui.Center).
-			Padding(12, 10, 0, 10).Children(func() {
-			ui.Text(c, "已配对设备").FontSize(14).FontWeight(600).
-				TextColor(theme.TextMuted).SingleLine()
+		ui.Row(c).Height(space(theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
+			Padding(space(theme, 3), space(theme, 2.5), 0, space(theme, 2.5)).Children(func() {
+			ui.Text(c, "已配对设备").FontSize(font(theme, fontMeta)).FontWeight(600).
+				TextColor(secondaryText(theme)).SingleLine()
 			ui.Spacer(c)
 			refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
-				Size(28, 28).Shrink(0).Center().Radius(7).
-				TextColor(theme.TextMuted).Label("刷新设备列表").Tooltip("刷新设备列表")
+				Size(space(theme, controlHeight), space(theme, controlHeight)).Shrink(0).Center().
+				Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
+				Label("刷新设备列表").Tooltip("刷新设备列表")
 			if refresh.Hovered() {
-				refresh.Background(theme.Text.Alpha(0.07))
+				refresh.Background(hoverFill(theme))
 			}
 			refresh.Children(func() {
-				ui.Text(c, "↻").FontSize(19).SingleLine()
+				ui.Text(c, "↻").FontSize(font(theme, fontSection)).SingleLine()
 			})
 			if refresh.Clicked() {
 				a.devicesMessage = "设备列表已刷新"
 			}
 		})
 
-		ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, 2, 0, 0).
+		ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 0.5), 0, 0).
 			Children(func() {
-				ui.Column(c).FillWidth().Gap(4).Children(func() {
+				ui.Column(c).FillWidth().Gap(space(theme, 1)).Children(func() {
+					if len(a.pairedDevices) == 0 {
+						ui.Column(c).FillWidth().Padding(space(theme, 5), space(theme, 2.5)).
+							AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
+							ui.Icon(c, icons.devices).Size(space(theme, 5), space(theme, 5)).
+								TextColor(secondaryText(theme))
+							ui.Text(c, "暂无已配对设备").FontSize(font(theme, fontControl)).
+								TextColor(secondaryText(theme)).SingleLine()
+						})
+					}
 					for index := range a.pairedDevices {
 						a.pairedDeviceEntry(c, theme, index)
 					}
 				})
 			})
 
-		ui.Column(c).Shrink(0).Gap(8).Children(func() {
+		ui.Column(c).Shrink(0).Gap(space(theme, 2)).Children(func() {
 			a.inviteDeviceButton(c, theme)
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Padding(4, 10).
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Padding(space(theme, 1), space(theme, 2.5)).
 				Children(func() {
-					ui.Box(c).Size(7, 7).Shrink(0).Radius(4).Background(theme.Success)
-					ui.Textf(c, "%d 台在线", a.onlineDeviceCount()).FontSize(12).
-						TextColor(theme.TextMuted).SingleLine()
+					statusDot(c, theme.Success, space(theme, 1.75))
+					ui.Textf(c, "%d 台在线", a.onlineDeviceCount()).FontSize(font(theme, fontCaption)).
+						TextColor(secondaryText(theme)).SingleLine()
 				})
 			if a.devicesMessage != "" && !a.addDeviceDialog {
-				ui.Text(c, a.devicesMessage).FontSize(11).TextColor(theme.TextMuted).
-					Padding(10, 0, 2, 10).Wrap()
+				ui.Text(c, a.devicesMessage).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).
+					Padding(space(theme, 2.5), 0, space(theme, 0.5), space(theme, 2.5)).Wrap()
 			}
 		})
 	})
@@ -92,8 +97,8 @@ func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 	entry := a.deviceEntryButton(c, theme, "local-device", selected)
 	entry.Children(func() {
 		deviceIcon(c, theme, icons.devices, selected)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(5).Children(func() {
-			ui.Text(c, a.deviceName).FontSize(14).FontWeight(600).SingleLine()
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
+			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			deviceSyncStatus(c, theme, a.deviceSyncEnabled, "同步已开启", "同步已关闭")
 		})
 	})
@@ -110,13 +115,13 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 	entry := a.deviceEntryButton(c, theme, "paired-device-"+device.id, selected)
 	entry.Children(func() {
 		deviceIcon(c, theme, icons.devices, selected)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(4).Children(func() {
-			ui.Text(c, device.name).FontSize(13).FontWeight(600).SingleLine()
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(5).Children(func() {
-				ui.Text(c, device.platform).FontSize(11).
-					TextColor(theme.TextMuted).SingleLine()
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
+			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
+				ui.Text(c, device.platform).FontSize(font(theme, fontCaption)).
+					TextColor(secondaryText(theme)).SingleLine()
 				if device.online {
-					ui.Box(c).Size(5, 5).Shrink(0).Radius(3).Background(theme.Success)
+					statusDot(c, theme.Success, space(theme, 1.25))
 				}
 			})
 		})
@@ -129,13 +134,14 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 }
 
 func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key string, selected bool) ui.Element {
-	entry := ui.ButtonBase(c.Key(key)).Height(72).FillWidth().Shrink(0).
-		Padding(10, 12).Gap(10).Radius(12).AlignItems(ui.Center).
-		TextColor(theme.Text).Label("选择设备")
+	entry := ui.ButtonBase(c.Key(key)).Height(space(theme, 16)).FillWidth().Shrink(0).
+		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
+		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).
+		TextColor(primaryText(theme)).Label("选择设备")
 	if selected {
-		entry.Background(theme.Text.Alpha(0.11))
+		entry.Background(selectedFill(theme))
 	} else if entry.Hovered() {
-		entry.Background(theme.Text.Alpha(0.06))
+		entry.Background(hoverFill(theme))
 	} else {
 		entry.Background(ui.Transparent)
 	}
@@ -143,17 +149,17 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 }
 
 func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
-	button := ui.ButtonBase(c.Key("invite-device")).Height(42).FillWidth().Shrink(0).
-		Padding(6, 12).Radius(10).Border(1, theme.Border.Alpha(0.65)).
-		TextColor(theme.Text).Label("邀请桌面设备")
+	button := ui.ButtonBase(c.Key("invite-device")).Height(space(theme, controlHeight)).FillWidth().Shrink(0).
+		Padding(space(theme, 1.5), space(theme, 3)).Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
+		TextColor(primaryText(theme)).Label("邀请桌面设备")
 	if button.Hovered() {
-		button.Background(theme.Text.Alpha(0.06))
+		button.Background(hoverFill(theme))
 	} else {
 		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
-		ui.Text(c, "+").FontSize(24).FontWeight(300).SingleLine()
-		ui.Text(c, "邀请设备").FontSize(13).FontWeight(600).SingleLine()
+		ui.Text(c, "+").FontSize(font(theme, fontSection)).FontWeight(300).SingleLine()
+		ui.Text(c, "邀请设备").FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
 	})
 	if button.Clicked() {
 		a.devicesMessage = ""
@@ -165,10 +171,11 @@ func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 func (a *application) deviceDetail(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Grow(1).FillHeight().MinWidth(0).Background(theme.Background).
 		Children(func() {
-			ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, 6, 0, 0).
+			ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 1.5), 0, 0).
 				Children(func() {
-					ui.Column(c).FillWidth().MaxWidth(devicesDetailWidth).AlignSelf(ui.Center).
-						Padding(58, 34, 64, 34).Gap(26).Children(func() {
+					ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+						Padding(space(theme, spacePageTop), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
+						Gap(space(theme, spaceSection)).Children(func() {
 						a.deviceDetailHeader(c, theme)
 						a.deviceSyncSettings(c, theme)
 						a.deviceInfoDisclosure(c, theme)
@@ -190,25 +197,25 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 		syncEnabled = device.syncEnabled
 	}
 
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(18).Children(func() {
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 4.5)).Children(func() {
 		deviceIconLarge(c, theme, paired && !online)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(8).Children(func() {
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(10).Children(func() {
-				ui.Text(c, name).FontSize(30).FontWeight(700).SingleLine()
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 2)).Children(func() {
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
+				ui.Text(c, name).FontSize(font(theme, fontPageTitle)).FontWeight(600).SingleLine()
 				if paired {
 					deviceBadge(c, theme, "已配对")
 				} else {
 					deviceBadge(c, theme, "本机")
 				}
 			})
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(7).Children(func() {
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 				if paired {
 					deviceConnectionStatus(c, theme, device)
 					return
 				}
 				deviceSyncStatus(c, theme, syncEnabled, "同步已开启", "同步已关闭")
-				ui.Text(c, "·").FontSize(13).TextColor(theme.TextMuted)
-				ui.Text(c, platform).FontSize(12).TextColor(theme.TextMuted).SingleLine()
+				ui.Text(c, "·").FontSize(font(theme, fontControl)).TextColor(secondaryText(theme))
+				ui.Text(c, platform).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
 			})
 		})
 		if paired {
@@ -219,16 +226,16 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 	button := ui.ButtonBase(c.Key("unpair-selected-device")).
-		Height(34).Shrink(0).Padding(5, 10).Radius(9).
+		Height(space(theme, controlHeight)).Shrink(0).Padding(space(theme, 1.25), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 		TextColor(theme.Danger).Label("取消配对")
 	if button.Hovered() {
-		button.Background(theme.Danger.Alpha(0.10))
+		button.Background(theme.Danger.Alpha(0.12))
 	} else {
 		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
-		ui.Icon(c, icons.clear).Size(14, 14).Shrink(0)
-		ui.Text(c, "取消配对").FontSize(13).FontWeight(600).SingleLine()
+		ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+		ui.Text(c, "取消配对").FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
 	})
 	if button.Clicked() {
 		if device, ok := a.selectedPairedDevice(); ok {
@@ -245,20 +252,18 @@ func deviceConnectionStatus(c *ui.Context, theme *ui.Theme, device *pairedDevice
 		statusColor = theme.Success
 		status = "在线"
 	}
-	ui.Box(c).Size(8, 8).Shrink(0).Radius(5).Background(statusColor)
-	ui.Text(c, status).FontSize(14).FontWeight(600).
+	statusDot(c, statusColor, space(theme, 2))
+	ui.Text(c, status).FontSize(font(theme, fontControl)).FontWeight(600).
 		TextColor(statusColor).SingleLine()
 	if device.channel != "" {
-		ui.Text(c, "·").FontSize(13).TextColor(theme.TextMuted)
-		ui.Text(c, device.channel).FontSize(12).TextColor(theme.TextMuted).SingleLine()
+		ui.Text(c, "·").FontSize(font(theme, fontControl)).TextColor(secondaryText(theme))
+		ui.Text(c, device.channel).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
 	}
 }
 
 func (a *application) deviceSyncSettings(c *ui.Context, theme *ui.Theme) {
 	device, paired := a.selectedPairedDevice()
-	ui.Column(c).FillWidth().Shrink(0).Radius(18).
-		Background(theme.Surface.Alpha(0.20)).
-		Border(1, theme.Border.Alpha(0.56)).Children(func() {
+	standardCard(c, theme, "device-sync-settings", func() {
 		if paired {
 			a.pairedSyncRows(c, theme, device)
 			return
@@ -273,18 +278,22 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	a.deviceSwitchRow(c, theme, fmt.Sprintf("与%s同步", device.name), "双方复制的内容会自动同步。", device.id+"-sync", &device.syncEnabled, false)
 	deviceDivider(c, theme)
 
-	ui.Row(c).FillWidth().MinHeight(62).Shrink(0).Padding(14, 24).
+	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
+		Padding(space(theme, 3.5), space(theme, 6)).
 		AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "自定义同步内容").FontSize(16).FontWeight(600).SingleLine()
+		ui.Text(c, "自定义同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 		ui.Spacer(c)
 		button := ui.ButtonBase(c.Key(device.id+"-all-bidirectional")).
-			Height(30).Shrink(0).Padding(4, 8).Radius(8).
-			TextColor(theme.TextMuted).Label("全部双向同步")
+			Height(space(theme, compactHeight)).Shrink(0).
+			Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
+			TextColor(secondaryText(theme)).Label("全部双向同步")
 		if button.Hovered() {
-			button.Background(theme.Text.Alpha(0.07))
+			button.Background(hoverFill(theme))
+		} else {
+			button.Background(ui.Transparent)
 		}
 		button.Children(func() {
-			ui.Text(c, "全部双向同步").FontSize(12).SingleLine()
+			ui.Text(c, "全部双向同步").FontSize(font(theme, fontControl)).SingleLine()
 		})
 		if button.Clicked() {
 			a.setAllSyncDirections(device, defaultSyncDirection)
@@ -292,20 +301,24 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	})
 	deviceDivider(c, theme)
 
-	ui.Row(c).FillWidth().MinHeight(54).Shrink(0).Padding(11, 24).
+	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
+		Padding(space(theme, 2.75), space(theme, 6)).
 		AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "分别设置每种内容的同步方向。").FontSize(12).
-			TextColor(theme.TextMuted).SingleLine()
+		ui.Text(c, "分别设置每种内容的同步方向。").FontSize(font(theme, fontMeta)).
+			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
 		button := ui.ButtonBase(c.Key(device.id+"-restore-sync-defaults")).
-			Height(30).Shrink(0).Padding(4, 8).Radius(8).
-			TextColor(theme.TextMuted).Label("恢复默认")
+			Height(space(theme, compactHeight)).Shrink(0).
+			Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
+			TextColor(secondaryText(theme)).Label("恢复默认")
 		if button.Hovered() {
-			button.Background(theme.Text.Alpha(0.07))
+			button.Background(hoverFill(theme))
+		} else {
+			button.Background(ui.Transparent)
 		}
 		button.Children(func() {
-			ui.Icon(c, icons.clear).Size(13, 13).Shrink(0)
-			ui.Text(c, "恢复默认").FontSize(12).SingleLine()
+			ui.Icon(c, icons.clear).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0)
+			ui.Text(c, "恢复默认").FontSize(font(theme, fontControl)).SingleLine()
 		})
 		if button.Clicked() {
 			a.restoreSyncDefaults(device)
@@ -343,13 +356,13 @@ func (a *application) syncDirectionRow(
 	setting syncContentSetting,
 	directions []string,
 ) {
-	ui.Row(c.Key(device.id+"-sync-content-"+setting.key)).FillWidth().MinHeight(64).Shrink(0).
-		Padding(12, 24).AlignItems(ui.Center).Gap(12).Children(func() {
-		ui.Icon(c, setting.icon).Size(18, 18).Shrink(0).TextColor(theme.TextMuted)
-		ui.Text(c, setting.label).FontSize(15).FontWeight(600).SingleLine()
+	ui.Row(c.Key(device.id+"-sync-content-"+setting.key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
+		Padding(space(theme, 3), space(theme, 6)).AlignItems(ui.Center).Gap(space(theme, 3)).Children(func() {
+		ui.Icon(c, setting.icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(secondaryText(theme))
+		ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 		ui.Spacer(c)
 		ui.Select(c.Key(device.id+"-direction-"+setting.key), setting.direction, directions).
-			Width(260).Height(34).Shrink(0).Disabled(!device.syncEnabled).
+			Width(260).Height(space(theme, controlHeight)).Shrink(0).Disabled(!device.syncEnabled).
 			Label(setting.label + "同步方向")
 	})
 }
@@ -376,13 +389,13 @@ func (a *application) deviceSwitchRow(
 	value *bool,
 	disabled bool,
 ) {
-	ui.Row(c.Key("device-setting-"+key)).FillWidth().MinHeight(72).Shrink(0).
-		Padding(16, 24).AlignItems(ui.Center).Children(func() {
-		ui.Column(c).Grow(1).MinWidth(0).Gap(5).Children(func() {
-			ui.Text(c, title).FontSize(16).FontWeight(600).SingleLine()
-			ui.Text(c, description).FontSize(13).TextColor(theme.TextMuted).Wrap()
+	ui.Row(c.Key("device-setting-"+key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
+		Padding(space(theme, 4), space(theme, 6)).AlignItems(ui.Center).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
+			ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
-		ui.Switch(c.Key("switch"), value).Shrink(0).Disabled(disabled).Label(title)
+		ui.Switch(c.Key("device-switch-"+key), value).Shrink(0).Disabled(disabled).Label(title)
 	})
 }
 
@@ -394,38 +407,37 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 	}
 
 	values := []deviceInfo{
-		{label: "Peer ID", value: a.devicePeerID},
-		{label: "平台", value: a.devicePlatform},
+		{label: "Peer ID", value: displayValue(a.devicePeerID)},
+		{label: "平台", value: displayValue(a.devicePlatform)},
 		{label: "应用版本", value: settingsVersion},
 	}
 	if paired {
 		values = []deviceInfo{
-			{label: "Peer ID", value: device.peerID},
-			{label: "通道", value: device.channel},
-			{label: "地址", value: device.address},
+			{label: "Peer ID", value: displayValue(device.peerID)},
+			{label: "通道", value: displayValue(device.channel)},
+			{label: "地址", value: displayValue(device.address)},
 		}
 	}
-	ui.Column(c.Key("device-info-card")).FillWidth().Shrink(0).Radius(18).
-		Background(theme.Surface.Alpha(0.20)).
-		Border(1, theme.Border.Alpha(0.56)).Children(func() {
+	standardCard(c, theme, "device-info-card", func() {
 		button := ui.ButtonBase(c.Key("device-info-disclosure")).FillWidth().Shrink(0).
-			MinHeight(54).Padding(12, 24).Radius(18).
-			TextColor(theme.Text).Label(deviceInfoDisclosureLabel(title, a.deviceInfoExpanded))
+			MinHeight(space(theme, rowHeight)).Padding(space(theme, 3), space(theme, 6)).
+			Radius(radius(theme, cardRadius)).TextColor(primaryText(theme)).
+			Label(deviceInfoDisclosureLabel(title, a.deviceInfoExpanded))
 		if button.Hovered() {
-			button.Background(theme.Text.Alpha(0.04))
+			button.Background(hoverFill(theme))
 		} else {
 			button.Background(ui.Transparent)
 		}
 		button.Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-				ui.Text(c, title).FontSize(16).FontWeight(600).SingleLine()
+				ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 				ui.Spacer(c)
 				rotation := float32(-90)
 				if a.deviceInfoExpanded {
 					rotation = 0
 				}
 				ui.Icon(c, icons.chevron).Size(18, 18).Rotate(rotation).
-					TextColor(theme.TextMuted)
+					TextColor(secondaryText(theme))
 			})
 		})
 		if button.Clicked() {
@@ -438,12 +450,12 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 			if index > 0 {
 				deviceDivider(c, theme)
 			}
-			ui.Row(c.Key("device-info-row-"+info.label)).FillWidth().MinHeight(48).Shrink(0).
-				Padding(10, 24).AlignItems(ui.Center).Gap(18).Children(func() {
-				ui.Text(c, info.label).Width(120).Shrink(0).FontSize(12).
-					TextColor(theme.TextMuted).SingleLine()
-				ui.Text(c, info.value).Grow(1).MinWidth(0).FontSize(13).
-					TextColor(theme.Text.Alpha(0.9)).SingleLine()
+			ui.Row(c.Key("device-info-row-"+info.label)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
+				Padding(space(theme, 2.5), space(theme, 6)).AlignItems(ui.Center).Gap(space(theme, 4.5)).Children(func() {
+				ui.Text(c, info.label).Width(120).Shrink(0).FontSize(font(theme, fontMeta)).
+					TextColor(secondaryText(theme)).SingleLine()
+				ui.Text(c, info.value).Grow(1).MinWidth(0).FontSize(font(theme, fontControl)).
+					TextColor(primaryText(theme)).SingleLine()
 			})
 		}
 	})
@@ -459,9 +471,24 @@ func deviceInfoDisclosureLabel(title string, expanded bool) string {
 // addDeviceDialogView 暂留邀请设备弹窗的视觉容器，配对表单等待后续协议接入。
 func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 	ui.Modal(c, &a.addDeviceDialog, func() {
-		ui.Box(c).Width(440).Height(240).Shrink(0).Radius(16).
-			Background(theme.Background).
-			Border(1, theme.Border.Alpha(0.72))
+		ui.Column(c).Width(440).Height(240).Shrink(0).
+			Padding(space(theme, 6), space(theme, 6)).Gap(space(theme, 2)).
+			Radius(radius(theme, largeRadius)).Background(theme.Background).
+			Border(1, borderColor(theme)).Children(func() {
+			ui.Text(c, "邀请桌面设备").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
+			ui.Text(c, "设备配对功能正在接入中。完成协议接入后，可在这里生成邀请并开始同步。").
+				FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).Wrap()
+			ui.Spacer(c)
+			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(func() {
+				button := neutralButton(c, theme, "close-invite-device", "关闭")
+				button.Children(func() {
+					ui.Text(c, "关闭").FontSize(font(theme, fontControl)).SingleLine()
+				})
+				if button.Clicked() {
+					a.addDeviceDialog = false
+				}
+			})
+		})
 	})
 }
 
@@ -508,15 +535,15 @@ type deviceInfo struct {
 }
 
 func deviceIcon(c *ui.Context, theme *ui.Theme, icon *ui.SVG, selected bool) {
-	color := theme.TextMuted
-	background := theme.Text.Alpha(0.05)
+	color := secondaryText(theme)
+	background := subtleFill(theme)
 	if selected {
-		color = theme.Text
-		background = theme.SurfaceHover
+		color = primaryText(theme)
+		background = hoverFill(theme)
 	}
-	ui.Box(c).Size(36, 36).Shrink(0).Radius(9).
+	ui.Box(c).Size(space(theme, 9), space(theme, 9)).Shrink(0).Radius(radius(theme, controlRadius)).
 		Background(background).Center().Children(func() {
-		ui.Icon(c, icon).Size(18, 18).TextColor(color)
+		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(color)
 	})
 }
 
@@ -525,10 +552,9 @@ func deviceIconLarge(c *ui.Context, theme *ui.Theme, muted bool) {
 	if muted {
 		color = theme.TextMuted
 	}
-	ui.Box(c).Size(66, 66).Shrink(0).Radius(16).
-		Background(theme.Surface.Alpha(0.32)).
-		Border(1, theme.Border.Alpha(0.45)).Center().Children(func() {
-		ui.Icon(c, icons.devices).Size(32, 32).TextColor(color)
+	ui.Box(c).Size(space(theme, 16.5), space(theme, 16.5)).Shrink(0).Radius(radius(theme, largeRadius)).
+		Background(subtleFill(theme)).Border(1, borderColor(theme)).Center().Children(func() {
+		ui.Icon(c, icons.devices).Size(space(theme, 8), space(theme, 8)).TextColor(color)
 	})
 }
 
@@ -539,19 +565,18 @@ func deviceSyncStatus(c *ui.Context, theme *ui.Theme, enabled bool, onLabel, off
 		color = theme.Success
 		label = onLabel
 	}
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(6).Children(func() {
-		ui.Box(c).Size(7, 7).Shrink(0).Radius(4).Background(color)
-		ui.Text(c, label).FontSize(11).TextColor(color).SingleLine()
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
+		statusDot(c, color, space(theme, 1.75))
+		ui.Text(c, label).FontSize(font(theme, fontCaption)).TextColor(color).SingleLine()
 	})
 }
 
 func deviceBadge(c *ui.Context, theme *ui.Theme, label string) {
-	ui.Text(c, label).FontSize(11).FontWeight(600).
-		TextColor(theme.TextMuted).Padding(4, 9).Radius(10).
-		Background(theme.Text.Alpha(0.08)).SingleLine()
+	ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
+		TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2.25)).Radius(radius(theme, cardRadius)).
+		Background(subtleFill(theme)).SingleLine()
 }
 
 func deviceDivider(c *ui.Context, theme *ui.Theme) {
-	ui.Box(c).Height(1).FillWidth().Shrink(0).
-		Background(theme.Border.Alpha(0.36))
+	standardDivider(c, theme)
 }
