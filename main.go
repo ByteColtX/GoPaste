@@ -28,6 +28,12 @@ type appRuntime struct {
 
 func main() {
 	controller := &appRuntime{app: newApplication()}
+	mygo.App.OnSecondInstance(func([]string, string) {
+		controller.showMainWindow()
+	})
+	if !mygo.App.RequestSingleInstanceLock() {
+		return
+	}
 
 	mygo.App.WhenReady(func() {
 		controller.ready()
