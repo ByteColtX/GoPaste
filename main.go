@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -14,12 +15,18 @@ const (
 	minimumWindowHeight = 560
 )
 
+type appRuntime struct {
+	app      *application
+	window   *mygo.Window
+	tray     *mygo.Tray
+	quitting bool
+}
+
 func main() {
-	app := newApplication()
+	controller := &appRuntime{app: newApplication()}
 
 	mygo.App.WhenReady(func() {
-		app.loadSystemSettings()
-		openMainWindow(app)
+		controller.ready()
 	})
 
 	if err := mygo.App.Run(); err != nil {
@@ -27,8 +34,89 @@ func main() {
 	}
 }
 
-func openMainWindow(app *application) {
-	mygo.NewWindow(mygo.WindowOptions{
+func (r *appRuntime) ready() {
+	r.window = openMainWindow(r.app)
+	r.window.OnClose(func(event *mygo.CloseEvent) {
+		if r.quitting {
+			return
+		}
+		event.PreventDefault()
+		r.window.Hide()
+	})
+	r.app.loadSystemSettings()
+
+	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
+		r.quitting = true
+	})
+	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
+		if r.tray != nil {
+			r.tray.Destroy()
+		}
+	})
+
+	var err error
+	r.tray, err = mygo.NewTray(mygo.TrayOptions{
+		Icon:           embeddedTrayIcon,
+		IconIsTemplate: runtime.GOOS == "darwin",
+		ToolTip:        "GoPaste",
+		Menu:           r.trayMenu(),
+	})
+	if err != nil {
+		log.Fatal("创建系统托盘失败: ", err)
+	}
+}
+
+func (r *appRuntime) trayMenu() *mygo.Menu {
+	return mygo.NewMenu([]*mygo.MenuItem{
+		{ID: "tray-disable-sync", Label: "关闭同步", Click: func(*mygo.MenuItem, *mygo.Window) {
+			r.disableSync()
+		}},
+		mygo.Separator(),
+		{ID: "tray-open", Label: "打开", Click: func(*mygo.MenuItem, *mygo.Window) {
+			r.showMainWindow()
+		}},
+		{ID: "tray-settings", Label: "设置", Click: func(*mygo.MenuItem, *mygo.Window) {
+			r.showSettings()
+		}},
+		mygo.Separator(),
+		{ID: "tray-relaunch", Label: "重启", Click: func(*mygo.MenuItem, *mygo.Window) {
+			mygo.App.Relaunch()
+		}},
+		{ID: "tray-quit", Label: "退出", Click: func(*mygo.MenuItem, *mygo.Window) {
+			mygo.App.Quit()
+		}},
+	})
+}
+
+func (r *appRuntime) disableSync() {
+	r.app.deviceSyncEnabled = false
+	r.app.deviceFileSync = false
+	for index := range r.app.pairedDevices {
+		r.app.pairedDevices[index].syncEnabled = false
+	}
+	if r.window != nil {
+		r.window.Invalidate()
+	}
+}
+
+func (r *appRuntime) showMainWindow() {
+	if r.window == nil {
+		return
+	}
+	r.window.Show()
+}
+
+func (r *appRuntime) showSettings() {
+	if r.window == nil {
+		return
+	}
+	r.app.page = pageSettings
+	r.window.Show()
+	r.window.Invalidate()
+}
+
+func openMainWindow(app *application) *mygo.Window {
+	return mygo.NewWindow(mygo.WindowOptions{
 		Title:                "GoPaste",
 		Width:                defaultWindowWidth,
 		Height:               defaultWindowHeight,

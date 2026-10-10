@@ -11,6 +11,9 @@ import (
 //go:embed resources/icons/*.svg
 var embeddedIcons embed.FS
 
+//go:embed resources/icon.png
+var embeddedTrayIcon []byte
+
 type iconSet struct {
 	history    *ui.SVG
 	devices    *ui.SVG
