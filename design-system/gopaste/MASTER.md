@@ -1,207 +1,187 @@
 # GoPaste Design System
 
-> Master rules for the GoPaste desktop application. Page-specific overrides belong in
-> `design-system/gopaste/pages/` and must keep the rules below unless they document a
-> deliberate exception.
+> Master rules for the GoPaste desktop application. Page-specific overrides belong
+> in `design-system/gopaste/pages/` and must keep the rules below unless they
+> document a deliberate exception.
 
-**Status:** active
-**Platform:** macOS, Windows, Linux
-**UI stack:** Go + MyGo native UI
-**Product:** local-first clipboard history and LAN device sync
-**Design direction:** Minimalism & Swiss Style with flat, functional controls
-
-This system is adapted from the verified `ui-ux-pro-max` recommendations for
-desktop productivity tools. Web-only patterns such as CSS, cursor states, and
-scroll reveal animation do not apply to GoPaste's native surface.
+**Status:** active  
+**Platform:** macOS, Windows, Linux  
+**UI stack:** Go + MyGo native UI  
+**Product:** local-first clipboard history and LAN device sync  
+**Mode:** Operate  
+**Design direction:** Minimalism & Swiss Style with native, flat controls
 
 ## Product principles
 
-1. **Scan before reading.** Type, source, time, and sync state should be visible
-   at a glance.
-2. **Copy is the primary action.** The selected history item and its preview keep
-   the copy action close and predictable.
-3. **Keyboard first.** Search, list movement, selection, and copy must work without
-   a pointer. Focus indicators remain visible.
-4. **Calm chrome.** Use one accent, quiet surfaces, 1px dividers, and no
-   decorative gradients or heavy shadows.
-5. **Trust through locality.** Keep sensitive clipboard data on the local device;
-   use explicit labels for LAN connection, device status, and destructive actions.
+1. **Scan before reading.** Type, source, time, and sync state are visible at a glance.
+2. **Copy is the primary action.** The selected history item keeps copy close and predictable.
+3. **Keyboard first.** Search, navigation, list movement, selection, copy, and modal dismissal work without a pointer.
+4. **Calm chrome.** Use one system accent, opaque surfaces, 1px dividers, and no decorative gradients.
+5. **Trust through locality.** Make LAN connection, pairing, device status, and destructive scope explicit.
 
 ## Visual language
 
-### Style
+- Use a measured grid, 4 DIP spacing units, and predictable content widths.
+- Keep the visual hierarchy in type, spacing, borders, and one system accent.
+- Use the embedded Tabler SVG family for meaningful icons. Never use emoji or text glyphs as structural icons.
+- Use color with a label, icon, or shape. Color never carries state by itself.
+- Use opaque `theme.Surface` for sidebars, controls, and cards. Use alpha only for state fills and small indicators.
+- Hover, pressed, selected, and focus states do not move surrounding content.
+- Avoid gradients, glass effects, heavy shadows, and decorative motion.
 
-- Minimal, grid-based layouts with generous but consistent whitespace.
-- Flat surfaces with a small amount of tonal separation; avoid glass effects,
-  gradients, and ornamental decoration.
-- Use the embedded Tabler SVG family for meaningful icons. Do not use emoji or
-  text glyphs as structural icons.
-- Use color to reinforce type and state, never as the only state signal.
-- Hover and pressed states change fill or opacity without moving layout bounds.
+## Color roles
 
-### Color roles
+All runtime colors come from `ui.Theme`, so system accent, high contrast, and light/dark appearance continue to work on every platform.
 
-All runtime colors come from `ui.Theme` so the native light/dark appearance and
-platform contrast remain intact. The hex values are reference fallbacks for
-design review, not per-screen literals.
+| Role | MyGo token | Usage |
+| --- | --- | --- |
+| Canvas | `theme.Background` | Window and page background |
+| Surface | `theme.Surface` | Sidebars, controls, inputs |
+| Elevated surface | `theme.Surface` | Cards, preview content, dialogs |
+| Hover | `theme.SurfaceHover` | Hover and pressed state layers |
+| Selected | `theme.Selection` | Selected rows, filters, navigation |
+| Border | `theme.Border` | Cards, controls, separators |
+| Primary text | `theme.Text` | Headings and content |
+| Secondary text | `theme.TextMuted` | Metadata, helper copy, timestamps |
+| Accent | `theme.Accent` | Primary action, links, focus |
+| Success | `theme.Success` | Online and completed states |
+| Warning | `theme.Warning` | Favorites, waiting, attention |
+| Destructive | `theme.Danger` | Clear, unpair, failure |
+| Focus | `theme.Focus` | Keyboard focus ring |
 
-| Role | MyGo token | Light reference | Dark reference | Usage |
-| --- | --- | --- | --- | --- |
-| Window background | `theme.Background` | `#F5F5F7` | `#181A1F` | Root window and detail panes |
-| Surface | `theme.Surface` | `#F4F4F5` | `#27272A` | Inputs, sidebars, controls |
-| Panel | `theme.Surface` + alpha | `#FFFFFF` | `#2B2E35` | Cards and preview blocks |
-| Primary text | `theme.Text` | `#18181B` | `#F4F4F5` | Headings and content |
-| Secondary text | `theme.TextMuted` | `#52525B` | `#A1A1AA` | Metadata and helper copy |
-| Border | `theme.Border` | `#D9D9DE` | `#3F3F46` | Card and control boundaries |
-| Accent | `theme.Accent` | `#2563EB` | `#3B82F6` | Selection, links, active controls |
-| Focus | `theme.Focus` | accent at 55% | accent at 60% | Keyboard focus ring |
-| Success | `theme.Success` | `#16A34A` | `#22C55E` | Online and enabled states |
-| Warning | `theme.Warning` | `#D97706` | `#F59E0B` | Favorites and attention |
-| Destructive | `theme.Danger` | `#DC2626` | `#EF4444` | Clear, unpair, and other data loss |
+Do not call `ui.Hex` from page code. Content-kind colors are derived from these semantic roles in one shared helper and receive a separate dark-mode treatment.
 
-The product palette search also identified teal `#0D9488` with orange `#EA580C`
-as a useful future brand direction. If GoPaste adopts a custom theme later, map
-those values to `Accent` and `Warning` in one theme definition instead of adding
-screen-level hex values.
+## Typography
 
-### Typography
+Use MyGo's system font. It keeps Chinese, Latin, numbers, and platform controls aligned without a web font dependency.
 
-Use MyGo's system font. It follows the host platform and keeps Chinese and Latin
-text readable without downloading a web font. The current token scale is the
-source of truth:
+| Role | Token | Weight | Use |
+| --- | --- | ---: | --- |
+| Page title | `fontPageTitle` | 600 | Detail page titles |
+| Section | `fontSection` | 600 | Pane, group, and dialog titles |
+| Subheading | `fontSubheading` | 600 | Settings group headings |
+| Body | `fontBody` | 400 | Main content and descriptions |
+| Control | `fontControl` | 500–600 | Buttons, fields, values |
+| Metadata | `fontMeta` | 400 | Device and source metadata |
+| Caption | `fontCaption` | 500 | Timestamps, compact tags |
+| Code | `fontCode` | 400 | Clipboard code content |
 
-| Role | Token | Scale | Weight | Use |
-| --- | --- | ---: | ---: | --- |
-| Page title | `fontPageTitle` | 1.75 rem | 600 | Detail page titles |
-| Section title | `fontSection` | 1.125 rem | 600 | Pane and modal titles |
-| Subheading | `fontSubheading` | 0.9375 rem | 600 | Settings groups |
-| Body | `fontBody` | 1 rem | 400 | Main content and descriptions |
-| Control | `fontControl` | 0.875 rem | 400–600 | Buttons and field values |
-| Metadata | `fontMeta` | 0.8125 rem | 400 | Device and source metadata |
-| Caption | `fontCaption` | 0.75 rem | 400–600 | Timestamps and compact labels |
-| Code | `fontCode` | 0.9375 rem | 400 | Monospace clipboard content |
-
-Do not introduce text below the caption scale for user-facing content. Keep body
-text at or above the platform's readable default size.
+User-facing text stays at or above the caption token. Long content wraps; truncation uses an ellipsis and a complete accessible label.
 
 ## Layout and spacing
 
-Use the MyGo spacing unit (4 DIP by default) and the shared tokens in
-`ui_tokens.go`. Keep the 4/8 rhythm for controls and the larger 16/24/32 rhythm
-for page sections.
+The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tokens in `ui_tokens.go`:
 
-| Token | Value in spacing units | Use |
-| --- | ---: | --- |
-| `spaceInline` | 2 | Icon-to-label and compact gaps |
-| `spaceControl` | 3 | Control group gaps |
-| `spaceSection` | 6 | Page section gaps |
-| `spacePageSide` | 8 | Detail pane gutters |
-| `spacePageTop` | 10 | Detail pane top inset |
-| `spacePageBottom` | 12 | Detail pane bottom inset |
+- Inline: 8 DIP
+- Control group: 8–12 DIP
+- Section: 24 DIP
+- Page top: 24 DIP
+- Page side: 24 DIP on standard windows, 16–20 DIP in compact mode
+- Page bottom: 28 DIP
+- Control height: 36 DIP
+- Compact control height: 32 DIP
+- Card radius: 8 DIP
+- Control radius: 6 DIP
+- Dialog radius: 10 DIP
 
-Desktop frame constraints:
+Responsive widths:
 
 - Window minimum: 900 × 560 DIP.
-- Navigation rail: 64 DIP.
-- Secondary sidebar: 224 DIP.
+- Compact navigation rail: 64 DIP.
+- Expanded navigation rail: 176 DIP at 1200 DIP or wider.
+- Secondary sidebar: 200 DIP in compact mode, 224 DIP otherwise.
 - History list minimum: 300 DIP.
-- Preview minimum: 460 DIP.
+- History preview minimum: 460 DIP while split.
 - Detail content maximum: 720 DIP.
 
-The history filter row may scroll horizontally when the list pane is narrow. Do
-not allow controls or text to be clipped by a fixed-width row.
+At compact widths, controls stack before they clip. The history filter row may scroll horizontally; page text and actions do not.
 
 ## Component rules
 
 ### Navigation
 
-- The 64 DIP rail contains history, devices, and settings in that order.
-- Icon-only controls must have a stable key, accessible `Label`, and tooltip.
-- The selected item uses `selectedFill(theme)` and primary text; hover uses
-  `hoverFill(theme)` without changing size.
+- Keep History, Devices, and Settings in the same order on every platform.
+- Wide windows show icon and text. Compact windows keep a labeled, tooltip-enabled icon rail.
+- Current location uses `Selected(true)`, `selectedFill(theme)`, and primary text.
+- Navigation controls have stable keys, labels, tooltips, and visible focus rings.
 
 ### Buttons and controls
 
-- Use `ui.ButtonBase` for custom buttons so MyGo supplies keyboard focus, Enter,
-  and Space behavior.
-- Use shared control heights (`controlHeight` and `compactHeight`) and radii;
-  do not add one-off sizes in page code.
-- Keep icon buttons at least one control-height square and give them an explicit
-  label or tooltip.
-- Use filled accent controls only for the primary action in a context. Secondary
-  actions stay quiet and destructive actions use `theme.Danger`.
-- Preserve MyGo's default focus ring. Never hide focus without drawing an
-  equivalent ring.
+- Prefer MyGo semantic widgets: `ButtonBase`, `Checkbox`, `Switch`, `Select`, `Segmented`, `List`, and `Modal`.
+- Use shared control heights and radii; do not add page-specific control sizes.
+- Filled accent controls are reserved for the single primary action in a context.
+- Secondary actions stay quiet. Destructive actions use `theme.Danger` and confirmation.
+- Preserve the default MyGo focus ring or draw an equivalent ring without changing layout bounds.
 
 ### Cards and dividers
 
-- Cards use `standardCard`, a 1px semantic border, and a low-contrast panel fill.
-- Dividers use `standardDivider` and separate sibling rows; do not use shadows to
-  imply hierarchy.
-- Selected history rows keep a transparent border when idle so selection does not
-  shift text or icons.
+- Cards use `standardCard`, a 1px semantic border, and an opaque surface.
+- Dividers use `standardDivider` and separate sibling rows.
+- Selection keeps a stable border so content does not jump between states.
+
+### States
+
+Every interactive control supports default, hover, pressed, focused, selected, and disabled states. Each page defines empty, loading, success, warning, error, offline, and unavailable states where those states can occur.
+
+Errors name the cause and provide a recovery action. Loading feedback reserves the final layout and avoids flashing for near-instant work. Toasts contain status only and never clipboard content.
 
 ### History
 
 - Show type, favorite state, source, and time in the metadata row.
-- Keep the selected row and preview synchronized.
-- The preview header keeps copy and favorite actions within the same visual group.
-- Empty states explain the next action in one short sentence.
+- Keep selected list row and preview synchronized by stable item ID.
+- Keep copy as the primary preview action.
+- Distinguish first-use empty, search empty, filter empty, and unavailable preview.
 
 ### Devices and settings
 
-- Use the shared secondary-sidebar width and detail-page max width.
-- Pair status text with a status dot; never use color alone for online/offline.
-- Destructive actions require a confirmation modal and name the affected data or
-  device.
-- Labels describe what a switch or select changes, with helper text for scope.
+- Use the shared secondary sidebar and detail width.
+- Pair status text with a status dot or icon; never use color alone.
+- Make `局域网直连` explicit in device details and pairing states.
+- Use helper text for switches and direction controls so disabled states explain their scope.
+- Destructive actions confirm the affected data or device.
 
 ## Interaction and accessibility
 
-- Keyboard order follows visual order. History supports Up/Down, Home/End, and
-  Enter to copy; Escape closes overlays and clears search when applicable.
-- Every control has a semantic label. Decorative icons beside visible labels do
-  not carry additional meaning.
-- Focus must remain visible in both themes and inside confirmation dialogs.
-- Maintain at least 4.5:1 contrast for normal text and 3:1 for meaningful icons,
-  borders, and state indicators.
-- Disabled controls are visibly muted and do not accept input.
-- Toasts confirm copy, favorite, sync, and destructive outcomes without logging
-  clipboard contents.
+- History supports search focus, Up/Down, Home/End, Enter to copy, and Escape.
+- Tab order follows visual order: global navigation, page controls, content, actions.
+- Custom selected and disclosure controls expose `Selected` or `Expanded` state.
+- Dialogs trap focus, close with Escape, and restore focus to the opener.
+- Use `c.Preferences()` for `ReduceMotion`, `HighContrast`, and `TextScale` behavior.
+- Maintain at least 4.5:1 contrast for normal text and 3:1 for meaningful icons and borders.
+- Disabled controls are semantically disabled, visually muted, and explained when scope matters.
 
 ## Motion and feedback
 
-GoPaste is a fast utility, so the default is static layout with immediate native
-feedback. Use MyGo's built-in pressed and focus states. If a transition is added,
-keep it short (150–250 ms), avoid layout-changing transforms, and honor reduced
-motion settings when the platform exposes them. Do not add scroll-reveal or
-autoplay motion to the desktop utility.
+- Use MyGo `Animate` and `Loop`; no third-party animation package.
+- Pressed feedback is visible within 100–150 ms.
+- Disclosure and modal transitions are short and interruptible.
+- Skeletons and spinners run only for meaningful waits and stop when content is ready.
+- When `ReduceMotion` is enabled, render the final state immediately and avoid decorative loops.
 
-## Page map
+## Privacy and platform invariants
 
-| Page | Primary job | Key components |
-| --- | --- | --- |
-| History | Find and copy a previous clipboard item | Search, filters, list, preview |
-| Devices | Pair and control LAN peers | Device list, sync directions, connection info |
-| Settings | Change local preferences | Secondary navigation, grouped settings, confirmation |
+- Synchronization remains limited to paired devices on the local network.
+- Do not add relay, cloud, third-party proxy, or non-LAN fallback connections.
+- Clipboard payloads never enter ordinary logs, telemetry, or third-party services.
+- Platform-specific behavior stays isolated so macOS, Windows, and Linux builds retain their existing behavior.
 
 ## Implementation map
 
-- `ui_tokens.go` owns spacing, typography, radius, and semantic color helpers.
-- `view.go` owns navigation, history list, preview, and history actions.
-- `device_view.go` owns device and sync controls.
-- `settings_view.go` owns preference groups and settings navigation.
-- `icons.go` and `resources/icons/` own the embedded SVG icon family.
-- `model.go` owns stable keys, page state, and domain labels; UI elements do not
-  live in persistent state.
+- `ui_tokens.go` owns shared metrics, semantic colors, and primitives.
+- `view.go` owns the shell, navigation, history list, preview, and history actions.
+- `device_view.go` owns device navigation, sync controls, pairing, and connection details.
+- `settings_view.go` owns settings navigation and preference groups.
+- `icons.go` and `resources/icons/` own the embedded icon family.
+- `model.go` and `state.go` own stable keys, page state, and domain values.
 
 ## Pre-delivery checklist
 
 - [ ] No emoji or text glyph is used as a structural icon.
-- [ ] All icon-only controls have labels and tooltips.
-- [ ] Light and dark themes preserve text, border, focus, and status contrast.
+- [ ] No page code contains raw color literals.
+- [ ] Light, dark, and high-contrast themes preserve text, border, status, and focus contrast.
 - [ ] Focus is visible on navigation, lists, fields, selects, switches, and modal actions.
 - [ ] History filters remain usable at the 300 DIP list minimum.
-- [ ] Destructive actions confirm scope before changing local data or pairings.
+- [ ] Empty, loading, success, warning, error, offline, and unavailable states have recovery copy where applicable.
+- [ ] Chinese, English, and enlarged system text do not clip controls.
 - [ ] No clipboard content enters ordinary logs, telemetry, cloud services, or relays.
-- [ ] Platform-specific behavior remains isolated and the other platform builds are unaffected.
+- [ ] Platform-specific behavior remains isolated and other platform builds remain intact.

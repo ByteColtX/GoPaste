@@ -5,37 +5,42 @@ import "github.com/egoist/mygo/ui"
 // GoPaste 的原生界面使用一组共享的尺寸和颜色角色。页面可以有不同的
 // 信息密度，但同一层级的标题、说明、控件和卡片都从这里取值。
 const (
-	fontPageTitle  float32 = 1.75
-	fontSection    float32 = 1.125
-	fontSubheading float32 = 0.9375
+	fontPageTitle  float32 = 1.7
+	fontSection    float32 = 1.15
+	fontSubheading float32 = 1
 	fontBody       float32 = 1
-	fontControl    float32 = 0.875
-	fontMeta       float32 = 0.8125
-	fontCaption    float32 = 0.75
-	fontCode       float32 = 0.9375
+	fontControl    float32 = 0.92
+	fontMeta       float32 = 0.86
+	fontCaption    float32 = 0.82
+	fontCode       float32 = 0.96
 
-	spacePageTop    float32 = 10
-	spacePageSide   float32 = 8
-	spacePageBottom float32 = 12
+	spacePageTop    float32 = 6
+	spacePageSide   float32 = 6
+	spacePageBottom float32 = 7
 	spaceSection    float32 = 6
-	spaceControl    float32 = 3
+	spaceControl    float32 = 2
 	spaceInline     float32 = 2
 
-	controlHeight float32 = 8.5
-	compactHeight float32 = 7.5
+	controlHeight float32 = 9
+	compactHeight float32 = 8
 	rowHeight     float32 = 14
-	cardRadius    float32 = 3
-	controlRadius float32 = 2
-	largeRadius   float32 = 4
+	cardRadius    float32 = 2
+	controlRadius float32 = 1.5
+	largeRadius   float32 = 2.5
 )
 
 const (
 	// secondarySidebarWidth is shared by the device and settings pages so their
 	// detail panes begin at the same x position.
-	secondarySidebarWidth         = 224
-	pageDetailMaxWidth            = 720
-	historyTrailingInset  float32 = 4
-	historyControlGap     float32 = 1
+	secondarySidebarWidth                = 224
+	secondarySidebarCompactWidth         = 200
+	navigationRailCompactWidth           = 64
+	navigationRailExpandedWidth          = 176
+	responsiveCompactWidth               = 1024
+	responsiveExpandedWidth              = 1200
+	pageDetailMaxWidth                   = 720
+	historyTrailingInset         float32 = 3
+	historyControlGap            float32 = 1
 )
 
 func font(theme *ui.Theme, scale float32) float32 {
@@ -51,31 +56,31 @@ func radius(theme *ui.Theme, units float32) float32 {
 }
 
 func sidebarFill(theme *ui.Theme) ui.Color {
-	return theme.Surface.Alpha(0.68)
+	return theme.Surface
 }
 
 func panelFill(theme *ui.Theme) ui.Color {
-	return theme.Surface.Alpha(0.88)
+	return theme.Surface
 }
 
 func subtleFill(theme *ui.Theme) ui.Color {
-	return theme.Surface.Alpha(0.56)
+	return theme.SurfaceHover.Alpha(0.48)
 }
 
 func selectedFill(theme *ui.Theme) ui.Color {
-	return theme.Accent.Alpha(0.14)
+	return theme.Selection
 }
 
 func hoverFill(theme *ui.Theme) ui.Color {
-	return theme.SurfaceHover.Alpha(0.72)
+	return theme.SurfaceHover
 }
 
 func borderColor(theme *ui.Theme) ui.Color {
-	return theme.Border.Alpha(0.72)
+	return theme.Border
 }
 
 func dividerColor(theme *ui.Theme) ui.Color {
-	return theme.Border.Alpha(0.52)
+	return theme.Border.Alpha(0.68)
 }
 
 func primaryText(theme *ui.Theme) ui.Color {
@@ -90,11 +95,43 @@ func favoriteColor(theme *ui.Theme) ui.Color {
 	return theme.Warning
 }
 
+func successFill(theme *ui.Theme) ui.Color {
+	return theme.Success.Alpha(0.14)
+}
+
+func warningFill(theme *ui.Theme) ui.Color {
+	return theme.Warning.Alpha(0.14)
+}
+
+func dangerFill(theme *ui.Theme) ui.Color {
+	return theme.Danger.Alpha(0.14)
+}
+
+func contentWidth(c *ui.Context) float32 {
+	width, _ := c.Size()
+	return width
+}
+
+func secondarySidebarSize(c *ui.Context, theme *ui.Theme) float32 {
+	if contentWidth(c) < responsiveCompactWidth {
+		return space(theme, secondarySidebarCompactWidth/4)
+	}
+	return secondarySidebarWidth
+}
+
+func navigationRailSize(c *ui.Context, theme *ui.Theme) float32 {
+	if contentWidth(c) >= responsiveExpandedWidth {
+		return space(theme, navigationRailExpandedWidth/4)
+	}
+	return navigationRailCompactWidth
+}
+
 // pageHeader keeps page title and description aligned across settings and
 // device detail panes.
 func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
 	ui.Column(c).Shrink(0).Gap(space(theme, spaceInline)).Children(func() {
-		ui.Text(c, title).FontSize(font(theme, fontPageTitle)).FontWeight(600).SingleLine()
+		ui.Text(c, title).FontSize(font(theme, fontPageTitle)).FontWeight(600).
+			Role(ui.RoleHeading).SingleLine()
 		ui.Text(c, description).FontSize(font(theme, fontBody)).TextColor(secondaryText(theme)).Wrap()
 	})
 }
@@ -111,7 +148,7 @@ func standardDivider(c *ui.Context, theme *ui.Theme) {
 func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-		TextColor(primaryText(theme)).Label(label)
+		TextColor(primaryText(theme)).Label(label).Role(ui.RoleButton)
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
@@ -124,7 +161,7 @@ func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element
 func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-		TextColor(theme.Danger).Label(label)
+		TextColor(theme.Danger).Label(label).Role(ui.RoleButton)
 	if button.Hovered() {
 		button.Background(theme.Danger.Alpha(0.12))
 	} else {
@@ -137,7 +174,7 @@ func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element 
 func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-		Background(theme.Danger).TextColor(theme.AccentText).Label(label)
+		Background(theme.Danger).TextColor(theme.AccentText).Label(label).Role(ui.RoleButton)
 	if button.Hovered() {
 		button.Background(theme.Danger.Mix(theme.Text, 0.12))
 	}
@@ -162,8 +199,9 @@ func dangerConfirmDialog(
 		ui.Column(c).Width(440).Shrink(0).
 			Padding(space(theme, 5), space(theme, 5)).Gap(space(theme, 3)).
 			Radius(radius(theme, largeRadius)).Background(theme.Background).
-			Border(1, borderColor(theme)).Label(title).Children(func() {
-			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
+			Border(1, borderColor(theme)).Role(ui.RoleAlertDialog).Label(title).Children(func() {
+			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).
+				Role(ui.RoleHeading).SingleLine()
 			ui.Text(c, message).FontSize(font(theme, fontBody)).
 				TextColor(secondaryText(theme)).Wrap()
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, 2)).Children(func() {
