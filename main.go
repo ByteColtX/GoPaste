@@ -3,24 +3,27 @@ package main
 import (
 	"log"
 	"runtime"
+	"time"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
 const (
-	defaultWindowWidth  = 1120
-	defaultWindowHeight = 720
-	minimumWindowWidth  = 900
-	minimumWindowHeight = 560
+	defaultWindowWidth    = 1120
+	defaultWindowHeight   = 720
+	minimumWindowWidth    = 900
+	minimumWindowHeight   = 560
+	trayDoubleClickWindow = 500 * time.Millisecond
 )
 
 type appRuntime struct {
-	app          *application
-	window       *mygo.Window
-	tray         *mygo.Tray
-	syncMenuItem *mygo.MenuItem
-	quitting     bool
+	app           *application
+	window        *mygo.Window
+	tray          *mygo.Tray
+	syncMenuItem  *mygo.MenuItem
+	lastTrayClick time.Time
+	quitting      bool
 }
 
 func main() {
@@ -66,7 +69,24 @@ func (r *appRuntime) ready() {
 	if err != nil {
 		log.Printf("创建系统托盘失败，继续使用窗口模式: %v", err)
 		r.tray = nil
+		return
 	}
+	if runtime.GOOS == "windows" {
+		r.tray.OnClick(r.handleTrayClick)
+		r.tray.OnRightClick(func() { r.lastTrayClick = time.Time{} })
+	}
+}
+
+// handleTrayClick 在 Windows 上把两次连续左键点击识别为双击。
+// MyGo 的托盘 API 没有暴露原生双击事件，Windows 后端会分别上报两次左键点击。
+func (r *appRuntime) handleTrayClick() {
+	now := time.Now()
+	if !r.lastTrayClick.IsZero() && now.Sub(r.lastTrayClick) <= trayDoubleClickWindow {
+		r.lastTrayClick = time.Time{}
+		r.showMainWindow()
+		return
+	}
+	r.lastTrayClick = now
 }
 
 func (r *appRuntime) trayMenu() *mygo.Menu {
