@@ -32,8 +32,9 @@ const (
 const (
 	// secondarySidebarWidth is shared by the device and settings pages so their
 	// detail panes begin at the same x position.
-	secondarySidebarWidth = 224
-	pageDetailMaxWidth    = 720
+	secondarySidebarWidth         = 224
+	pageDetailMaxWidth            = 720
+	historyTrailingInset  float32 = 4
 )
 
 func font(theme *ui.Theme, scale float32) float32 {
