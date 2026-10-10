@@ -38,7 +38,7 @@ func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 		ui.Text(c, "设置").FontSize(font(theme, fontSection)).FontWeight(600).
 			Padding(space(theme, 0.5), space(theme, 1), space(theme, 0.5), space(theme, 1)).SingleLine()
 
-		ui.Text(c, "应用").FontSize(font(theme, fontMeta)).FontWeight(600).
+		ui.Text(c, "应用").FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme)).Padding(space(theme, 2.25), space(theme, 2), space(theme, 0.25), space(theme, 2)).SingleLine()
 		ui.Column(c).Gap(space(theme, 0.5)).Children(func() {
 			for _, item := range settingsNavigationItems() {
@@ -207,7 +207,7 @@ func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) settingsSubheading(c *ui.Context, title string, theme *ui.Theme) {
-	ui.Text(c, title).FontSize(font(theme, fontMeta)).FontWeight(600).
+	ui.Text(c, title).FontSize(font(theme, fontSubheading)).FontWeight(600).
 		TextColor(secondaryText(theme)).Padding(0, 0, space(theme, 1), 0).SingleLine()
 }
 

@@ -8,23 +8,18 @@ import (
 )
 
 func newApplication() *application {
-	items := initialClipboardItems()
-
 	app := &application{
 		page:              pageHistory,
 		historyPaneWidth:  defaultHistoryPaneWidth,
-		items:             items,
 		selectedIndex:     -1,
 		deviceName:        "本机",
 		devicePlatform:    localPlatformName(),
 		deviceSyncEnabled: true,
 		deviceFileSync:    true,
-		pairedDevices:     nil,
 		language:          languageOptions[0],
 		appearance:        appearanceSystem,
 		settingsArea:      settingsGeneral,
 	}
-	app.keepSelection(items)
 	return app
 }
 
@@ -39,13 +34,6 @@ func localPlatformName() string {
 	default:
 		return runtime.GOOS
 	}
-}
-
-// initialClipboardItems is intentionally empty until the native clipboard
-// listener is connected. Keeping the runtime state empty prevents demo
-// fixtures from being mistaken for real clipboard history.
-func initialClipboardItems() []clipboardItem {
-	return nil
 }
 
 // visibleItems 返回当前筛选条件和搜索词下的历史记录。

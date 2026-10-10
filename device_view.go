@@ -31,16 +31,22 @@ func (a *application) devicesPage(c *ui.Context, theme *ui.Theme) {
 
 // deviceSidebar 是设备页的主从导航。侧栏保持固定宽度，避免设备名称变化时右侧内容跳动。
 func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
+	onlineCount := a.onlineDeviceCount()
+	onlineColor := secondaryText(theme)
+	if onlineCount > 0 {
+		onlineColor = theme.Success
+	}
+
 	ui.Column(c).Width(secondarySidebarWidth).FillHeight().Shrink(0).
 		Padding(space(theme, 6), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		ui.Text(c, "本设备").FontSize(font(theme, fontMeta)).FontWeight(600).
+		ui.Text(c, "本设备").FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2.5), space(theme, 0.75), space(theme, 2.5)).SingleLine()
 		a.localDeviceEntry(c, theme)
 
 		ui.Row(c).Height(space(theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
 			Padding(space(theme, 3), space(theme, 2.5), 0, space(theme, 2.5)).Children(func() {
-			ui.Text(c, "已配对设备").FontSize(font(theme, fontMeta)).FontWeight(600).
+			ui.Text(c, "已配对设备").FontSize(font(theme, fontSubheading)).FontWeight(600).
 				TextColor(secondaryText(theme)).SingleLine()
 			ui.Spacer(c)
 			refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
@@ -80,8 +86,8 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 			a.inviteDeviceButton(c, theme)
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Padding(space(theme, 1), space(theme, 2.5)).
 				Children(func() {
-					statusDot(c, theme.Success, space(theme, 1.75))
-					ui.Textf(c, "%d 台在线", a.onlineDeviceCount()).FontSize(font(theme, fontCaption)).
+					statusDot(c, onlineColor, space(theme, 1.75))
+					ui.Textf(c, "%d 台在线", onlineCount).FontSize(font(theme, fontCaption)).
 						TextColor(secondaryText(theme)).SingleLine()
 				})
 			if a.devicesMessage != "" && !a.addDeviceDialog {

@@ -5,13 +5,14 @@ import "github.com/egoist/mygo/ui"
 // GoPaste 的原生界面使用一组共享的尺寸和颜色角色。页面可以有不同的
 // 信息密度，但同一层级的标题、说明、控件和卡片都从这里取值。
 const (
-	fontPageTitle float32 = 1.75
-	fontSection   float32 = 1.125
-	fontBody      float32 = 1
-	fontControl   float32 = 0.875
-	fontMeta      float32 = 0.8125
-	fontCaption   float32 = 0.75
-	fontCode      float32 = 0.9375
+	fontPageTitle  float32 = 1.75
+	fontSection    float32 = 1.125
+	fontSubheading float32 = 0.9375
+	fontBody       float32 = 1
+	fontControl    float32 = 0.875
+	fontMeta       float32 = 0.8125
+	fontCaption    float32 = 0.75
+	fontCode       float32 = 0.9375
 
 	spacePageTop    float32 = 10
 	spacePageSide   float32 = 8
