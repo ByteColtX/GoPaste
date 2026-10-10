@@ -175,7 +175,8 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 		a.settingsRow(c, theme, "清理历史记录", "删除当前保存的所有本地记录", func() {
 			button := ui.ButtonBase(c.Key("settings-clear-history")).
 				Height(space(theme, compactHeight)).Shrink(0).
-				Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+				Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
+				Radius(radius(theme, controlRadius)).
 				TextColor(secondaryText(theme)).Label("清空历史记录")
 			if button.Hovered() {
 				button.Background(hoverFill(theme))

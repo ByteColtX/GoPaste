@@ -85,13 +85,9 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 
 		ui.Column(c).Shrink(0).Gap(space(theme, 2)).Children(func() {
 			a.inviteDeviceButton(c, theme)
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).
-				Padding(space(theme, 1), space(theme, 2.5)).
-				Children(func() {
-					statusDot(c, onlineColor, space(theme, 1.75))
-					ui.Textf(c, "%d 台在线", onlineCount).FontSize(font(theme, fontCaption)).
-						TextColor(secondaryText(theme)).SingleLine()
-				})
+			ui.Row(c).Shrink(0).Padding(space(theme, 1), space(theme, 2.5)).Children(func() {
+				deviceStatus(c, theme, fmt.Sprintf("%d 台在线", onlineCount), onlineColor)
+			})
 		})
 	})
 }
@@ -120,13 +116,7 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 		deviceIcon(c, theme, icons.devices, selected)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
 			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
-				ui.Text(c, device.platform).FontSize(font(theme, fontCaption)).
-					TextColor(secondaryText(theme)).SingleLine()
-				if device.online {
-					statusDot(c, theme.Success, space(theme, 1.25))
-				}
-			})
+			deviceStatus(c, theme, connectionLabel(device.online), connectionColor(theme, device.online))
 		})
 	})
 	if entry.Clicked() {
@@ -152,7 +142,8 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 
 func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 	button := ui.ButtonBase(c.Key("invite-device")).Height(space(theme, controlHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, 3)).Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
+		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, spaceInline)).
+		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
 		TextColor(primaryText(theme)).Label("新增设备")
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
@@ -227,7 +218,8 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 	button := ui.ButtonBase(c.Key("unpair-selected-device")).
-		Height(space(theme, controlHeight)).Shrink(0).Padding(space(theme, 1.25), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+		Height(space(theme, controlHeight)).Shrink(0).Padding(space(theme, 1.25), space(theme, 2.5)).
+		Gap(space(theme, spaceInline)).Radius(radius(theme, controlRadius)).
 		TextColor(theme.Danger).Label("取消配对")
 	if button.Hovered() {
 		button.Background(theme.Danger.Alpha(0.12))
@@ -247,19 +239,29 @@ func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 }
 
 func deviceConnectionStatus(c *ui.Context, theme *ui.Theme, device *pairedDevice) {
-	statusColor := theme.TextMuted
-	status := "离线"
-	if device.online {
-		statusColor = theme.Success
-		status = "在线"
+	deviceStatus(c, theme, connectionLabel(device.online), connectionColor(theme, device.online))
+	if device.platform != "" {
+		ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
+		ui.Text(c, device.platform).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 	}
-	statusDot(c, statusColor, space(theme, 2))
-	ui.Text(c, status).FontSize(font(theme, fontControl)).FontWeight(600).
-		TextColor(statusColor).SingleLine()
 	if device.channel != "" {
-		ui.Text(c, "·").FontSize(font(theme, fontControl)).TextColor(secondaryText(theme))
-		ui.Text(c, device.channel).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
+		ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
+		ui.Text(c, device.channel).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 	}
+}
+
+func connectionLabel(online bool) string {
+	if online {
+		return "在线"
+	}
+	return "离线"
+}
+
+func connectionColor(theme *ui.Theme, online bool) ui.Color {
+	if online {
+		return theme.Success
+	}
+	return secondaryText(theme)
 }
 
 func (a *application) deviceSyncSettings(c *ui.Context, theme *ui.Theme) {
@@ -310,7 +312,8 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 		ui.Spacer(c)
 		button := ui.ButtonBase(c.Key(device.id+"-restore-sync-defaults")).
 			Height(space(theme, compactHeight)).Shrink(0).
-			Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
+			Padding(space(theme, 1), space(theme, 2)).Gap(space(theme, spaceInline)).
+			Radius(radius(theme, controlRadius)).
 			TextColor(secondaryText(theme)).Label("恢复默认")
 		if button.Hovered() {
 			button.Background(hoverFill(theme))
@@ -565,9 +568,14 @@ func deviceSyncStatus(c *ui.Context, theme *ui.Theme, enabled bool, onLabel, off
 		color = theme.Success
 		label = onLabel
 	}
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-		statusDot(c, color, space(theme, 1.75))
-		ui.Text(c, label).FontSize(font(theme, fontCaption)).TextColor(color).SingleLine()
+	deviceStatus(c, theme, label, color)
+}
+
+func deviceStatus(c *ui.Context, theme *ui.Theme, label string, color ui.Color) {
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
+		statusDot(c, color, space(theme, 1.5))
+		ui.Text(c, label).FontSize(font(theme, fontCaption)).
+			TextColor(color).SingleLine()
 	})
 }
 

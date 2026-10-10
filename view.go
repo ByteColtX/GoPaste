@@ -453,7 +453,8 @@ func (a *application) copyToClipboard(c *ui.Context, item clipboardItem) {
 func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {
 	button := ui.ButtonBase(c.Key("preview-action-"+key)).
 		Height(space(theme, compactHeight)).Shrink(0).
-		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
+		Radius(radius(theme, controlRadius)).
 		TextColor(secondaryText(theme)).Label(label)
 	if active {
 		button.TextColor(ui.Hex("#d69e2e"))
