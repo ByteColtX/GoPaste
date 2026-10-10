@@ -28,7 +28,7 @@ var historyFilterOptions = [...]historyFilterOption{
 func (a *application) view(c *ui.Context) {
 	theme := c.Theme()
 	titleBar := c.TitleBar()
-	chromeHeight := float32(windowChromeMinHeight)
+	chromeHeight := max(float32(windowChromeMinHeight), titleBar.Height)
 	a.globalShortcuts(c)
 
 	ui.Column(c).Fill().Background(theme.Background).Children(func() {
@@ -117,13 +117,14 @@ func (a *application) navigationRail(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, target page, icon *ui.SVG, label string, expanded bool) {
 	button := ui.ButtonBase(c.Key("navigation-"+label)).
-		Height(space(theme, controlHeight)).FillWidth().Shrink(0).
+		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1), space(theme, 2)).
 		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).
+		Border(1, ui.Transparent).
 		TextColor(secondaryText(theme)).
 		Label(label).Tooltip(label).Role(ui.RoleToggleButton).Selected(a.page == target)
 	if a.page == target {
-		button.Background(selectedFill(theme)).TextColor(primaryText(theme))
+		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
@@ -214,7 +215,7 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 	if a.query != "" || a.filter != filterAll {
 		countLabel = fmt.Sprintf("%d / %d 条记录", len(view.Items), view.Total)
 	}
-	ui.Row(c).Height(space(theme, 11)).Shrink(0).AlignItems(ui.Center).
+	ui.Row(c).MinHeight(controlHeightSize(c, theme, 11)).Shrink(0).AlignItems(ui.Center).
 		Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
 		ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
 			ui.Text(c, "最近复制").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
@@ -228,7 +229,7 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 }
 
 func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
-	field := ui.Row(c.Key("history-search")).Height(space(theme, controlHeight)).FillWidth().Shrink(0).
+	field := ui.Row(c.Key("history-search")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		AlignItems(ui.Center).Gap(space(theme, 1.5)).Padding(0, space(theme, 2.5)).
 		Radius(radius(theme, controlRadius)).Background(theme.Surface).
 		Border(1, borderColor(theme)).
@@ -264,10 +265,10 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
-	ui.ScrollHorizontal(c).Height(space(theme, compactHeight)).FillWidth().Shrink(0).
+	ui.ScrollHorizontal(c).Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
 		Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), 0, 0).
 		ScrollbarInsets(0, 0, 0, 0).Children(func() {
-		ui.Row(c).Height(space(theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
+		ui.Row(c).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
 			Gap(space(theme, 0.5)).Children(func() {
 			for _, option := range historyFilterOptions {
 				a.filterButton(c, theme, option.kind, option.label)
@@ -278,12 +279,13 @@ func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter historyFilter, label string) {
 	button := ui.ButtonBase(c.Key("history-filter-"+label)).
-		Height(space(theme, compactHeight)).Shrink(0).
+		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 0.75), space(theme, 1.75)).Radius(radius(theme, controlRadius)).
+		Border(1, ui.Transparent).
 		TextColor(secondaryText(theme)).Label(label).
 		Role(ui.RoleToggleButton).Selected(a.filter == filter)
 	if a.filter == filter {
-		button.Background(selectedFill(theme)).TextColor(primaryText(theme))
+		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
@@ -414,7 +416,7 @@ func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, view 
 
 func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.Item, selected bool) ui.Element {
 	row := ui.ButtonBase(c.Key("history-row-"+item.ID)).
-		Height(historyItemHeight).AlignSelf(ui.Stretch).Shrink(0).
+		MinHeight(controlHeightSize(c, theme, historyItemHeight/4)).AlignSelf(ui.Stretch).Shrink(0).
 		Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), space(theme, historyControlGap), 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 1.5)).
 		// 预留透明边框，切换选中态时不改变内容布局。
@@ -424,7 +426,7 @@ func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.It
 		Role(ui.RoleButton).Selected(selected)
 	if selected {
 		row.Background(selectedFill(theme)).
-			BorderColor(theme.Accent.Alpha(0.22))
+			BorderColor(selectionBorder(c, theme))
 	} else if row.Hovered() {
 		row.Background(hoverFill(theme)).BorderColor(ui.Transparent)
 	} else {
@@ -449,7 +451,7 @@ func (a *application) textHistoryRow(c *ui.Context, theme *ui.Theme, item histor
 }
 
 func (a *application) historyMetaRow(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Row(c).Height(space(theme, 4)).Shrink(0).AlignItems(ui.Center).
+	ui.Row(c).MinHeight(controlHeightSize(c, theme, 4)).Shrink(0).AlignItems(ui.Center).
 		Gap(space(theme, 1.25)).Children(func() {
 		baseKind := item.Kind.BaseKind()
 		kindColor := colorForKind(theme, baseKind)
@@ -469,7 +471,7 @@ func (a *application) historyMetaRow(c *ui.Context, theme *ui.Theme, item histor
 
 func (a *application) imageHistoryRow(c *ui.Context, theme *ui.Theme, item history.Item) {
 	a.historyMetaRow(c, theme, item)
-	ui.Row(c).Height(space(theme, 10)).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
+	ui.Row(c).MinHeight(controlHeightSize(c, theme, 10)).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
 		ui.Box(c).Size(space(theme, 10), space(theme, 10)).Shrink(0).Radius(radius(theme, controlRadius)).
 			Background(subtleFill(theme)).Border(1, borderColor(theme)).Children(func() {
 			if bitmap := a.historyBitmap(item); bitmap != nil {
@@ -487,7 +489,7 @@ func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item history.It
 		return
 	}
 	tagColor := colorForKind(theme, item.Kind)
-	ui.Row(c).Height(space(theme, 4.5)).Shrink(0).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).Shrink(0).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, tag).FontSize(font(theme, fontCaption)).TextColor(tagColor).
 			Padding(space(theme, 0.25), space(theme, 1.5)).Radius(radius(theme, controlRadius)).
 			Background(tagColor.Alpha(0.10)).
@@ -722,7 +724,7 @@ func (a *application) copyToClipboard(c *ui.Context, id string) {
 
 func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active, primary bool) ui.Element {
 	button := ui.ButtonBase(c.Key("preview-action-"+key)).
-		Height(space(theme, compactHeight)).Shrink(0).
+		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).
 		TextColor(secondaryText(theme)).Label(label).Role(ui.RoleButton)

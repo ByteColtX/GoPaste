@@ -54,12 +54,13 @@ func settingsNavigationItems() []settingsNavItem {
 
 func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item settingsNavItem) {
 	button := ui.ButtonBase(c.Key("settings-nav-"+item.title)).
-		Height(space(theme, controlHeight)).FillWidth().Shrink(0).
+		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.25), space(theme, 2)).Radius(radius(theme, controlRadius)).
+		Border(1, ui.Transparent).
 		TextColor(secondaryText(theme)).Label(item.title).Tooltip(item.title).
 		Role(ui.RoleToggleButton).Selected(a.settingsArea == item.area)
 	if a.settingsArea == item.area {
-		button.Background(selectedFill(theme)).TextColor(primaryText(theme))
+		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
@@ -111,7 +112,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 	settingsGroup(c, theme, "settings-general-group", func() {
 		a.settingsRow(c, theme, "设备名称", "用于在设备列表中识别本机", func() {
 			input := ui.TextInput(c.Key("settings-device-name"), &a.deviceName).
-				Height(space(theme, controlHeight)).Shrink(0).
+				Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).
 				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 				Background(theme.Surface).Border(1, borderColor(theme)).
 				Label("设备名称").Placeholder("输入设备名称")
@@ -132,7 +133,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, "语言", "选择应用界面语言", func() {
 			languageControl := ui.Select(c.Key("settings-language"), &a.language, languageOptions).
-				Height(space(theme, controlHeight)).Shrink(0).Label("语言")
+				Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label("语言")
 			if compactDetailLayout(c, theme) {
 				languageControl.FillWidth()
 			} else {
@@ -153,7 +154,7 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 				"跟随系统",
 				"浅色",
 				"深色",
-			).Height(space(theme, controlHeight)).Shrink(0).Label("外观")
+			).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label("外观")
 			if compactDetailLayout(c, theme) {
 				control.FillWidth()
 			} else {
@@ -165,7 +166,7 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 		})
 	})
 	ui.Text(c, "当前使用："+appearanceLabel(a.appearance)).FontSize(font(theme, fontMeta)).
-		TextColor(secondaryText(theme)).Padding(space(theme, 1), 0, 0, 0).SingleLine()
+		TextColor(secondaryText(theme)).Padding(space(theme, 1), 0, 0, 0).Wrap()
 }
 
 func appearanceLabel(appearance int) string {

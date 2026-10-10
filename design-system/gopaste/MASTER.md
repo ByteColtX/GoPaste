@@ -4,11 +4,11 @@
 > in `design-system/gopaste/pages/` and must keep the rules below unless they
 > document a deliberate exception.
 
-**Status:** active  
-**Platform:** macOS, Windows, Linux  
-**UI stack:** Go + MyGo native UI  
-**Product:** local-first clipboard history and LAN device sync  
-**Mode:** Operate  
+**Status:** active
+**Platform:** macOS, Windows, Linux
+**UI stack:** Go + MyGo native UI
+**Product:** local-first clipboard history and LAN device sync
+**Mode:** Operate
 **Design direction:** Minimalism & Swiss Style with native, flat controls
 
 ## Product principles

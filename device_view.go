@@ -33,13 +33,13 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 			TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2.5), space(theme, 0.75), space(theme, 2.5)).SingleLine()
 		a.localDeviceEntry(c, theme)
 
-		ui.Row(c).Height(space(theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
+		ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
 			Padding(space(theme, 3), space(theme, 2.5), 0, space(theme, 2.5)).Children(func() {
 			ui.Text(c, "已配对设备").FontSize(font(theme, fontSubheading)).FontWeight(600).
 				TextColor(secondaryText(theme)).SingleLine()
 			ui.Spacer(c)
 			refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
-				Size(space(theme, controlHeight), space(theme, controlHeight)).Shrink(0).Center().
+				Size(controlHeightSize(c, theme, controlHeight), controlHeightSize(c, theme, controlHeight)).Shrink(0).Center().
 				Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
 				Label("刷新设备列表").Tooltip("刷新设备列表")
 			if refresh.Hovered() {
@@ -173,13 +173,13 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 }
 
 func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key string, selected bool) ui.Element {
-	entry := ui.ButtonBase(c.Key(key)).Height(space(theme, 16)).FillWidth().Shrink(0).
+	entry := ui.ButtonBase(c.Key(key)).MinHeight(controlHeightSize(c, theme, 16)).FillWidth().Shrink(0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
-		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).
+		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
 		TextColor(primaryText(theme)).Label("选择设备").
 		Role(ui.RoleToggleButton).Selected(selected)
 	if selected {
-		entry.Background(selectedFill(theme))
+		entry.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
 	} else if entry.Hovered() {
 		entry.Background(hoverFill(theme))
 	} else {
@@ -189,7 +189,7 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 }
 
 func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
-	button := ui.ButtonBase(c.Key("invite-device")).Height(space(theme, controlHeight)).FillWidth().Shrink(0).
+	button := ui.ButtonBase(c.Key("invite-device")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
 		TextColor(primaryText(theme)).Label("新增设备")
@@ -349,7 +349,7 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 		ui.Text(c, "自定义同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 		ui.Spacer(c)
 		button := ui.ButtonBase(c.Key(device.id+"-all-bidirectional")).
-			Height(space(theme, compactHeight)).Shrink(0).
+			Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 			Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
 			TextColor(secondaryText(theme)).Label("全部双向同步")
 		if button.Hovered() {
@@ -373,7 +373,7 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
 		button := ui.ButtonBase(c.Key(device.id+"-restore-sync-defaults")).
-			Height(space(theme, compactHeight)).Shrink(0).
+			Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 			Padding(space(theme, 1), space(theme, 2)).Gap(space(theme, spaceInline)).
 			Radius(radius(theme, controlRadius)).
 			TextColor(secondaryText(theme)).Label("恢复默认")
@@ -435,7 +435,7 @@ func (a *application) syncDirectionRow(
 				})
 			})
 			ui.Select(c.Key(device.id+"-direction-"+setting.key), setting.direction, directions).
-				FillWidth().Height(space(theme, controlHeight)).Shrink(0).Disabled(disabled).
+				FillWidth().Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Disabled(disabled).
 				Label(setting.label + "同步方向")
 		})
 		return
@@ -449,7 +449,7 @@ func (a *application) syncDirectionRow(
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
 		ui.Select(c.Key(device.id+"-direction-"+setting.key), setting.direction, directions).
-			Width(260).Height(space(theme, controlHeight)).Shrink(0).Disabled(disabled).
+			Width(260).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Disabled(disabled).
 			Label(setting.label + "同步方向")
 	})
 }

@@ -80,7 +80,7 @@ func borderColor(theme *ui.Theme) ui.Color {
 }
 
 func dividerColor(theme *ui.Theme) ui.Color {
-	return theme.Border.Alpha(0.68)
+	return theme.Border
 }
 
 func primaryText(theme *ui.Theme) ui.Color {
@@ -107,9 +107,28 @@ func dangerFill(theme *ui.Theme) ui.Color {
 	return theme.Danger.Alpha(0.14)
 }
 
+func selectionBorder(c *ui.Context, theme *ui.Theme) ui.Color {
+	if c.Preferences().HighContrast {
+		return theme.Accent
+	}
+	return theme.Accent.Alpha(0.22)
+}
+
 func contentWidth(c *ui.Context) float32 {
 	width, _ := c.Size()
 	return width
+}
+
+func textScale(c *ui.Context) float32 {
+	scale := c.Preferences().TextScale
+	if scale < 1 {
+		return 1
+	}
+	return scale
+}
+
+func controlHeightSize(c *ui.Context, theme *ui.Theme, units float32) float32 {
+	return space(theme, units*textScale(c))
 }
 
 func secondarySidebarSize(c *ui.Context, theme *ui.Theme) float32 {
@@ -128,7 +147,7 @@ func navigationRailSize(c *ui.Context, theme *ui.Theme) float32 {
 
 func compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
 	available := contentWidth(c) - navigationRailSize(c, theme) - secondarySidebarSize(c, theme) - 1
-	return available < 680
+	return available < 680*textScale(c)
 }
 
 // pageHeader keeps page title and description aligned across settings and
@@ -151,7 +170,7 @@ func standardDivider(c *ui.Context, theme *ui.Theme) {
 }
 
 func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
-	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
+	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 		TextColor(primaryText(theme)).Label(label).Role(ui.RoleButton)
 	if button.Hovered() {
@@ -164,7 +183,7 @@ func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element
 
 // dangerButton 用于会删除数据或解除关联的操作，保持文字和悬停反馈为危险色。
 func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
-	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
+	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 		TextColor(theme.Danger).Label(label).Role(ui.RoleButton)
 	if button.Hovered() {
@@ -177,7 +196,7 @@ func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element 
 
 // dangerConfirmButton 是危险确认弹窗中的主操作按钮。
 func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
-	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
+	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 		Background(theme.Danger).TextColor(theme.AccentText).Label(label).Role(ui.RoleButton)
 	if button.Hovered() {
