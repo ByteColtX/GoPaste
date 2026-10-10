@@ -316,7 +316,6 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 		{key: "text", label: "文本", icon: icons.text, direction: &device.textSyncDirection},
 		{key: "image", label: "图片", icon: icons.image, direction: &device.imageSyncDirection},
 		{key: "file", label: "文件", icon: icons.file, direction: &device.fileSyncDirection},
-		{key: "link", label: "链接", icon: icons.link, direction: &device.linkSyncDirection},
 		{key: "rich-text", label: "富文本", icon: icons.text, direction: &device.richTextSyncDirection},
 	}
 	directions := syncDirectionOptionsForPeer(device.name)
@@ -357,7 +356,6 @@ func (a *application) setAllSyncDirections(device *pairedDevice, direction strin
 	device.textSyncDirection = direction
 	device.imageSyncDirection = direction
 	device.fileSyncDirection = direction
-	device.linkSyncDirection = direction
 	device.richTextSyncDirection = direction
 }
 

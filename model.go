@@ -156,7 +156,6 @@ type pairedDevice struct {
 	textSyncDirection     string
 	imageSyncDirection    string
 	fileSyncDirection     string
-	linkSyncDirection     string
 	richTextSyncDirection string
 }
 
