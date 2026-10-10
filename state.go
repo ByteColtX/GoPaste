@@ -120,6 +120,61 @@ func (a *application) selectItem(index int, item clipboardItem) {
 	a.selectedID = item.id
 }
 
+// setPage 统一切换当前页面，避免窗口控制代码直接修改业务状态字段。
+func (a *application) setPage(next page) {
+	a.page = next
+}
+
+// setSyncEnabled 同步更新本机、文件和所有已配对设备的同步开关。
+func (a *application) setSyncEnabled(enabled bool) {
+	a.deviceSyncEnabled = enabled
+	a.deviceFileSync = enabled
+	for index := range a.pairedDevices {
+		a.pairedDevices[index].syncEnabled = enabled
+	}
+	if a.onSyncStateChanged != nil {
+		a.onSyncStateChanged()
+	}
+}
+
+// selectVisibleIndex 选择筛选结果中的一项，并同步预览区使用的稳定 ID。
+func (a *application) selectVisibleIndex(visible []clipboardItem, index int) bool {
+	if len(visible) == 0 {
+		return false
+	}
+	index = max(0, min(index, len(visible)-1))
+	item := visible[index]
+	changed := a.selectedIndex != index || a.selectedID != item.id
+	a.selectItem(index, item)
+	return changed
+}
+
+// moveSelection 按步长移动历史列表的键盘选择，并限制在可见结果范围内。
+func (a *application) moveSelection(visible []clipboardItem, delta int) bool {
+	if len(visible) == 0 {
+		return false
+	}
+	index := a.selectedIndex
+	if index < 0 {
+		index = 0
+	} else {
+		index += delta
+	}
+	return a.selectVisibleIndex(visible, index)
+}
+
+// selectBoundary 把键盘选择移动到筛选结果的首项或末项。
+func (a *application) selectBoundary(visible []clipboardItem, end bool) bool {
+	if len(visible) == 0 {
+		return false
+	}
+	index := 0
+	if end {
+		index = len(visible) - 1
+	}
+	return a.selectVisibleIndex(visible, index)
+}
+
 func (a *application) loadSystemSettings() {
 	a.launchAtLogin = mygo.App.OpenAtLogin()
 }

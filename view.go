@@ -265,7 +265,8 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) historyRows(c *ui.Context, theme *ui.Theme, visible []clipboardItem) {
-	// 列表自身只负责滚动和键盘选择，选中背景由历史条目统一绘制。
+	// 不使用 ListState.Selected，让列表的默认 Accent 背景不覆盖自定义卡片样式。
+	// 键盘快捷键仍注册在列表容器上，因此焦点在任意条目时都能移动选择。
 	a.listState.Selected = nil
 	a.listState.Key = func(index int) any { return visible[index].id }
 	a.listState.Label = func(index int) string { return visible[index].listText() }
@@ -278,6 +279,34 @@ func (a *application) historyRows(c *ui.Context, theme *ui.Theme, visible []clip
 		}
 	}).ScrollbarInsets(0, 0, 0, 0)
 	list.Grow(1)
+	a.historyListShortcuts(c, list, visible)
+}
+
+// historyListShortcuts 连接 MyGo 列表的键盘事件和应用自己的选择状态。
+// 使用 OnShortcut 让 Enter 先由列表处理，避免被条目按钮当成普通点击吞掉。
+func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, visible []clipboardItem) {
+	move := func(delta int) {
+		if a.moveSelection(visible, delta) {
+			a.listState.ScrollIntoView(a.selectedIndex)
+		}
+	}
+	list.OnShortcut(0, ui.KeyDown, func() { move(1) })
+	list.OnShortcut(0, ui.KeyUp, func() { move(-1) })
+	list.OnShortcut(0, ui.KeyHome, func() {
+		if a.selectBoundary(visible, false) {
+			a.listState.ScrollIntoView(a.selectedIndex)
+		}
+	})
+	list.OnShortcut(0, ui.KeyEnd, func() {
+		if a.selectBoundary(visible, true) {
+			a.listState.ScrollIntoView(a.selectedIndex)
+		}
+	})
+	list.OnShortcut(0, ui.KeyEnter, func() {
+		if item, ok := a.selectedVisibleItem(visible); ok {
+			a.copyToClipboard(c, item)
+		}
+	})
 }
 
 func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item clipboardItem, index int) ui.Element {

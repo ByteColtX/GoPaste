@@ -381,8 +381,9 @@ func (a *application) deviceSwitchRow(
 		})
 		switchControl := ui.Switch(c.Key("device-switch-"+key), value).
 			Shrink(0).Disabled(disabled).Label(title)
-		if key == "local-sync" && switchControl.Changed() && a.onSyncStateChanged != nil {
-			a.onSyncStateChanged()
+		if key == "local-sync" && switchControl.Changed() {
+			// 页面开关和托盘开关共用同一条状态更新路径，避免设备状态不一致。
+			a.setSyncEnabled(a.deviceSyncEnabled)
 		}
 	})
 }
