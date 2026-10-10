@@ -157,6 +157,15 @@ func (a *application) pageContent(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) historyPage(c *ui.Context, theme *ui.Theme) {
 	view := a.history.Snapshot(history.Query{Text: a.query, Filter: a.filter})
+	a.historySearch.OnShortcut(c, 0, ui.KeyEscape, func() {
+		if a.query != "" {
+			a.query = ""
+			return
+		}
+		a.historySearch.CancelFocus(c)
+	})
+	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.historySearch.Focus(c) })
+	c.OnShortcut(ui.Cmd, ui.KeyF, func() { a.historySearch.Focus(c) })
 
 	a.constrainHistoryPaneWidth(c, theme)
 
@@ -185,14 +194,14 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 		Padding(space(theme, 4), 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
-		a.historyHeader(c, theme, len(view.Items))
+		a.historyHeader(c, theme, view)
 		ui.Box(c).Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
 			a.searchField(c, theme)
 		})
 		a.filterBar(c, theme)
 
 		if len(view.Items) == 0 {
-			a.emptyHistory(c, theme)
+			a.emptyHistory(c, theme, view)
 			return
 		}
 
@@ -200,12 +209,16 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 	})
 }
 
-func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, count int) {
+func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history.View) {
+	countLabel := fmt.Sprintf("%d 条记录", len(view.Items))
+	if a.query != "" || a.filter != filterAll {
+		countLabel = fmt.Sprintf("%d / %d 条记录", len(view.Items), view.Total)
+	}
 	ui.Row(c).Height(space(theme, 11)).Shrink(0).AlignItems(ui.Center).
 		Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
 		ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
 			ui.Text(c, "最近复制").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
-			ui.Textf(c, "%d 条记录", count).FontSize(font(theme, fontCaption)).
+			ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).SingleLine()
 		})
 		ui.Spacer(c)
@@ -227,7 +240,8 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 		input := ui.TextInput(c.Key("history-search-input"), &a.query).
 			Grow(1).MinWidth(0).Padding(0).Radius(0).
 			Background(ui.Transparent).Border(0, ui.Transparent).
-			Label("搜索历史记录").Placeholder("搜索")
+			Label("搜索历史记录").Placeholder("搜索").Bind(&a.historySearch).
+			FocusRing(c.Focused(a.historySearch))
 		input.Changed()
 
 		if a.query == "" {
@@ -236,7 +250,7 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 		clearButton := ui.ButtonBase(c.Key("clear-history-search")).
 			Size(space(theme, 5), space(theme, 5)).Shrink(0).Radius(radius(theme, 2.5)).Center().
 			TextColor(secondaryText(theme)).
-			Label("清除搜索").Tooltip("清除搜索")
+			Label("清除搜索").Tooltip("清除搜索").Role(ui.RoleButton)
 		if clearButton.Hovered() {
 			clearButton.Background(hoverFill(theme))
 		}
@@ -266,7 +280,8 @@ func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter histor
 	button := ui.ButtonBase(c.Key("history-filter-"+label)).
 		Height(space(theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 0.75), space(theme, 1.75)).Radius(radius(theme, controlRadius)).
-		TextColor(secondaryText(theme))
+		TextColor(secondaryText(theme)).Label(label).
+		Role(ui.RoleToggleButton).Selected(a.filter == filter)
 	if a.filter == filter {
 		button.Background(selectedFill(theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {
@@ -282,16 +297,61 @@ func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter histor
 	}
 }
 
-func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme) {
+func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.View) {
+	firstUse := view.Total == 0 && a.query == "" && a.filter == filterAll
+	searchEmpty := a.query != ""
+	title := "没有匹配记录"
+	message := "换个关键词或筛选条件试试"
+	icon := icons.filter
+	if firstUse {
+		title = "这里还没有记录"
+		message = "复制文本或图片后，历史记录会显示在这里。记录保存在本机。"
+		icon = icons.history
+	} else if searchEmpty {
+		title = "没有找到匹配记录"
+		message = fmt.Sprintf("没有包含“%s”的记录。可以清除搜索或换个关键词。", truncateSingleLine(a.query, 24))
+		icon = icons.search
+	} else if a.filter != filterAll {
+		title = "这个筛选条件暂无记录"
+		message = fmt.Sprintf("当前没有“%s”记录。可以显示全部记录。", historyFilterLabel(a.filter))
+		icon = icons.filter
+	}
 	ui.Box(c).Grow(1).Center().Children(func() {
-		ui.Column(c).Center().Gap(space(theme, 1.75)).Children(func() {
-			ui.Icon(c, icons.filter).Size(space(theme, 5), space(theme, 5)).
+		ui.Column(c).FillWidth().MaxWidth(320).Shrink(0).Center().Gap(space(theme, 1.75)).Children(func() {
+			ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5)).
 				TextColor(secondaryText(theme))
-			ui.Text(c, "没有匹配记录").FontSize(font(theme, fontSection)).FontWeight(600)
-			ui.Text(c, "换个关键词或筛选条件试试").FontSize(font(theme, fontControl)).
-				TextColor(secondaryText(theme))
+			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).
+				Role(ui.RoleHeading).SingleLine()
+			ui.Text(c, message).FontSize(font(theme, fontControl)).
+				TextColor(secondaryText(theme)).Wrap()
+			if firstUse {
+				return
+			}
+			resetLabel := "清除搜索和筛选"
+			if searchEmpty && a.filter == filterAll {
+				resetLabel = "清除搜索"
+			} else if !searchEmpty && a.filter != filterAll {
+				resetLabel = "显示全部记录"
+			}
+			reset := neutralButton(c, theme, "history-empty-reset", resetLabel)
+			reset.Children(func() {
+				ui.Text(c, resetLabel).FontSize(font(theme, fontControl)).SingleLine()
+			})
+			if reset.Clicked() {
+				a.query = ""
+				a.filter = filterAll
+			}
 		})
 	})
+}
+
+func historyFilterLabel(filter historyFilter) string {
+	for _, option := range historyFilterOptions {
+		if option.kind == filter {
+			return option.label
+		}
+	}
+	return "当前"
 }
 
 func (a *application) historyRows(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -360,7 +420,8 @@ func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.It
 		// 预留透明边框，切换选中态时不改变内容布局。
 		Radius(radius(theme, cardRadius)).Border(1, ui.Transparent).Column().
 		Justify(ui.Start).AlignItems(ui.Stretch).
-		TextColor(primaryText(theme)).Label(historyListText(item))
+		TextColor(primaryText(theme)).Label(historyListText(item)).
+		Role(ui.RoleButton).Selected(selected)
 	if selected {
 		row.Background(selectedFill(theme)).
 			BorderColor(theme.Accent.Alpha(0.22))
@@ -490,8 +551,11 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 					TextColor(secondaryText(theme)).SingleLine()
 			}
 			ui.Spacer(c)
+		})
+		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			ui.Textf(c, "%s · %s", item.Source, historyTimestamp(item.CreatedAt)).
 				FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+			ui.Spacer(c)
 			a.actionBar(c, theme, item)
 		})
 		a.autoTagRow(c, theme, item)
@@ -502,7 +566,8 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 	content := ui.Scroll(c).Grow(1).MinHeight(0).
 		Padding(0, space(theme, 7), space(theme, spacePageBottom), space(theme, 7))
 	content.Children(func() {
-		ui.Column(c).MaxWidth(pageDetailMaxWidth).Gap(space(theme, 3)).Children(func() {
+		ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+			Gap(space(theme, 3)).Children(func() {
 			switch item.Kind {
 			case kindCode:
 				ui.Text(c, item.Text).Font("monospace").FontSize(font(theme, fontCode)).
@@ -629,12 +694,12 @@ func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
 func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
 		copyLabel := "复制"
-		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false)
+		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false, true)
 		if copyButton.Clicked() {
 			a.copyToClipboard(c, item.ID)
 		}
 
-		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.Favorite), item.Favorite)
+		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.Favorite), item.Favorite, false)
 		if favoriteButton.Clicked() {
 			if message := a.toggleFavorite(item.ID); message != "" {
 				c.Toast(message)
@@ -655,19 +720,28 @@ func (a *application) copyToClipboard(c *ui.Context, id string) {
 	c.Toast(copiedStatus)
 }
 
-func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {
+func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active, primary bool) ui.Element {
 	button := ui.ButtonBase(c.Key("preview-action-"+key)).
 		Height(space(theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).
-		TextColor(secondaryText(theme)).Label(label)
+		TextColor(secondaryText(theme)).Label(label).Role(ui.RoleButton)
+	if primary {
+		button.Background(theme.Accent).TextColor(theme.AccentText)
+	}
 	if active {
 		button.TextColor(favoriteColor(theme))
 	}
 	if button.Hovered() {
-		button.Background(hoverFill(theme))
+		if primary {
+			button.Background(theme.AccentHover)
+		} else {
+			button.Background(hoverFill(theme))
+		}
 	} else {
-		button.Background(ui.Transparent)
+		if !primary {
+			button.Background(ui.Transparent)
+		}
 	}
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
@@ -677,21 +751,16 @@ func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, labe
 }
 
 func colorForKind(theme *ui.Theme, kind contentKind) ui.Color {
-	var color ui.Color
 	switch kind {
 	case kindLink:
-		color = ui.Hex("#468fd2")
+		return theme.Accent
 	case kindCode:
-		color = ui.Hex("#8c78d2")
+		return theme.Accent.Mix(theme.Text, 0.28)
 	case kindImage:
-		color = ui.Hex("#50a06e")
+		return theme.Success
 	case kindFile:
-		color = ui.Hex("#af8c64")
+		return theme.Warning
 	default:
-		color = ui.Hex("#8c96a0")
+		return theme.TextMuted
 	}
-	if theme.Dark {
-		return color.Mix(theme.Text, 0.18)
-	}
-	return color
 }

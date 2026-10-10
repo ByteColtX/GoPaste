@@ -139,6 +139,7 @@ type application struct {
 	history          *history.Store
 	historyBitmaps   map[string]*ui.Bitmap
 	clipboard        history.ClipboardWriter
+	historySearch    ui.Handle
 	listState        ui.ListState
 
 	deviceName               string
