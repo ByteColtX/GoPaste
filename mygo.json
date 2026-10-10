@@ -2,5 +2,8 @@
   "name": "GoPaste",
   "identifier": "com.example.gopaste",
   "version": "0.1.0",
-  "out": "build"
+  "out": "build",
+  "linux": {
+    "depends": ["libayatana-appindicator3-1"]
+  }
 }

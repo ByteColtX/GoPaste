@@ -37,7 +37,7 @@ func main() {
 func (r *appRuntime) ready() {
 	r.window = openMainWindow(r.app)
 	r.window.OnClose(func(event *mygo.CloseEvent) {
-		if r.quitting {
+		if r.quitting || r.tray == nil {
 			return
 		}
 		event.PreventDefault()
@@ -62,7 +62,8 @@ func (r *appRuntime) ready() {
 		Menu:           r.trayMenu(),
 	})
 	if err != nil {
-		log.Fatal("创建系统托盘失败: ", err)
+		log.Printf("创建系统托盘失败，继续使用窗口模式: %v", err)
+		r.tray = nil
 	}
 }
 
