@@ -133,7 +133,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, visible []clip
 
 func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, count int) {
 	ui.Row(c).Height(space(theme, 11)).Shrink(0).AlignItems(ui.Center).
-		Margin(0, space(theme, 4), 0, 0).Children(func() {
+		Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
 		ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
 			ui.Text(c, "最近复制").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
 			ui.Textf(c, "%d 条记录", count).FontSize(font(theme, fontCaption)).
@@ -181,8 +181,8 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
-	ui.Row(c).Height(space(theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
-		Gap(space(theme, 0.5)).Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
+	ui.Row(c).Height(space(theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
+		Gap(space(theme, 0.5)).Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), 0, 0).Children(func() {
 		for _, option := range historyFilterOptions {
 			a.filterButton(c, theme, option.kind, option.label)
 		}
@@ -240,7 +240,7 @@ func (a *application) historyRows(c *ui.Context, theme *ui.Theme, visible []clip
 func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item clipboardItem, index int) ui.Element {
 	row := ui.ButtonBase(c.Key("history-row-"+item.id)).
 		Height(historyItemHeight).AlignSelf(ui.Stretch).Shrink(0).
-		Margin(space(theme, 1), space(theme, historyTrailingInset), space(theme, 1), 0).
+		Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), space(theme, historyControlGap), 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 1.5)).
 		// 预留透明边框，切换选中态时不改变内容布局。
 		Radius(radius(theme, cardRadius)).Border(1, ui.Transparent).Column().

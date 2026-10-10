@@ -35,6 +35,7 @@ const (
 	secondarySidebarWidth         = 224
 	pageDetailMaxWidth            = 720
 	historyTrailingInset  float32 = 4
+	historyControlGap     float32 = 1
 )
 
 func font(theme *ui.Theme, scale float32) float32 {
