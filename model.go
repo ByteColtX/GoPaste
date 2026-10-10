@@ -126,6 +126,18 @@ type pairedDevice struct {
 	richTextSyncDirection string
 }
 
+// deviceDiscoveryState describes the device provider state exposed by the UI.
+// The current preview has no discovery backend, so it remains ready by default;
+// a future LAN adapter can publish loading and error states without changing
+// the page structure.
+type deviceDiscoveryState uint8
+
+const (
+	deviceDiscoveryReady deviceDiscoveryState = iota
+	deviceDiscoveryLoading
+	deviceDiscoveryError
+)
+
 // application 保存窗口在多次重绘之间需要延续的状态。UI 元素本身不放在这里，
 // 因为 MyGo 的元素只在当前构建帧中有效。
 type application struct {
@@ -148,9 +160,15 @@ type application struct {
 	deviceSyncEnabled        bool
 	deviceFileSync           bool
 	pairedDevices            []pairedDevice
+	deviceDiscovery          deviceDiscoveryState
+	deviceDiscoveryMessage   string
+	onRefreshDevices         func()
 	selectedDeviceID         string
 	deviceInfoExpanded       bool
 	addDeviceDialog          bool
+	pairingPending           bool
+	pairingError             string
+	onStartPairing           func()
 	launchAtLogin            bool
 	language                 string
 	appearance               int

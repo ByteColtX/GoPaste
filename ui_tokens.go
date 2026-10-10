@@ -126,6 +126,11 @@ func navigationRailSize(c *ui.Context, theme *ui.Theme) float32 {
 	return navigationRailCompactWidth
 }
 
+func compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
+	available := contentWidth(c) - navigationRailSize(c, theme) - secondarySidebarSize(c, theme) - 1
+	return available < 680
+}
+
 // pageHeader keeps page title and description aligned across settings and
 // device detail panes.
 func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
