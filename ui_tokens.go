@@ -86,6 +86,10 @@ func secondaryText(theme *ui.Theme) ui.Color {
 	return theme.TextMuted
 }
 
+func favoriteColor(theme *ui.Theme) ui.Color {
+	return theme.Warning
+}
+
 // pageHeader keeps page title and description aligned across settings and
 // device detail panes.
 func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {

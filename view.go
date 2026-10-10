@@ -226,11 +226,15 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
-	ui.Row(c).Height(space(theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
-		Gap(space(theme, 0.5)).Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), 0, 0).Children(func() {
-		for _, option := range historyFilterOptions {
-			a.filterButton(c, theme, option.kind, option.label)
-		}
+	ui.ScrollHorizontal(c).Height(space(theme, compactHeight)).FillWidth().Shrink(0).
+		Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), 0, 0).
+		ScrollbarInsets(0, 0, 0, 0).Children(func() {
+		ui.Row(c).Height(space(theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
+			Gap(space(theme, 0.5)).Children(func() {
+			for _, option := range historyFilterOptions {
+				a.filterButton(c, theme, option.kind, option.label)
+			}
+		})
 	})
 }
 
@@ -370,7 +374,7 @@ func (a *application) historyMetaRow(c *ui.Context, theme *ui.Theme, item histor
 			TextColor(kindColor).SingleLine()
 		if item.Favorite {
 			ui.Icon(c, icons.star).Size(space(theme, 2.75), space(theme, 2.75)).Shrink(0).
-				TextColor(ui.Hex("#d69e2e"))
+				TextColor(favoriteColor(theme))
 		}
 		ui.Spacer(c)
 		ui.Text(c, historyTimestamp(item.CreatedAt)).FontSize(font(theme, fontCaption)).
@@ -634,7 +638,7 @@ func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, labe
 		Radius(radius(theme, controlRadius)).
 		TextColor(secondaryText(theme)).Label(label)
 	if active {
-		button.TextColor(ui.Hex("#d69e2e"))
+		button.TextColor(favoriteColor(theme))
 	}
 	if button.Hovered() {
 		button.Background(hoverFill(theme))

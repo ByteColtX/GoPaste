@@ -20,6 +20,7 @@ type iconSet struct {
 	settings   *ui.SVG
 	search     *ui.SVG
 	clear      *ui.SVG
+	refresh    *ui.SVG
 	filter     *ui.SVG
 	text       *ui.SVG
 	link       *ui.SVG
@@ -45,6 +46,7 @@ func mustLoadIconSet() iconSet {
 		settings:   mustLoadIcon("settings.svg"),
 		search:     mustLoadIcon("search.svg"),
 		clear:      mustLoadIcon("x.svg"),
+		refresh:    mustLoadIcon("refresh.svg"),
 		filter:     mustLoadIcon("adjustments-horizontal.svg"),
 		text:       mustLoadIcon("file-text.svg"),
 		link:       mustLoadIcon("external-link.svg"),

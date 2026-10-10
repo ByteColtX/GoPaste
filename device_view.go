@@ -46,7 +46,7 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 				refresh.Background(hoverFill(theme))
 			}
 			refresh.Children(func() {
-				ui.Text(c, "↻").FontSize(font(theme, fontSection)).SingleLine()
+				ui.Icon(c, icons.refresh).Size(space(theme, 4), space(theme, 4))
 			})
 			if refresh.Clicked() {
 				c.Toast("设备列表已刷新")
