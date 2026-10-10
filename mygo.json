@@ -1,0 +1,6 @@
+{
+  "name": "GoPaste",
+  "identifier": "com.example.gopaste",
+  "version": "0.1.0",
+  "out": "build"
+}
