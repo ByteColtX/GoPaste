@@ -153,15 +153,15 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 	button := ui.ButtonBase(c.Key("invite-device")).Height(space(theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.5), space(theme, 3)).Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
-		TextColor(primaryText(theme)).Label("邀请桌面设备")
+		TextColor(primaryText(theme)).Label("新增设备")
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
 		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
-		ui.Text(c, "+").FontSize(font(theme, fontSection)).FontWeight(300).SingleLine()
-		ui.Text(c, "邀请设备").FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		ui.Icon(c, icons.deviceAdd).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0)
+		ui.Text(c, "新增设备").FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
 	})
 	if button.Clicked() {
 		a.addDeviceDialog = true
@@ -476,8 +476,8 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 			Padding(space(theme, 6), space(theme, 6)).Gap(space(theme, 2)).
 			Radius(radius(theme, largeRadius)).Background(theme.Background).
 			Border(1, borderColor(theme)).Children(func() {
-			ui.Text(c, "邀请桌面设备").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
-			ui.Text(c, "设备配对功能正在接入中。完成协议接入后，可在这里生成邀请并开始同步。").
+			ui.Text(c, "新增设备").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
+			ui.Text(c, "设备配对功能正在接入中。完成接入后，可在这里添加并连接新设备。").
 				FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).Wrap()
 			ui.Spacer(c)
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(func() {

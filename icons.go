@@ -12,42 +12,44 @@ import (
 var embeddedIcons embed.FS
 
 type iconSet struct {
-	history  *ui.SVG
-	devices  *ui.SVG
-	settings *ui.SVG
-	search   *ui.SVG
-	clear    *ui.SVG
-	filter   *ui.SVG
-	text     *ui.SVG
-	link     *ui.SVG
-	code     *ui.SVG
-	image    *ui.SVG
-	file     *ui.SVG
-	copy     *ui.SVG
-	check    *ui.SVG
-	star     *ui.SVG
-	chevron  *ui.SVG
+	history   *ui.SVG
+	devices   *ui.SVG
+	settings  *ui.SVG
+	search    *ui.SVG
+	clear     *ui.SVG
+	filter    *ui.SVG
+	text      *ui.SVG
+	link      *ui.SVG
+	code      *ui.SVG
+	image     *ui.SVG
+	file      *ui.SVG
+	copy      *ui.SVG
+	check     *ui.SVG
+	star      *ui.SVG
+	chevron   *ui.SVG
+	deviceAdd *ui.SVG
 }
 
 var icons = mustLoadIconSet()
 
 func mustLoadIconSet() iconSet {
 	return iconSet{
-		history:  mustLoadIcon("history.svg"),
-		devices:  mustLoadIcon("device-desktop.svg"),
-		settings: mustLoadIcon("settings.svg"),
-		search:   mustLoadIcon("search.svg"),
-		clear:    mustLoadIcon("x.svg"),
-		filter:   mustLoadIcon("adjustments-horizontal.svg"),
-		text:     mustLoadIcon("file-text.svg"),
-		link:     mustLoadIcon("external-link.svg"),
-		code:     mustLoadIcon("code.svg"),
-		image:    mustLoadIcon("photo.svg"),
-		file:     mustLoadIcon("file.svg"),
-		copy:     mustLoadIcon("copy.svg"),
-		check:    mustLoadIcon("check.svg"),
-		star:     mustLoadIcon("star.svg"),
-		chevron:  mustLoadIcon("chevron-down.svg"),
+		history:   mustLoadIcon("history.svg"),
+		devices:   mustLoadIcon("device-desktop.svg"),
+		settings:  mustLoadIcon("settings.svg"),
+		search:    mustLoadIcon("search.svg"),
+		clear:     mustLoadIcon("x.svg"),
+		filter:    mustLoadIcon("adjustments-horizontal.svg"),
+		text:      mustLoadIcon("file-text.svg"),
+		link:      mustLoadIcon("external-link.svg"),
+		code:      mustLoadIcon("code.svg"),
+		image:     mustLoadIcon("photo.svg"),
+		file:      mustLoadIcon("file.svg"),
+		copy:      mustLoadIcon("copy.svg"),
+		check:     mustLoadIcon("check.svg"),
+		star:      mustLoadIcon("star.svg"),
+		chevron:   mustLoadIcon("chevron-down.svg"),
+		deviceAdd: mustLoadIcon("device-plus.svg"),
 	}
 }
 

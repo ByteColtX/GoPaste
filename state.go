@@ -8,18 +8,22 @@ import (
 )
 
 func newApplication() *application {
+	items, devices := previewData()
 	app := &application{
 		page:              pageHistory,
 		historyPaneWidth:  defaultHistoryPaneWidth,
 		selectedIndex:     -1,
+		items:             items,
 		deviceName:        "本机",
 		devicePlatform:    localPlatformName(),
 		deviceSyncEnabled: true,
 		deviceFileSync:    true,
+		pairedDevices:     devices,
 		language:          languageOptions[0],
 		appearance:        appearanceSystem,
 		settingsArea:      settingsGeneral,
 	}
+	app.keepSelection(items)
 	return app
 }
 
