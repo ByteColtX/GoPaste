@@ -164,7 +164,6 @@ type application struct {
 	selectedID    string
 	selectedIndex int
 	listState     ui.ListState
-	statusMessage string
 
 	deviceName          string
 	devicePeerID        string
@@ -177,12 +176,10 @@ type application struct {
 	addDeviceDialog     bool
 	confirmUnpairDevice bool
 	unpairDeviceID      string
-	devicesMessage      string
 	launchAtLogin       bool
 	language            string
 	appearance          int
 	settingsArea        settingsArea
-	settingsMessage     string
 	confirmClearHistory bool
 }
 

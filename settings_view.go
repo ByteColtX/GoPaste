@@ -28,6 +28,7 @@ func (a *application) settingsPage(c *ui.Context, theme *ui.Theme) {
 		"清空",
 	); choice == 1 {
 		a.clearHistory()
+		c.Toast("历史记录已清空")
 	}
 }
 
@@ -81,7 +82,6 @@ func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item set
 	})
 	if button.Clicked() {
 		a.settingsArea = item.area
-		a.settingsMessage = ""
 	}
 }
 
@@ -130,7 +130,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 			control := ui.Checkbox(c.Key("settings-launch-at-login"), &a.launchAtLogin, "").
 				Shrink(0).Label("开机自启")
 			if control.Changed() {
-				a.updateLaunchAtLogin()
+				c.Toast(a.updateLaunchAtLogin())
 			}
 		})
 		settingsRule(c, theme)
@@ -139,7 +139,6 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 				Width(180).Height(space(theme, controlHeight)).Shrink(0).Label("语言")
 		})
 	})
-	a.settingsMessageView(c, theme)
 }
 
 func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
@@ -159,7 +158,6 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 			}
 		})
 	})
-	a.settingsMessageView(c, theme)
 }
 
 func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
@@ -193,7 +191,6 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 			}
 		})
 	})
-	a.settingsMessageView(c, theme)
 }
 
 func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
@@ -209,14 +206,6 @@ func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
 func (a *application) settingsSubheading(c *ui.Context, title string, theme *ui.Theme) {
 	ui.Text(c, title).FontSize(font(theme, fontSubheading)).FontWeight(600).
 		TextColor(secondaryText(theme)).Padding(0, 0, space(theme, 1), 0).SingleLine()
-}
-
-func (a *application) settingsMessageView(c *ui.Context, theme *ui.Theme) {
-	if a.settingsMessage == "" {
-		return
-	}
-	ui.Text(c, a.settingsMessage).FontSize(font(theme, fontControl)).TextColor(theme.Accent).
-		Padding(space(theme, 1), space(theme, 0.5)).Wrap()
 }
 
 func settingsGroup(c *ui.Context, theme *ui.Theme, key string, body func()) {

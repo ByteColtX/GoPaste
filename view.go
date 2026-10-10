@@ -71,7 +71,6 @@ func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, target pa
 	})
 	if button.Clicked() {
 		a.page = target
-		a.statusMessage = ""
 	}
 }
 
@@ -425,32 +424,30 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item clipbo
 func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item clipboardItem) {
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
 		copyLabel := "复制"
-		copyIcon := icons.copy
-		if a.statusMessage == copiedStatus {
-			copyLabel = "已复制"
-			copyIcon = icons.check
-		}
-		copyButton := actionButton(c, theme, "copy", copyIcon, copyLabel, false)
+		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false)
 		if copyButton.Clicked() {
-			a.copyToClipboard(item)
+			a.copyToClipboard(c, item)
 		}
 
 		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.favorite), item.favorite)
 		if favoriteButton.Clicked() {
-			a.toggleFavorite(item.id)
+			if message := a.toggleFavorite(item.id); message != "" {
+				c.Toast(message)
+			}
 		}
 	})
 }
 
-func (a *application) copyToClipboard(item clipboardItem) {
+func (a *application) copyToClipboard(c *ui.Context, item clipboardItem) {
 	if item.kind == kindImage && item.image != nil {
 		if err := mygo.Clipboard.WriteImage(item.image.png); err != nil {
+			c.Toast("复制失败")
 			return
 		}
 	} else {
 		mygo.Clipboard.WriteText(item.content)
 	}
-	a.statusMessage = copiedStatus
+	c.Toast(copiedStatus)
 }
 
 func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {

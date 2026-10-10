@@ -24,6 +24,7 @@ func (a *application) devicesPage(c *ui.Context, theme *ui.Theme) {
 		"取消配对",
 	); choice == 1 {
 		a.unpairDevice(a.unpairDeviceID)
+		c.Toast("已取消配对")
 	}
 
 	a.addDeviceDialogView(c, theme)
@@ -60,7 +61,7 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 				ui.Text(c, "↻").FontSize(font(theme, fontSection)).SingleLine()
 			})
 			if refresh.Clicked() {
-				a.devicesMessage = "设备列表已刷新"
+				c.Toast("设备列表已刷新")
 			}
 		})
 
@@ -84,16 +85,13 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 
 		ui.Column(c).Shrink(0).Gap(space(theme, 2)).Children(func() {
 			a.inviteDeviceButton(c, theme)
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Padding(space(theme, 1), space(theme, 2.5)).
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).
+				Padding(space(theme, 1), space(theme, 2.5)).
 				Children(func() {
 					statusDot(c, onlineColor, space(theme, 1.75))
 					ui.Textf(c, "%d 台在线", onlineCount).FontSize(font(theme, fontCaption)).
 						TextColor(secondaryText(theme)).SingleLine()
 				})
-			if a.devicesMessage != "" && !a.addDeviceDialog {
-				ui.Text(c, a.devicesMessage).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).
-					Padding(space(theme, 2.5), 0, space(theme, 0.5), space(theme, 2.5)).Wrap()
-			}
 		})
 	})
 }
@@ -111,7 +109,6 @@ func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 	if entry.Clicked() {
 		a.selectedDeviceID = ""
 		a.deviceInfoExpanded = false
-		a.devicesMessage = ""
 	}
 }
 
@@ -135,7 +132,6 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 	if entry.Clicked() {
 		a.selectedDeviceID = device.id
 		a.deviceInfoExpanded = true
-		a.devicesMessage = ""
 	}
 }
 
@@ -168,7 +164,6 @@ func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 		ui.Text(c, "邀请设备").FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
 	})
 	if button.Clicked() {
-		a.devicesMessage = ""
 		a.addDeviceDialog = true
 	}
 }
@@ -510,7 +505,6 @@ func (a *application) unpairDevice(id string) {
 	a.deviceInfoExpanded = false
 	a.unpairDeviceID = ""
 	a.confirmUnpairDevice = false
-	a.devicesMessage = "已取消配对"
 }
 
 func (a *application) onlineDeviceCount() int {

@@ -114,7 +114,6 @@ func (a *application) keepSelection(visible []clipboardItem) {
 func (a *application) selectItem(index int, item clipboardItem) {
 	a.selectedIndex = index
 	a.selectedID = item.id
-	a.statusMessage = ""
 }
 
 func (a *application) loadSystemSettings() {
@@ -132,17 +131,15 @@ func (a *application) applyAppearance() {
 	}
 }
 
-func (a *application) updateLaunchAtLogin() {
+func (a *application) updateLaunchAtLogin() string {
 	if err := mygo.App.SetOpenAtLogin(a.launchAtLogin); err != nil {
 		a.launchAtLogin = !a.launchAtLogin
-		a.settingsMessage = "当前运行环境暂不支持开机自启"
-		return
+		return "当前运行环境暂不支持开机自启"
 	}
 	if a.launchAtLogin {
-		a.settingsMessage = "已开启开机自启"
-	} else {
-		a.settingsMessage = "已关闭开机自启"
+		return "已开启开机自启"
 	}
+	return "已关闭开机自启"
 }
 
 func (a *application) imageItemCount() int {
@@ -159,10 +156,9 @@ func (a *application) clearHistory() {
 	a.items = nil
 	a.selectedID = ""
 	a.selectedIndex = -1
-	a.settingsMessage = "历史记录已清空"
 }
 
-func (a *application) toggleFavorite(id string) {
+func (a *application) toggleFavorite(id string) string {
 	for index := range a.items {
 		item := &a.items[index]
 		if item.id != id {
@@ -171,12 +167,12 @@ func (a *application) toggleFavorite(id string) {
 
 		item.favorite = !item.favorite
 		if item.favorite {
-			a.statusMessage = favoriteAddedStatus
+			return favoriteAddedStatus
 		} else {
-			a.statusMessage = favoriteRemovedStatus
+			return favoriteRemovedStatus
 		}
-		return
 	}
+	return ""
 }
 
 func favoriteLabel(favorite bool) string {
