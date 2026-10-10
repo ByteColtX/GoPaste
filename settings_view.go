@@ -18,18 +18,6 @@ func (a *application) settingsPage(c *ui.Context, theme *ui.Theme) {
 			Background(dividerColor(theme))
 		a.settingsDetail(c, theme)
 	})
-
-	if choice := ui.AlertDialog(
-		c,
-		&a.confirmClearHistory,
-		"清空历史记录？",
-		"当前保存的历史记录会被全部移除。",
-		"取消",
-		"清空",
-	); choice == 1 {
-		a.clearHistory()
-		c.Toast("历史记录已清空")
-	}
 }
 
 func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
@@ -171,22 +159,15 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 		})
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, "清理历史记录", "删除当前保存的所有本地记录", func() {
-			button := ui.ButtonBase(c.Key("settings-clear-history")).
-				Height(space(theme, compactHeight)).Shrink(0).
-				Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
-				Radius(radius(theme, controlRadius)).
-				TextColor(secondaryText(theme)).Label("清空历史记录")
-			if button.Hovered() {
-				button.Background(hoverFill(theme))
-			} else {
-				button.Background(ui.Transparent)
-			}
+			button := dangerButton(c, theme, "settings-clear-history", "清空历史记录").
+				Gap(space(theme, spaceInline))
 			button.Children(func() {
-				ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+				ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).
+					Shrink(0).TextColor(theme.Danger)
 				ui.Text(c, "清空历史记录").FontSize(font(theme, fontControl)).SingleLine()
 			})
 			if button.Clicked() {
-				a.confirmClearHistory = true
+				a.requestDangerousAction(dangerousActionClearHistory, "")
 			}
 		})
 	})

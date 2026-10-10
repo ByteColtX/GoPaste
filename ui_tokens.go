@@ -116,6 +116,76 @@ func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element
 	return button
 }
 
+// dangerButton 用于会删除数据或覆盖同步状态的操作，保持文字和悬停反馈为危险色。
+func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
+	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
+		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+		TextColor(theme.Danger).Label(label)
+	if button.Hovered() {
+		button.Background(theme.Danger.Alpha(0.12))
+	} else {
+		button.Background(ui.Transparent)
+	}
+	return button
+}
+
+// dangerConfirmButton 是危险确认弹窗中的主操作按钮。
+func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
+	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
+		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+		Background(theme.Danger).TextColor(theme.AccentText).Label(label)
+	if button.Hovered() {
+		button.Background(theme.Danger.Mix(theme.Text, 0.12))
+	}
+	return button
+}
+
+// dangerConfirmDialog 提供统一的危险操作二次确认界面。
+func dangerConfirmDialog(
+	c *ui.Context,
+	theme *ui.Theme,
+	open *bool,
+	title string,
+	message string,
+	confirmLabel string,
+) bool {
+	if !*open {
+		return false
+	}
+
+	confirmed := false
+	ui.Modal(c, open, func() {
+		ui.Column(c).Width(440).Shrink(0).
+			Padding(space(theme, 5), space(theme, 5)).Gap(space(theme, 3)).
+			Radius(radius(theme, largeRadius)).Background(theme.Background).
+			Border(1, borderColor(theme)).Label(title).Children(func() {
+			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
+			ui.Text(c, message).FontSize(font(theme, fontBody)).
+				TextColor(secondaryText(theme)).Wrap()
+			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, 2)).Children(func() {
+				cancel := neutralButton(c, theme, "danger-confirm-cancel", "取消")
+				cancel.Children(func() {
+					ui.Text(c, "取消").FontSize(font(theme, fontControl)).SingleLine()
+				})
+				if cancel.Clicked() {
+					*open = false
+				}
+
+				confirm := dangerConfirmButton(c, theme, "danger-confirm-submit", confirmLabel)
+				confirm.Children(func() {
+					ui.Text(c, confirmLabel).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+				})
+				if confirm.Clicked() {
+					confirmed = true
+					*open = false
+				}
+			})
+		})
+	})
+
+	return confirmed
+}
+
 func statusDot(c *ui.Context, color ui.Color, size float32) {
 	ui.Box(c).Size(size, size).Shrink(0).Radius(size / 2).Background(color)
 }

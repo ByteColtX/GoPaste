@@ -66,6 +66,17 @@ const (
 	settingsAbout
 )
 
+// dangerousAction 标记需要用户再次确认的高影响操作。
+type dangerousAction uint8
+
+const (
+	dangerousActionNone dangerousAction = iota
+	dangerousActionClearHistory
+	dangerousActionUnpairDevice
+	dangerousActionSetAllSyncDirections
+	dangerousActionRestoreSyncDefaults
+)
+
 type page uint8
 
 const (
@@ -165,22 +176,22 @@ type application struct {
 	selectedIndex int
 	listState     ui.ListState
 
-	deviceName          string
-	devicePeerID        string
-	devicePlatform      string
-	deviceSyncEnabled   bool
-	deviceFileSync      bool
-	pairedDevices       []pairedDevice
-	selectedDeviceID    string
-	deviceInfoExpanded  bool
-	addDeviceDialog     bool
-	confirmUnpairDevice bool
-	unpairDeviceID      string
-	launchAtLogin       bool
-	language            string
-	appearance          int
-	settingsArea        settingsArea
-	confirmClearHistory bool
+	deviceName               string
+	devicePeerID             string
+	devicePlatform           string
+	deviceSyncEnabled        bool
+	deviceFileSync           bool
+	pairedDevices            []pairedDevice
+	selectedDeviceID         string
+	deviceInfoExpanded       bool
+	addDeviceDialog          bool
+	launchAtLogin            bool
+	language                 string
+	appearance               int
+	settingsArea             settingsArea
+	confirmDangerousAction   bool
+	pendingDangerousAction   dangerousAction
+	pendingDangerousDeviceID string
 }
 
 // baseKind 返回记录的基础类型。链接和代码属于文本，只作为智能标签显示。

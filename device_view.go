@@ -15,18 +15,6 @@ func (a *application) devicesPage(c *ui.Context, theme *ui.Theme) {
 		a.deviceDetail(c, theme)
 	})
 
-	if choice := ui.AlertDialog(
-		c,
-		&a.confirmUnpairDevice,
-		"取消配对设备？",
-		"取消配对后，该设备将不再与本机同步。",
-		"取消",
-		"取消配对",
-	); choice == 1 {
-		a.unpairDevice(a.unpairDeviceID)
-		c.Toast("已取消配对")
-	}
-
 	a.addDeviceDialogView(c, theme)
 }
 
@@ -217,23 +205,17 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
-	button := ui.ButtonBase(c.Key("unpair-selected-device")).
-		Height(space(theme, controlHeight)).Shrink(0).Padding(space(theme, 1.25), space(theme, 2.5)).
-		Gap(space(theme, spaceInline)).Radius(radius(theme, controlRadius)).
-		TextColor(theme.Danger).Label("取消配对")
-	if button.Hovered() {
-		button.Background(theme.Danger.Alpha(0.12))
-	} else {
-		button.Background(ui.Transparent)
-	}
+	button := dangerButton(c, theme, "unpair-selected-device", "取消配对").
+		Gap(space(theme, spaceInline))
 	button.Children(func() {
-		ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
-		ui.Text(c, "取消配对").FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).
+			Shrink(0).TextColor(theme.Danger)
+		ui.Text(c, "取消配对").FontSize(font(theme, fontControl)).FontWeight(600).
+			TextColor(theme.Danger).SingleLine()
 	})
 	if button.Clicked() {
 		if device, ok := a.selectedPairedDevice(); ok {
-			a.unpairDeviceID = device.id
-			a.confirmUnpairDevice = true
+			a.requestDangerousAction(dangerousActionUnpairDevice, device.id)
 		}
 	}
 }
@@ -286,20 +268,13 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 		AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "自定义同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 		ui.Spacer(c)
-		button := ui.ButtonBase(c.Key(device.id+"-all-bidirectional")).
-			Height(space(theme, compactHeight)).Shrink(0).
-			Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
-			TextColor(secondaryText(theme)).Label("全部双向同步")
-		if button.Hovered() {
-			button.Background(hoverFill(theme))
-		} else {
-			button.Background(ui.Transparent)
-		}
+		button := dangerButton(c, theme, device.id+"-all-bidirectional", "全部双向同步")
 		button.Children(func() {
-			ui.Text(c, "全部双向同步").FontSize(font(theme, fontControl)).SingleLine()
+			ui.Text(c, "全部双向同步").FontSize(font(theme, fontControl)).
+				TextColor(theme.Danger).SingleLine()
 		})
 		if button.Clicked() {
-			a.setAllSyncDirections(device, defaultSyncDirection)
+			a.requestDangerousAction(dangerousActionSetAllSyncDirections, device.id)
 		}
 	})
 	deviceDivider(c, theme)
@@ -310,22 +285,15 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 		ui.Text(c, "分别设置每种内容的同步方向。").FontSize(font(theme, fontMeta)).
 			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
-		button := ui.ButtonBase(c.Key(device.id+"-restore-sync-defaults")).
-			Height(space(theme, compactHeight)).Shrink(0).
-			Padding(space(theme, 1), space(theme, 2)).Gap(space(theme, spaceInline)).
-			Radius(radius(theme, controlRadius)).
-			TextColor(secondaryText(theme)).Label("恢复默认")
-		if button.Hovered() {
-			button.Background(hoverFill(theme))
-		} else {
-			button.Background(ui.Transparent)
-		}
+		button := dangerButton(c, theme, device.id+"-restore-sync-defaults", "恢复默认").
+			Gap(space(theme, spaceInline))
 		button.Children(func() {
-			ui.Icon(c, icons.clear).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0)
-			ui.Text(c, "恢复默认").FontSize(font(theme, fontControl)).SingleLine()
+			ui.Icon(c, icons.clear).Size(space(theme, 3.25), space(theme, 3.25)).
+				Shrink(0).TextColor(theme.Danger)
+			ui.Text(c, "恢复默认").FontSize(font(theme, fontControl)).TextColor(theme.Danger).SingleLine()
 		})
 		if button.Clicked() {
-			a.restoreSyncDefaults(device)
+			a.requestDangerousAction(dangerousActionRestoreSyncDefaults, device.id)
 		}
 	})
 	deviceDivider(c, theme)
@@ -496,18 +464,17 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-func (a *application) unpairDevice(id string) {
+func (a *application) unpairDevice(id string) bool {
 	for index, device := range a.pairedDevices {
 		if device.id != id {
 			continue
 		}
 		a.pairedDevices = append(a.pairedDevices[:index], a.pairedDevices[index+1:]...)
-		break
+		a.selectedDeviceID = ""
+		a.deviceInfoExpanded = false
+		return true
 	}
-	a.selectedDeviceID = ""
-	a.deviceInfoExpanded = false
-	a.unpairDeviceID = ""
-	a.confirmUnpairDevice = false
+	return false
 }
 
 func (a *application) onlineDeviceCount() int {

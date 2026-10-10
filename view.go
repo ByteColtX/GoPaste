@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
@@ -36,6 +38,59 @@ func (a *application) view(c *ui.Context) {
 			})
 		})
 	})
+	a.dangerousConfirmation(c, theme)
+}
+
+func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
+	if !a.confirmDangerousAction {
+		return
+	}
+
+	action := a.pendingDangerousAction
+	title, message, confirmLabel, ok := a.dangerousActionDetails(action, a.pendingDangerousDeviceID)
+	if !ok {
+		a.confirmDangerousAction = false
+		a.pendingDangerousAction = dangerousActionNone
+		a.pendingDangerousDeviceID = ""
+		return
+	}
+
+	if dangerConfirmDialog(c, theme, &a.confirmDangerousAction, title, message, confirmLabel) {
+		if message := a.executeDangerousAction(action, a.pendingDangerousDeviceID); message != "" {
+			c.Toast(message)
+		}
+	}
+	if !a.confirmDangerousAction {
+		a.pendingDangerousAction = dangerousActionNone
+		a.pendingDangerousDeviceID = ""
+	}
+}
+
+func (a *application) dangerousActionDetails(action dangerousAction, deviceID string) (string, string, string, bool) {
+	switch action {
+	case dangerousActionClearHistory:
+		return "清空历史记录？", "当前保存的历史记录会被全部移除。", "清空", true
+	case dangerousActionUnpairDevice:
+		name := "该设备"
+		if device, ok := a.pairedDeviceByID(deviceID); ok {
+			name = device.name
+		}
+		return "取消配对设备？", fmt.Sprintf("取消配对“%s”后，该设备将不再与本机同步。", name), "取消配对", true
+	case dangerousActionSetAllSyncDirections:
+		name := "该设备"
+		if device, ok := a.pairedDeviceByID(deviceID); ok {
+			name = device.name
+		}
+		return "设置全部双向同步？", fmt.Sprintf("这会覆盖“%s”的每种内容同步方向。", name), "全部双向同步", true
+	case dangerousActionRestoreSyncDefaults:
+		name := "该设备"
+		if device, ok := a.pairedDeviceByID(deviceID); ok {
+			name = device.name
+		}
+		return "恢复默认同步设置？", fmt.Sprintf("“%s”的自定义同步方向将被恢复为默认值。", name), "恢复默认", true
+	default:
+		return "", "", "", false
+	}
 }
 
 // navigationRail 是窄导航轨道，避免额外占用历史列表的横向空间。

@@ -162,6 +162,45 @@ func (a *application) clearHistory() {
 	a.selectedIndex = -1
 }
 
+func (a *application) requestDangerousAction(action dangerousAction, deviceID string) {
+	a.pendingDangerousAction = action
+	a.pendingDangerousDeviceID = deviceID
+	a.confirmDangerousAction = true
+}
+
+func (a *application) pairedDeviceByID(id string) (*pairedDevice, bool) {
+	for index := range a.pairedDevices {
+		if a.pairedDevices[index].id == id {
+			return &a.pairedDevices[index], true
+		}
+	}
+	return nil, false
+}
+
+func (a *application) executeDangerousAction(action dangerousAction, deviceID string) string {
+	switch action {
+	case dangerousActionClearHistory:
+		a.clearHistory()
+		return "历史记录已清空"
+	case dangerousActionUnpairDevice:
+		if !a.unpairDevice(deviceID) {
+			return ""
+		}
+		return "已取消配对"
+	case dangerousActionSetAllSyncDirections:
+		if device, ok := a.pairedDeviceByID(deviceID); ok {
+			a.setAllSyncDirections(device, defaultSyncDirection)
+			return "已设为全部双向同步"
+		}
+	case dangerousActionRestoreSyncDefaults:
+		if device, ok := a.pairedDeviceByID(deviceID); ok {
+			a.restoreSyncDefaults(device)
+			return "已恢复默认同步设置"
+		}
+	}
+	return ""
+}
+
 func (a *application) toggleFavorite(id string) string {
 	for index := range a.items {
 		item := &a.items[index]
