@@ -1,6 +1,8 @@
 package main
 
 import (
+	"gopaste/internal/history"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -149,11 +151,12 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsHeader(c, "存储", "查看和清理保存在本机的历史记录。", theme)
 	a.settingsSubheading(c, "数据管理", theme)
+	stats := a.history.Snapshot(history.Query{})
 	settingsGroup(c, theme, "settings-storage-group", func() {
 		a.settingsRow(c, theme, "历史记录", "保存在本机的剪贴板记录", func() {
 			ui.Column(c).Shrink(0).AlignItems(ui.End).Gap(space(theme, 0.5)).Children(func() {
-				ui.Textf(c, "%d 条", len(a.items)).FontSize(font(theme, fontControl)).TextColor(primaryText(theme)).SingleLine()
-				ui.Textf(c, "%d 张图片", a.imageItemCount()).FontSize(font(theme, fontCaption)).
+				ui.Textf(c, "%d 条", stats.Total).FontSize(font(theme, fontControl)).TextColor(primaryText(theme)).SingleLine()
+				ui.Textf(c, "%d 张图片", stats.ImageCount).FontSize(font(theme, fontCaption)).
 					TextColor(secondaryText(theme)).SingleLine()
 			})
 		})

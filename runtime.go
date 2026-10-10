@@ -23,6 +23,18 @@ type applicationRuntime struct {
 	quitting bool
 }
 
+// mygoClipboardWriter is the production adapter for history.Store's local
+// clipboard seam. History itself does not depend on MyGo.
+type mygoClipboardWriter struct{}
+
+func (mygoClipboardWriter) WriteText(text string) {
+	mygo.Clipboard.WriteText(text)
+}
+
+func (mygoClipboardWriter) WriteImage(png []byte) error {
+	return mygo.Clipboard.WriteImage(png)
+}
+
 func newApplicationRuntime() *applicationRuntime {
 	return &applicationRuntime{app: newApplication()}
 }
@@ -44,6 +56,7 @@ func runApplication() error {
 // ready 在 MyGo 完成平台初始化后运行，此时才能创建窗口和托盘。
 func (r *applicationRuntime) ready() {
 	r.app.onSyncStateChanged = r.syncStateChanged
+	r.app.clipboard = mygoClipboardWriter{}
 	r.window = openMainWindow(r.app)
 	r.window.OnClose(func(event *mygo.CloseEvent) {
 		if r.quitting || r.tray == nil {

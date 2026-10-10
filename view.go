@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"strings"
+	"time"
 
-	"github.com/egoist/mygo"
+	"gopaste/internal/history"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -129,14 +132,13 @@ func (a *application) pageContent(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) historyPage(c *ui.Context, theme *ui.Theme) {
-	visible := a.visibleItems()
-	a.keepSelection(visible)
+	view := a.history.Snapshot(history.Query{Text: a.query, Filter: a.filter})
 
 	a.constrainHistoryPaneWidth(c)
 
 	ui.Split(c, &a.historyPaneWidth,
-		func() { a.historyList(c, theme, visible) },
-		func() { a.historyPreview(c, theme, visible) },
+		func() { a.historyList(c, theme, view) },
+		func() { a.historyPreview(c, theme, view) },
 	).Fill()
 }
 
@@ -152,25 +154,25 @@ func (a *application) constrainHistoryPaneWidth(c *ui.Context) {
 	a.historyPaneWidth = min(max(a.historyPaneWidth, float32(minHistoryPaneWidth)), maxWidth)
 }
 
-func (a *application) historyList(c *ui.Context, theme *ui.Theme, visible []clipboardItem) {
+func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.View) {
 	panel := ui.Column(c).Fill().
 		MinWidth(minHistoryPaneWidth).
 		Background(sidebarFill(theme)).
 		Padding(space(theme, 4), 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
-		a.historyHeader(c, theme, len(visible))
+		a.historyHeader(c, theme, len(view.Items))
 		ui.Box(c).Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
 			a.searchField(c, theme)
 		})
 		a.filterBar(c, theme)
 
-		if len(visible) == 0 {
+		if len(view.Items) == 0 {
 			a.emptyHistory(c, theme)
 			return
 		}
 
-		a.historyRows(c, theme, visible)
+		a.historyRows(c, theme, view)
 	})
 }
 
@@ -264,61 +266,74 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-func (a *application) historyRows(c *ui.Context, theme *ui.Theme, visible []clipboardItem) {
+func (a *application) historyRows(c *ui.Context, theme *ui.Theme, view history.View) {
 	// 不使用 ListState.Selected，让列表的默认 Accent 背景不覆盖自定义卡片样式。
 	// 键盘快捷键仍注册在列表容器上，因此焦点在任意条目时都能移动选择。
 	a.listState.Selected = nil
-	a.listState.Key = func(index int) any { return visible[index].id }
-	a.listState.Label = func(index int) string { return visible[index].listText() }
+	a.listState.Key = func(index int) any { return view.Items[index].ID }
+	a.listState.Label = func(index int) string { return historyListText(view.Items[index]) }
 
-	list := ui.List(c, &a.listState, len(visible), func(index int) {
-		item := visible[index]
-		row := a.historyRow(c, theme, item, index)
+	list := ui.List(c, &a.listState, len(view.Items), func(index int) {
+		item := view.Items[index]
+		row := a.historyRow(c, theme, item, index == view.SelectedIndex)
 		if row.Clicked() {
-			a.selectItem(index, item)
+			a.history.Select(item.ID)
 		}
 	}).ScrollbarInsets(0, 0, 0, 0)
 	list.Grow(1)
-	a.historyListShortcuts(c, list, visible)
+	a.historyListShortcuts(c, list, view)
 }
 
-// historyListShortcuts 连接 MyGo 列表的键盘事件和应用自己的选择状态。
+// historyListShortcuts 连接 MyGo 列表的键盘事件和 history 模块的选择状态。
 // 使用 OnShortcut 让 Enter 先由列表处理，避免被条目按钮当成普通点击吞掉。
-func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, visible []clipboardItem) {
+func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, view history.View) {
+	query := history.Query{Text: a.query, Filter: a.filter}
 	move := func(delta int) {
-		if a.moveSelection(visible, delta) {
-			a.listState.ScrollIntoView(a.selectedIndex)
+		if a.history.Move(query, delta) {
+			next := a.history.Snapshot(query)
+			a.listState.ScrollIntoView(next.SelectedIndex)
 		}
 	}
 	list.OnShortcut(0, ui.KeyDown, func() { move(1) })
 	list.OnShortcut(0, ui.KeyUp, func() { move(-1) })
 	list.OnShortcut(0, ui.KeyHome, func() {
-		if a.selectBoundary(visible, false) {
-			a.listState.ScrollIntoView(a.selectedIndex)
+		if len(view.Items) == 0 {
+			return
+		}
+		changed := view.SelectedID != view.Items[0].ID
+		a.history.Select(view.Items[0].ID)
+		if changed {
+			a.listState.ScrollIntoView(0)
 		}
 	})
 	list.OnShortcut(0, ui.KeyEnd, func() {
-		if a.selectBoundary(visible, true) {
-			a.listState.ScrollIntoView(a.selectedIndex)
+		if len(view.Items) == 0 {
+			return
+		}
+		last := len(view.Items) - 1
+		changed := view.SelectedID != view.Items[last].ID
+		a.history.Select(view.Items[last].ID)
+		if changed {
+			a.listState.ScrollIntoView(last)
 		}
 	})
 	list.OnShortcut(0, ui.KeyEnter, func() {
-		if item, ok := a.selectedVisibleItem(visible); ok {
-			a.copyToClipboard(c, item)
+		if view.SelectedID != "" {
+			a.copyToClipboard(c, view.SelectedID)
 		}
 	})
 }
 
-func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item clipboardItem, index int) ui.Element {
-	row := ui.ButtonBase(c.Key("history-row-"+item.id)).
+func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.Item, selected bool) ui.Element {
+	row := ui.ButtonBase(c.Key("history-row-"+item.ID)).
 		Height(historyItemHeight).AlignSelf(ui.Stretch).Shrink(0).
 		Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), space(theme, historyControlGap), 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 1.5)).
 		// 预留透明边框，切换选中态时不改变内容布局。
 		Radius(radius(theme, cardRadius)).Border(1, ui.Transparent).Column().
 		Justify(ui.Start).AlignItems(ui.Stretch).
-		TextColor(primaryText(theme)).Label(item.listText())
-	if a.selectedIndex == index {
+		TextColor(primaryText(theme)).Label(historyListText(item))
+	if selected {
 		row.Background(selectedFill(theme)).
 			BorderColor(theme.Accent.Alpha(0.22))
 	} else if row.Hovered() {
@@ -328,7 +343,7 @@ func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item clipboardI
 	}
 
 	row.Children(func() {
-		if item.kind == kindImage && item.image != nil {
+		if item.Kind == kindImage && item.Image != nil {
 			a.imageHistoryRow(c, theme, item)
 			return
 		}
@@ -337,50 +352,52 @@ func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item clipboardI
 	return row
 }
 
-func (a *application) textHistoryRow(c *ui.Context, theme *ui.Theme, item clipboardItem) {
+func (a *application) textHistoryRow(c *ui.Context, theme *ui.Theme, item history.Item) {
 	a.historyMetaRow(c, theme, item)
-	ui.Text(c, item.listText()).FontSize(font(theme, fontBody)).
+	ui.Text(c, historyListText(item)).FontSize(font(theme, fontBody)).
 		TextColor(primaryText(theme)).SingleLine()
 	a.autoTagRow(c, theme, item)
 }
 
-func (a *application) historyMetaRow(c *ui.Context, theme *ui.Theme, item clipboardItem) {
+func (a *application) historyMetaRow(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Row(c).Height(space(theme, 4)).Shrink(0).AlignItems(ui.Center).
 		Gap(space(theme, 1.25)).Children(func() {
-		baseKind := item.baseKind()
+		baseKind := item.Kind.BaseKind()
 		kindColor := colorForKind(theme, baseKind)
 		ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.25), space(theme, 3.25)).
 			Shrink(0).TextColor(kindColor)
-		ui.Text(c, baseKind.displayName()).FontSize(font(theme, fontCaption)).FontWeight(600).
+		ui.Text(c, baseKind.DisplayName()).FontSize(font(theme, fontCaption)).FontWeight(600).
 			TextColor(kindColor).SingleLine()
-		if item.favorite {
+		if item.Favorite {
 			ui.Icon(c, icons.star).Size(space(theme, 2.75), space(theme, 2.75)).Shrink(0).
 				TextColor(ui.Hex("#d69e2e"))
 		}
 		ui.Spacer(c)
-		ui.Text(c, item.timestamp).FontSize(font(theme, fontCaption)).
+		ui.Text(c, historyTimestamp(item.CreatedAt)).FontSize(font(theme, fontCaption)).
 			TextColor(secondaryText(theme)).SingleLine()
 	})
 }
 
-func (a *application) imageHistoryRow(c *ui.Context, theme *ui.Theme, item clipboardItem) {
+func (a *application) imageHistoryRow(c *ui.Context, theme *ui.Theme, item history.Item) {
 	a.historyMetaRow(c, theme, item)
 	ui.Row(c).Height(space(theme, 10)).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
 		ui.Box(c).Size(space(theme, 10), space(theme, 10)).Shrink(0).Radius(radius(theme, controlRadius)).
 			Background(subtleFill(theme)).Border(1, borderColor(theme)).Children(func() {
-			ui.Image(c, item.image.bitmap).Size(space(theme, 9.5), space(theme, 9.5)).Fit(ui.Cover).Radius(radius(theme, 1.75))
+			if bitmap := a.historyBitmap(item); bitmap != nil {
+				ui.Image(c, bitmap).Size(space(theme, 9.5), space(theme, 9.5)).Fit(ui.Cover).Radius(radius(theme, 1.75))
+			}
 		})
-		ui.Text(c, item.resolutionLabel()).FontSize(font(theme, fontBody)).
+		ui.Text(c, historyResolutionLabel(item)).FontSize(font(theme, fontBody)).
 			TextColor(secondaryText(theme)).SingleLine()
 	})
 }
 
-func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item clipboardItem) {
-	tag := item.smartTag()
+func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item history.Item) {
+	tag := item.Kind.SmartTag()
 	if tag == "" {
 		return
 	}
-	tagColor := colorForKind(theme, item.kind)
+	tagColor := colorForKind(theme, item.Kind)
 	ui.Row(c).Height(space(theme, 4.5)).Shrink(0).AlignItems(ui.Center).Children(func() {
 		ui.Text(c, tag).FontSize(font(theme, fontCaption)).TextColor(tagColor).
 			Padding(space(theme, 0.25), space(theme, 1.5)).Radius(radius(theme, controlRadius)).
@@ -389,11 +406,11 @@ func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item clipboardI
 	})
 }
 
-func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, visible []clipboardItem) {
+func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view history.View) {
 	pane := ui.Column(c).Grow(1).FillHeight().
 		MinWidth(minPreviewPaneWidth).Background(theme.Background)
 	pane.Children(func() {
-		item, ok := a.selectedVisibleItem(visible)
+		item, ok := selectedHistoryItem(view)
 		if !ok {
 			a.emptyPreview(c, theme)
 			return
@@ -406,11 +423,11 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, visible []c
 	})
 }
 
-func (a *application) selectedVisibleItem(visible []clipboardItem) (clipboardItem, bool) {
-	if a.selectedIndex < 0 || a.selectedIndex >= len(visible) {
-		return clipboardItem{}, false
+func selectedHistoryItem(view history.View) (history.Item, bool) {
+	if view.SelectedIndex < 0 || view.SelectedIndex >= len(view.Items) {
+		return history.Item{}, false
 	}
-	return visible[a.selectedIndex], true
+	return view.Items[view.SelectedIndex], true
 }
 
 func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
@@ -425,27 +442,27 @@ func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item clipboardItem) {
+func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Column(c).Shrink(0).Padding(space(theme, 6), space(theme, 7), space(theme, 3.5), space(theme, 7)).
 		Gap(space(theme, 1.25)).Children(func() {
 		ui.Row(c).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-			baseKind := item.baseKind()
+			baseKind := item.Kind.BaseKind()
 			kindColor := colorForKind(theme, baseKind)
 			ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.5), space(theme, 3.5)).
 				Shrink(0).TextColor(kindColor)
-			ui.Text(c, baseKind.displayName()).FontSize(font(theme, fontMeta)).FontWeight(600).
+			ui.Text(c, baseKind.DisplayName()).FontSize(font(theme, fontMeta)).FontWeight(600).
 				TextColor(kindColor).SingleLine()
 			ui.Text(c, "·").FontSize(font(theme, fontMeta)).
 				TextColor(secondaryText(theme))
-			if item.kind == kindImage && item.image != nil {
+			if item.Kind == kindImage && item.Image != nil {
 				ui.Text(c, "原始图片").FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme)).SingleLine()
 			} else {
-				ui.Textf(c, "%d 字符", len([]rune(item.content))).FontSize(font(theme, fontMeta)).
+				ui.Textf(c, "%d 字符", len([]rune(item.Text))).FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme)).SingleLine()
 			}
 			ui.Spacer(c)
-			ui.Textf(c, "%s · %s", item.source, item.timestamp).
+			ui.Textf(c, "%s · %s", item.Source, historyTimestamp(item.CreatedAt)).
 				FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 			a.actionBar(c, theme, item)
 		})
@@ -453,14 +470,14 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item clipboa
 	})
 }
 
-func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item clipboardItem) {
+func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item history.Item) {
 	content := ui.Scroll(c).Grow(1).MinHeight(0).
 		Padding(0, space(theme, 7), space(theme, spacePageBottom), space(theme, 7))
 	content.Children(func() {
 		ui.Column(c).MaxWidth(pageDetailMaxWidth).Gap(space(theme, 3)).Children(func() {
-			switch item.kind {
+			switch item.Kind {
 			case kindCode:
-				ui.Text(c, item.content).Font("monospace").FontSize(font(theme, fontCode)).
+				ui.Text(c, item.Text).Font("monospace").FontSize(font(theme, fontCode)).
 					TextColor(primaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
 					Background(panelFill(theme)).Border(1, borderColor(theme)).Wrap().Selectable()
 			case kindLink:
@@ -468,12 +485,12 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item clipbo
 					Radius(radius(theme, cardRadius)).Background(panelFill(theme)).
 					Border(1, borderColor(theme)).Selectable().Children(func() {
 					ui.Icon(c, icons.link).Size(space(theme, 4), space(theme, 4)).Shrink(0).
-						TextColor(colorForKind(theme, item.kind))
-					ui.Link(c, item.content, item.content).FontSize(font(theme, fontBody)).
+						TextColor(colorForKind(theme, item.Kind))
+					ui.Link(c, item.Text, item.Text).FontSize(font(theme, fontBody)).
 						TextColor(theme.Accent).Wrap()
 				})
 			case kindImage:
-				if item.image == nil {
+				if item.Image == nil {
 					ui.Text(c, "图片预览不可用").FontSize(font(theme, fontBody)).
 						TextColor(secondaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
 						Background(panelFill(theme)).Border(1, borderColor(theme))
@@ -481,11 +498,13 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item clipbo
 				}
 				ui.Box(c).MaxWidth(pageDetailMaxWidth).Center().Padding(space(theme, 3)).Radius(radius(theme, largeRadius)).
 					Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
-					ui.Image(c, item.image.bitmap).MaxWidth(pageDetailMaxWidth - space(theme, 6)).MaxHeight(520).
-						Fit(ui.Contain).Radius(radius(theme, controlRadius))
+					if bitmap := a.historyBitmap(item); bitmap != nil {
+						ui.Image(c, bitmap).MaxWidth(pageDetailMaxWidth - space(theme, 6)).MaxHeight(520).
+							Fit(ui.Contain).Radius(radius(theme, controlRadius))
+					}
 				})
 			default:
-				ui.Text(c, item.content).FontSize(font(theme, fontBody)).
+				ui.Text(c, item.Text).FontSize(font(theme, fontBody)).
 					TextColor(primaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
 					Background(panelFill(theme)).Border(1, borderColor(theme)).Wrap().Selectable()
 			}
@@ -493,31 +512,117 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item clipbo
 	})
 }
 
-func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item clipboardItem) {
+func historyListText(item history.Item) string {
+	if item.Kind == kindImage {
+		return historyImageLabel(item)
+	}
+	content := strings.TrimSpace(item.Text)
+	if content == "" {
+		return item.Kind.DisplayName()
+	}
+	return truncateSingleLine(content, historyTextLimit)
+}
+
+func historyImageLabel(item history.Item) string {
+	if item.Image == nil {
+		return item.Kind.DisplayName()
+	}
+	return fmt.Sprintf("图片（%dx%d）", item.Image.Width, item.Image.Height)
+}
+
+func historyResolutionLabel(item history.Item) string {
+	if item.Image == nil {
+		return "图片"
+	}
+	return fmt.Sprintf("%dx%d", item.Image.Width, item.Image.Height)
+}
+
+func historyTimestamp(value time.Time) string {
+	if value.IsZero() {
+		return "—"
+	}
+	now := time.Now()
+	date := func(value time.Time) time.Time {
+		return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, value.Location())
+	}
+	daysAgo := int(date(now).Sub(date(value)).Hours() / 24)
+	switch daysAgo {
+	case 0:
+		return "今天 " + value.Format("15:04")
+	case 1:
+		return "昨天 " + value.Format("15:04")
+	}
+	if daysAgo >= 2 && daysAgo < 7 {
+		return "周" + weekdayLabel(value.Weekday()) + " " + value.Format("15:04")
+	}
+	if daysAgo >= 7 && daysAgo < 14 {
+		return "上周" + weekdayLabel(value.Weekday()) + " " + value.Format("15:04")
+	}
+	return value.Format("2006-01-02 15:04")
+}
+
+func weekdayLabel(day time.Weekday) string {
+	switch day {
+	case time.Monday:
+		return "一"
+	case time.Tuesday:
+		return "二"
+	case time.Wednesday:
+		return "三"
+	case time.Thursday:
+		return "四"
+	case time.Friday:
+		return "五"
+	case time.Saturday:
+		return "六"
+	default:
+		return "日"
+	}
+}
+
+func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
+	if item.Image == nil || len(item.Image.PNG) == 0 {
+		return nil
+	}
+	if bitmap, ok := a.historyBitmaps[item.ID]; ok {
+		return bitmap
+	}
+	bitmap, err := ui.DecodeBitmap(item.Image.PNG)
+	if err != nil {
+		return nil
+	}
+	if a.historyBitmaps == nil {
+		a.historyBitmaps = make(map[string]*ui.Bitmap)
+	}
+	a.historyBitmaps[item.ID] = bitmap
+	return bitmap
+}
+
+func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
 		copyLabel := "复制"
 		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false)
 		if copyButton.Clicked() {
-			a.copyToClipboard(c, item)
+			a.copyToClipboard(c, item.ID)
 		}
 
-		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.favorite), item.favorite)
+		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.Favorite), item.Favorite)
 		if favoriteButton.Clicked() {
-			if message := a.toggleFavorite(item.id); message != "" {
+			if message := a.toggleFavorite(item.ID); message != "" {
 				c.Toast(message)
 			}
 		}
 	})
 }
 
-func (a *application) copyToClipboard(c *ui.Context, item clipboardItem) {
-	if item.kind == kindImage && item.image != nil {
-		if err := mygo.Clipboard.WriteImage(item.image.png); err != nil {
-			c.Toast("复制失败")
-			return
-		}
-	} else {
-		mygo.Clipboard.WriteText(item.content)
+func (a *application) copyToClipboard(c *ui.Context, id string) {
+	if a.clipboard == nil {
+		c.Toast("复制失败")
+		return
+	}
+	if err := a.history.Copy(id, a.clipboard); err != nil {
+		c.Toast("复制失败")
+		return
 	}
 	c.Toast(copiedStatus)
 }

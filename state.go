@@ -4,16 +4,17 @@ import (
 	"runtime"
 	"strings"
 
+	"gopaste/internal/history"
+
 	"github.com/egoist/mygo"
 )
 
 func newApplication() *application {
 	items, devices := previewData()
-	app := &application{
+	return &application{
 		page:              pageHistory,
 		historyPaneWidth:  defaultHistoryPaneWidth,
-		selectedIndex:     -1,
-		items:             items,
+		history:           history.New(items),
 		deviceName:        "本机",
 		devicePlatform:    localPlatformName(),
 		deviceSyncEnabled: true,
@@ -23,8 +24,6 @@ func newApplication() *application {
 		appearance:        appearanceSystem,
 		settingsArea:      settingsGeneral,
 	}
-	app.keepSelection(items)
-	return app
 }
 
 func localPlatformName() string {
@@ -40,31 +39,6 @@ func localPlatformName() string {
 	}
 }
 
-// visibleItems 返回当前筛选条件和搜索词下的历史记录。
-func (a *application) visibleItems() []clipboardItem {
-	query := strings.ToLower(strings.TrimSpace(a.query))
-	visible := make([]clipboardItem, 0, len(a.items))
-	for _, item := range a.items {
-		if !a.matchesFilter(item) || !matchesQuery(item, query) {
-			continue
-		}
-		visible = append(visible, item)
-	}
-	return visible
-}
-
-func matchesQuery(item clipboardItem, query string) bool {
-	if query == "" {
-		return true
-	}
-	searchText := strings.ToLower(strings.Join([]string{
-		item.content,
-		item.kind.displayName(),
-		item.source,
-	}, " "))
-	return strings.Contains(searchText, query)
-}
-
 func truncateSingleLine(value string, limit int) string {
 	value = strings.Join(strings.Fields(value), " ")
 	runes := []rune(value)
@@ -75,49 +49,6 @@ func truncateSingleLine(value string, limit int) string {
 		return string(runes[:limit])
 	}
 	return string(runes[:limit-1]) + "…"
-}
-
-func (a *application) matchesFilter(item clipboardItem) bool {
-	switch a.filter {
-	case filterText:
-		return item.kind == kindText
-	case filterLinks:
-		return item.kind == kindLink
-	case filterCode:
-		return item.kind == kindCode
-	case filterImages:
-		return item.kind == kindImage
-	case filterFiles:
-		return item.kind == kindFile
-	case filterFavorites:
-		return item.favorite
-	default:
-		return true
-	}
-}
-
-// keepSelection 保证筛选结果变化后，预览区仍指向一个有效条目。
-func (a *application) keepSelection(visible []clipboardItem) {
-	if len(visible) == 0 {
-		a.selectedID = ""
-		a.selectedIndex = -1
-		return
-	}
-
-	for index, item := range visible {
-		if item.id == a.selectedID {
-			a.selectedIndex = index
-			return
-		}
-	}
-
-	a.selectedIndex = 0
-	a.selectedID = visible[0].id
-}
-
-func (a *application) selectItem(index int, item clipboardItem) {
-	a.selectedIndex = index
-	a.selectedID = item.id
 }
 
 // setPage 统一切换当前页面，避免窗口控制代码直接修改业务状态字段。
@@ -135,44 +66,6 @@ func (a *application) setSyncEnabled(enabled bool) {
 	if a.onSyncStateChanged != nil {
 		a.onSyncStateChanged()
 	}
-}
-
-// selectVisibleIndex 选择筛选结果中的一项，并同步预览区使用的稳定 ID。
-func (a *application) selectVisibleIndex(visible []clipboardItem, index int) bool {
-	if len(visible) == 0 {
-		return false
-	}
-	index = max(0, min(index, len(visible)-1))
-	item := visible[index]
-	changed := a.selectedIndex != index || a.selectedID != item.id
-	a.selectItem(index, item)
-	return changed
-}
-
-// moveSelection 按步长移动历史列表的键盘选择，并限制在可见结果范围内。
-func (a *application) moveSelection(visible []clipboardItem, delta int) bool {
-	if len(visible) == 0 {
-		return false
-	}
-	index := a.selectedIndex
-	if index < 0 {
-		index = 0
-	} else {
-		index += delta
-	}
-	return a.selectVisibleIndex(visible, index)
-}
-
-// selectBoundary 把键盘选择移动到筛选结果的首项或末项。
-func (a *application) selectBoundary(visible []clipboardItem, end bool) bool {
-	if len(visible) == 0 {
-		return false
-	}
-	index := 0
-	if end {
-		index = len(visible) - 1
-	}
-	return a.selectVisibleIndex(visible, index)
 }
 
 func (a *application) loadSystemSettings() {
@@ -201,20 +94,9 @@ func (a *application) updateLaunchAtLogin() string {
 	return "已关闭开机自启"
 }
 
-func (a *application) imageItemCount() int {
-	count := 0
-	for _, item := range a.items {
-		if item.kind == kindImage {
-			count++
-		}
-	}
-	return count
-}
-
 func (a *application) clearHistory() {
-	a.items = nil
-	a.selectedID = ""
-	a.selectedIndex = -1
+	a.history.Clear()
+	a.historyBitmaps = nil
 }
 
 func (a *application) requestDangerousAction(action dangerousAction, deviceID string) {
@@ -247,20 +129,14 @@ func (a *application) executeDangerousAction(action dangerousAction, deviceID st
 }
 
 func (a *application) toggleFavorite(id string) string {
-	for index := range a.items {
-		item := &a.items[index]
-		if item.id != id {
-			continue
-		}
-
-		item.favorite = !item.favorite
-		if item.favorite {
-			return favoriteAddedStatus
-		} else {
-			return favoriteRemovedStatus
-		}
+	favorite, err := a.history.ToggleFavorite(id)
+	if err != nil {
+		return ""
 	}
-	return ""
+	if favorite {
+		return favoriteAddedStatus
+	}
+	return favoriteRemovedStatus
 }
 
 func favoriteLabel(favorite bool) string {

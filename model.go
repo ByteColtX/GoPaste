@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 
+	"gopaste/internal/history"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -83,62 +85,27 @@ const (
 	pageSettings
 )
 
-type historyFilter uint8
+type historyFilter = history.Filter
 
 const (
-	filterAll historyFilter = iota
-	filterText
-	filterLinks
-	filterCode
-	filterImages
-	filterFiles
-	filterFavorites
+	filterAll       = history.FilterAll
+	filterText      = history.FilterText
+	filterLinks     = history.FilterLinks
+	filterCode      = history.FilterCode
+	filterImages    = history.FilterImages
+	filterFiles     = history.FilterFiles
+	filterFavorites = history.FilterFavorites
 )
 
-type contentKind uint8
+type contentKind = history.Kind
 
 const (
-	kindText contentKind = iota
-	kindLink
-	kindCode
-	kindImage
-	kindFile
+	kindText  = history.KindText
+	kindLink  = history.KindLink
+	kindCode  = history.KindCode
+	kindImage = history.KindImage
+	kindFile  = history.KindFile
 )
-
-// displayName 返回面向用户显示的内容类型名称。
-func (kind contentKind) displayName() string {
-	switch kind {
-	case kindLink:
-		return "链接"
-	case kindCode:
-		return "代码"
-	case kindImage:
-		return "图片"
-	case kindFile:
-		return "文件"
-	default:
-		return "文本"
-	}
-}
-
-type clipboardItem struct {
-	id        string
-	kind      contentKind
-	content   string
-	image     *clipboardImage
-	source    string
-	timestamp string
-	favorite  bool
-}
-
-// clipboardImage 保存剪贴板图片的原始 PNG 和已经解码的位图。
-// 原始数据用于复制，位图用于列表缩略图和详情预览。
-type clipboardImage struct {
-	png    []byte
-	bitmap *ui.Bitmap
-	width  int
-	height int
-}
 
 // pairedDevice 保存一个已配对设备的运行时状态。
 // 这些字段先保存在内存中，后续接入持久化同步服务时可直接替换数据来源。
@@ -169,11 +136,10 @@ type application struct {
 	historyPaneWidth float32
 	filter           historyFilter
 	query            string
-
-	items         []clipboardItem
-	selectedID    string
-	selectedIndex int
-	listState     ui.ListState
+	history          *history.Store
+	historyBitmaps   map[string]*ui.Bitmap
+	clipboard        history.ClipboardWriter
+	listState        ui.ListState
 
 	deviceName               string
 	devicePeerID             string
@@ -191,56 +157,6 @@ type application struct {
 	confirmDangerousAction   bool
 	pendingDangerousAction   dangerousAction
 	pendingDangerousDeviceID string
-}
-
-// baseKind 返回记录的基础类型。链接和代码属于文本，只作为智能标签显示。
-func (item clipboardItem) baseKind() contentKind {
-	switch item.kind {
-	case kindLink, kindCode:
-		return kindText
-	default:
-		return item.kind
-	}
-}
-
-// smartTag 返回自动识别出的标签。收藏状态由用户手动维护，不在这里返回。
-func (item clipboardItem) smartTag() string {
-	switch item.kind {
-	case kindLink:
-		return "链接"
-	case kindCode:
-		return "代码"
-	default:
-		return ""
-	}
-}
-
-// listText 返回历史列表中的单行正文。
-func (item clipboardItem) listText() string {
-	if item.kind == kindImage {
-		return item.displayLabel()
-	}
-	content := strings.TrimSpace(item.content)
-	if content == "" {
-		return item.kind.displayName()
-	}
-	return truncateSingleLine(content, historyTextLimit)
-}
-
-// displayLabel 返回图片条目的类型和分辨率。
-func (item clipboardItem) displayLabel() string {
-	if item.kind == kindImage && item.image != nil {
-		return fmt.Sprintf("图片（%dx%d）", item.image.width, item.image.height)
-	}
-	return item.baseKind().displayName()
-}
-
-// resolutionLabel 返回图片在历史列表中显示的分辨率。
-func (item clipboardItem) resolutionLabel() string {
-	if item.image == nil {
-		return "图片"
-	}
-	return fmt.Sprintf("%dx%d", item.image.width, item.image.height)
 }
 
 func displayValue(value string) string {
