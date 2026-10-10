@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"gopaste/internal/history"
 
 	"github.com/egoist/mygo/ui"
@@ -54,7 +56,8 @@ func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item set
 	button := ui.ButtonBase(c.Key("settings-nav-"+item.title)).
 		Height(space(theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.25), space(theme, 2)).Radius(radius(theme, controlRadius)).
-		TextColor(secondaryText(theme)).Label(item.title).Tooltip(item.title)
+		TextColor(secondaryText(theme)).Label(item.title).Tooltip(item.title).
+		Role(ui.RoleToggleButton).Selected(a.settingsArea == item.area)
 	if a.settingsArea == item.area {
 		button.Background(selectedFill(theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {
@@ -107,11 +110,16 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsSubheading(c, "基本设置", theme)
 	settingsGroup(c, theme, "settings-general-group", func() {
 		a.settingsRow(c, theme, "设备名称", "用于在设备列表中识别本机", func() {
-			ui.TextInput(c.Key("settings-device-name"), &a.deviceName).
-				Width(220).Height(space(theme, controlHeight)).Shrink(0).
+			input := ui.TextInput(c.Key("settings-device-name"), &a.deviceName).
+				Height(space(theme, controlHeight)).Shrink(0).
 				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 				Background(theme.Surface).Border(1, borderColor(theme)).
 				Label("设备名称").Placeholder("输入设备名称")
+			if compactDetailLayout(c, theme) {
+				input.FillWidth()
+			} else {
+				input.Width(220)
+			}
 		})
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, "开机自启", "登录系统后自动打开 GoPaste", func() {
@@ -123,8 +131,13 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 		})
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, "语言", "选择应用界面语言", func() {
-			ui.Select(c.Key("settings-language"), &a.language, languageOptions).
-				Width(180).Height(space(theme, controlHeight)).Shrink(0).Label("语言")
+			languageControl := ui.Select(c.Key("settings-language"), &a.language, languageOptions).
+				Height(space(theme, controlHeight)).Shrink(0).Label("语言")
+			if compactDetailLayout(c, theme) {
+				languageControl.FillWidth()
+			} else {
+				languageControl.Width(180)
+			}
 		})
 	})
 }
@@ -140,12 +153,30 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 				"跟随系统",
 				"浅色",
 				"深色",
-			).Width(260).Height(space(theme, controlHeight)).Shrink(0).Label("外观")
+			).Height(space(theme, controlHeight)).Shrink(0).Label("外观")
+			if compactDetailLayout(c, theme) {
+				control.FillWidth()
+			} else {
+				control.Width(260)
+			}
 			if control.Changed() {
 				a.applyAppearance()
 			}
 		})
 	})
+	ui.Text(c, "当前使用："+appearanceLabel(a.appearance)).FontSize(font(theme, fontMeta)).
+		TextColor(secondaryText(theme)).Padding(space(theme, 1), 0, 0, 0).SingleLine()
+}
+
+func appearanceLabel(appearance int) string {
+	switch appearance {
+	case appearanceLight:
+		return "浅色主题"
+	case appearanceDark:
+		return "深色主题"
+	default:
+		return "跟随系统"
+	}
 }
 
 func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
@@ -155,7 +186,8 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	settingsGroup(c, theme, "settings-storage-group", func() {
 		a.settingsRow(c, theme, "历史记录", "保存在本机的剪贴板记录", func() {
 			ui.Column(c).Shrink(0).AlignItems(ui.End).Gap(space(theme, 0.5)).Children(func() {
-				ui.Textf(c, "%d 条", stats.Total).FontSize(font(theme, fontControl)).TextColor(primaryText(theme)).SingleLine()
+				ui.Text(c, storageRecordSummary(stats.Total)).FontSize(font(theme, fontControl)).
+					TextColor(primaryText(theme)).SingleLine()
 				ui.Textf(c, "%d 张图片", stats.ImageCount).FontSize(font(theme, fontCaption)).
 					TextColor(secondaryText(theme)).SingleLine()
 			})
@@ -163,17 +195,36 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, "清理历史记录", "删除当前保存的所有本地记录", func() {
 			button := dangerButton(c, theme, "settings-clear-history", "清空历史记录").
-				Gap(space(theme, spaceInline))
+				Gap(space(theme, spaceInline)).Disabled(stats.Total == 0)
 			button.Children(func() {
 				ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).
 					Shrink(0).TextColor(theme.Danger)
-				ui.Text(c, "清空历史记录").FontSize(font(theme, fontControl)).SingleLine()
+				ui.Text(c, storageClearLabel(stats.Total)).FontSize(font(theme, fontControl)).SingleLine()
 			})
-			if button.Clicked() {
+			if button.Clicked() && stats.Total > 0 {
 				a.requestDangerousAction(dangerousActionClearHistory, "")
 			}
 		})
 	})
+	if stats.Total == 0 {
+		ui.Text(c, "暂无本机历史记录。复制内容后，记录会自动出现在历史页面。").
+			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).
+			Padding(space(theme, 1), 0, 0, 0).Wrap()
+	}
+}
+
+func storageRecordSummary(total int) string {
+	if total == 0 {
+		return "暂无记录"
+	}
+	return fmt.Sprintf("%d 条", total)
+}
+
+func storageClearLabel(total int) string {
+	if total == 0 {
+		return "没有可清理的记录"
+	}
+	return "清空历史记录"
 }
 
 func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
@@ -182,6 +233,16 @@ func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
 	settingsGroup(c, theme, "settings-about-group", func() {
 		a.settingsRow(c, theme, "版本", "当前应用版本", func() {
 			ui.Text(c, settingsVersion).FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).SingleLine()
+		})
+		settingsRule(c, theme)
+		a.settingsRow(c, theme, "同步范围", "只在已配对设备之间建立局域网直连", func() {
+			ui.Text(c, "局域网直连").FontSize(font(theme, fontControl)).
+				TextColor(theme.Success).SingleLine()
+		})
+		settingsRule(c, theme)
+		a.settingsRow(c, theme, "隐私", "剪贴板内容保存在本机，不写入普通日志或第三方服务", func() {
+			ui.Text(c, "本机保存").FontSize(font(theme, fontControl)).
+				TextColor(secondaryText(theme)).SingleLine()
 		})
 	})
 }
@@ -200,6 +261,17 @@ func settingsRule(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) settingsRow(c *ui.Context, theme *ui.Theme, title, description string, control func()) {
+	if compactDetailLayout(c, theme) {
+		ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2)).
+			Padding(space(theme, 3), space(theme, 4)).Children(func() {
+			ui.Column(c).FillWidth().MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
+				ui.Text(c, title).FontSize(font(theme, fontBody)).SingleLine()
+				ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
+			})
+			control()
+		})
+		return
+	}
 	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).Gap(space(theme, 4.5)).
 		Padding(space(theme, 3), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {

@@ -79,7 +79,7 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 func (a *application) dangerousActionDetails(action dangerousAction, deviceID string) (string, string, string, bool) {
 	switch action {
 	case dangerousActionClearHistory:
-		return "清空历史记录？", "当前保存的历史记录会被全部移除。", "清空", true
+		return "清空历史记录？", "GoPaste 会删除本机保存的全部剪贴板历史记录。此操作不可恢复。", "清空", true
 	case dangerousActionUnpairDevice:
 		name := "该设备"
 		if device, ok := a.pairedDeviceByID(deviceID); ok {
