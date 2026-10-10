@@ -187,16 +187,6 @@ func (a *application) executeDangerousAction(action dangerousAction, deviceID st
 			return ""
 		}
 		return "已取消配对"
-	case dangerousActionSetAllSyncDirections:
-		if device, ok := a.pairedDeviceByID(deviceID); ok {
-			a.setAllSyncDirections(device, defaultSyncDirection)
-			return "已设为全部双向同步"
-		}
-	case dangerousActionRestoreSyncDefaults:
-		if device, ok := a.pairedDeviceByID(deviceID); ok {
-			a.restoreSyncDefaults(device)
-			return "已恢复默认同步设置"
-		}
 	}
 	return ""
 }

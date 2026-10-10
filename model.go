@@ -73,8 +73,6 @@ const (
 	dangerousActionNone dangerousAction = iota
 	dangerousActionClearHistory
 	dangerousActionUnpairDevice
-	dangerousActionSetAllSyncDirections
-	dangerousActionRestoreSyncDefaults
 )
 
 type page uint8

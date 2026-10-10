@@ -76,18 +76,6 @@ func (a *application) dangerousActionDetails(action dangerousAction, deviceID st
 			name = device.name
 		}
 		return "取消配对设备？", fmt.Sprintf("取消配对“%s”后，该设备将不再与本机同步。", name), "取消配对", true
-	case dangerousActionSetAllSyncDirections:
-		name := "该设备"
-		if device, ok := a.pairedDeviceByID(deviceID); ok {
-			name = device.name
-		}
-		return "设置全部双向同步？", fmt.Sprintf("这会覆盖“%s”的每种内容同步方向。", name), "全部双向同步", true
-	case dangerousActionRestoreSyncDefaults:
-		name := "该设备"
-		if device, ok := a.pairedDeviceByID(deviceID); ok {
-			name = device.name
-		}
-		return "恢复默认同步设置？", fmt.Sprintf("“%s”的自定义同步方向将被恢复为默认值。", name), "恢复默认", true
 	default:
 		return "", "", "", false
 	}

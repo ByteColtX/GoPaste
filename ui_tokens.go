@@ -116,7 +116,7 @@ func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element
 	return button
 }
 
-// dangerButton 用于会删除数据或覆盖同步状态的操作，保持文字和悬停反馈为危险色。
+// dangerButton 用于会删除数据或解除关联的操作，保持文字和悬停反馈为危险色。
 func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(space(theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).

@@ -268,13 +268,20 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 		AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "自定义同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 		ui.Spacer(c)
-		button := dangerButton(c, theme, device.id+"-all-bidirectional", "全部双向同步")
+		button := ui.ButtonBase(c.Key(device.id+"-all-bidirectional")).
+			Height(space(theme, compactHeight)).Shrink(0).
+			Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
+			TextColor(secondaryText(theme)).Label("全部双向同步")
+		if button.Hovered() {
+			button.Background(hoverFill(theme))
+		} else {
+			button.Background(ui.Transparent)
+		}
 		button.Children(func() {
-			ui.Text(c, "全部双向同步").FontSize(font(theme, fontControl)).
-				TextColor(theme.Danger).SingleLine()
+			ui.Text(c, "全部双向同步").FontSize(font(theme, fontControl)).SingleLine()
 		})
 		if button.Clicked() {
-			a.requestDangerousAction(dangerousActionSetAllSyncDirections, device.id)
+			a.setAllSyncDirections(device, defaultSyncDirection)
 		}
 	})
 	deviceDivider(c, theme)
@@ -285,15 +292,22 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 		ui.Text(c, "分别设置每种内容的同步方向。").FontSize(font(theme, fontMeta)).
 			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
-		button := dangerButton(c, theme, device.id+"-restore-sync-defaults", "恢复默认").
-			Gap(space(theme, spaceInline))
+		button := ui.ButtonBase(c.Key(device.id+"-restore-sync-defaults")).
+			Height(space(theme, compactHeight)).Shrink(0).
+			Padding(space(theme, 1), space(theme, 2)).Gap(space(theme, spaceInline)).
+			Radius(radius(theme, controlRadius)).
+			TextColor(secondaryText(theme)).Label("恢复默认")
+		if button.Hovered() {
+			button.Background(hoverFill(theme))
+		} else {
+			button.Background(ui.Transparent)
+		}
 		button.Children(func() {
-			ui.Icon(c, icons.clear).Size(space(theme, 3.25), space(theme, 3.25)).
-				Shrink(0).TextColor(theme.Danger)
-			ui.Text(c, "恢复默认").FontSize(font(theme, fontControl)).TextColor(theme.Danger).SingleLine()
+			ui.Icon(c, icons.clear).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0)
+			ui.Text(c, "恢复默认").FontSize(font(theme, fontControl)).SingleLine()
 		})
 		if button.Clicked() {
-			a.requestDangerousAction(dangerousActionRestoreSyncDefaults, device.id)
+			a.restoreSyncDefaults(device)
 		}
 	})
 	deviceDivider(c, theme)
