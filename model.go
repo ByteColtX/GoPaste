@@ -164,6 +164,8 @@ type pairedDevice struct {
 type application struct {
 	page page
 
+	onSyncStateChanged func()
+
 	historyPaneWidth float32
 	filter           historyFilter
 	query            string

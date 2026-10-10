@@ -16,10 +16,11 @@ const (
 )
 
 type appRuntime struct {
-	app      *application
-	window   *mygo.Window
-	tray     *mygo.Tray
-	quitting bool
+	app          *application
+	window       *mygo.Window
+	tray         *mygo.Tray
+	syncMenuItem *mygo.MenuItem
+	quitting     bool
 }
 
 func main() {
@@ -35,6 +36,7 @@ func main() {
 }
 
 func (r *appRuntime) ready() {
+	r.app.onSyncStateChanged = r.syncStateChanged
 	r.window = openMainWindow(r.app)
 	r.window.OnClose(func(event *mygo.CloseEvent) {
 		if r.quitting || r.tray == nil {
@@ -68,10 +70,15 @@ func (r *appRuntime) ready() {
 }
 
 func (r *appRuntime) trayMenu() *mygo.Menu {
+	r.syncMenuItem = &mygo.MenuItem{
+		ID:    "tray-toggle-sync",
+		Label: r.syncMenuLabel(),
+		Click: func(*mygo.MenuItem, *mygo.Window) {
+			r.toggleSync()
+		},
+	}
 	return mygo.NewMenu([]*mygo.MenuItem{
-		{ID: "tray-disable-sync", Label: "关闭同步", Click: func(*mygo.MenuItem, *mygo.Window) {
-			r.disableSync()
-		}},
+		r.syncMenuItem,
 		mygo.Separator(),
 		{ID: "tray-open", Label: "打开", Click: func(*mygo.MenuItem, *mygo.Window) {
 			r.showMainWindow()
@@ -89,14 +96,29 @@ func (r *appRuntime) trayMenu() *mygo.Menu {
 	})
 }
 
-func (r *appRuntime) disableSync() {
-	r.app.deviceSyncEnabled = false
-	r.app.deviceFileSync = false
-	for index := range r.app.pairedDevices {
-		r.app.pairedDevices[index].syncEnabled = false
+func (r *appRuntime) syncMenuLabel() string {
+	if r.app.deviceSyncEnabled {
+		return "关闭同步"
 	}
+	return "打开同步"
+}
+
+func (r *appRuntime) toggleSync() {
+	enabled := !r.app.deviceSyncEnabled
+	r.app.deviceSyncEnabled = enabled
+	r.app.deviceFileSync = enabled
+	for index := range r.app.pairedDevices {
+		r.app.pairedDevices[index].syncEnabled = enabled
+	}
+	r.syncStateChanged()
 	if r.window != nil {
 		r.window.Invalidate()
+	}
+}
+
+func (r *appRuntime) syncStateChanged() {
+	if r.syncMenuItem != nil {
+		r.syncMenuItem.SetLabel(r.syncMenuLabel())
 	}
 }
 

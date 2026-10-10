@@ -379,7 +379,11 @@ func (a *application) deviceSwitchRow(
 			ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
-		ui.Switch(c.Key("device-switch-"+key), value).Shrink(0).Disabled(disabled).Label(title)
+		switchControl := ui.Switch(c.Key("device-switch-"+key), value).
+			Shrink(0).Disabled(disabled).Label(title)
+		if key == "local-sync" && switchControl.Changed() && a.onSyncStateChanged != nil {
+			a.onSyncStateChanged()
+		}
 	})
 }
 
