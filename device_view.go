@@ -161,8 +161,6 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 				deviceStatus(c, theme, connectionLabel(device.online), connectionColor(theme, device.online))
-				ui.Text(c, "· 局域网直连").FontSize(font(theme, fontCaption)).
-					TextColor(secondaryText(theme)).SingleLine()
 			})
 		})
 	})
