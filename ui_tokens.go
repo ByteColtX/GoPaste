@@ -31,15 +31,17 @@ const (
 const (
 	// secondarySidebarWidth is shared by the device and settings pages so their
 	// detail panes begin at the same x position.
-	secondarySidebarWidth                = 224
-	secondarySidebarCompactWidth         = 200
-	navigationRailCompactWidth           = 56
-	navigationRailExpandedWidth          = 160
-	responsiveCompactWidth               = 1024
-	responsiveExpandedWidth              = 1200
-	pageDetailMaxWidth                   = 720
-	historyTrailingInset         float32 = 4
-	historyControlGap            float32 = 1
+	secondarySidebarWidth        = 224
+	secondarySidebarCompactWidth = 200
+	navigationRailCompactWidth   = 56
+	navigationRailExpandedWidth  = 160
+	responsiveCompactWidth       = 1024
+	responsiveExpandedWidth      = 1200
+	pageDetailMaxWidth           = 720
+	// sidebarTrailingInset 是历史、设备侧栏右侧的统一留白：既对齐各页内容，
+	// 也为滚动条预留出空间，避免滚动条遮挡选中卡片的边框。
+	sidebarTrailingInset float32 = 4
+	historyControlGap    float32 = 1
 
 	// columnTopInset 统一导航栏与历史、设备、设置三页内容列的首行起始内边距，
 	// 让各页栏位从同一高度开始。

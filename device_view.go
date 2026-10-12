@@ -27,12 +27,13 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 	}
 
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
-		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
+		Padding(space(theme, columnTopInset), 0, space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
 		secondarySidebarTitle(c, theme, "本设备")
 		a.localDeviceEntry(c, theme)
 
 		ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
+			Margin(0, space(theme, sidebarTrailingInset), 0, 0).
 			Padding(space(theme, 3), 0, 0, 0).Children(func() {
 			ui.Text(c, "已配对设备").FontSize(font(theme, fontSubheading)).FontWeight(600).
 				TextColor(secondaryText(theme)).SingleLine()
@@ -71,7 +72,8 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 				})
 			})
 
-		ui.Column(c).Shrink(0).Gap(space(theme, 2)).Children(func() {
+		ui.Column(c).Shrink(0).Gap(space(theme, 2)).
+			Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 			a.inviteDeviceButton(c, theme)
 			ui.Row(c).Shrink(0).Padding(space(theme, 1), space(theme, 2.5)).Children(func() {
 				deviceStatus(c, theme, fmt.Sprintf("%d 台在线", onlineCount), onlineColor)
@@ -170,7 +172,9 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 }
 
 func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key string, selected bool) ui.Element {
-	entry := ui.ButtonBase(c.Key(key)).MinHeight(controlHeightSize(c, theme, 16)).FillWidth().Shrink(0).
+	entry := ui.ButtonBase(c.Key(key)).MinHeight(controlHeightSize(c, theme, 16)).Shrink(0).
+		AlignSelf(ui.Stretch).
+		Margin(0, space(theme, sidebarTrailingInset), 0, 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
 		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
 		TextColor(primaryText(theme)).Label("选择设备").
@@ -291,7 +295,7 @@ func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 	button := dangerButton(c, theme, "unpair-selected-device", "取消配对").
 		Gap(space(theme, spaceInline))
 	button.Children(func() {
-		ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).
+		ui.Icon(c, icons.unlink).Size(space(theme, 3.5), space(theme, 3.5)).
 			Shrink(0).TextColor(theme.Danger)
 		ui.Text(c, "取消配对").FontSize(font(theme, fontControl)).FontWeight(600).
 			TextColor(theme.Danger).SingleLine()

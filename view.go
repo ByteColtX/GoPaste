@@ -197,7 +197,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 
 	panel.Children(func() {
 		a.historyHeader(c, theme, view)
-		ui.Box(c).Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
+		ui.Box(c).Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 			a.searchField(c, theme)
 		})
 		a.filterBar(c, theme)
@@ -217,7 +217,7 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 		countLabel = fmt.Sprintf("%d / %d 条记录", len(view.Items), view.Total)
 	}
 	ui.Row(c).MinHeight(controlHeightSize(c, theme, 11)).Shrink(0).AlignItems(ui.Start).
-		Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
+		Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 		ui.Column(c).Gap(space(theme, 0.25)).Padding(space(theme, 0.5), 0, 0, 0).Children(func() {
 			ui.Text(c, "最近复制").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
 			ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
@@ -275,7 +275,7 @@ func searchShortcutHint(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
 	ui.ScrollHorizontal(c).Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
-		Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), 0, 0).
+		Margin(space(theme, historyControlGap), space(theme, sidebarTrailingInset), 0, 0).
 		ScrollbarInsets(0, 0, 0, 0).Children(func() {
 		ui.Row(c).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
 			Gap(space(theme, 0.5)).Children(func() {
@@ -426,7 +426,7 @@ func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, view 
 func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.Item, selected bool) ui.Element {
 	row := ui.ButtonBase(c.Key("history-row-"+item.ID)).
 		MinHeight(controlHeightSize(c, theme, historyItemHeight/4)).AlignSelf(ui.Stretch).Shrink(0).
-		Margin(space(theme, historyControlGap), space(theme, historyTrailingInset), space(theme, historyControlGap), 0).
+		Margin(space(theme, historyControlGap), space(theme, sidebarTrailingInset), space(theme, historyControlGap), 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 1.5)).
 		// 预留透明边框，切换选中态时不改变内容布局。
 		Radius(radius(theme, cardRadius)).Border(1, ui.Transparent).Column().
