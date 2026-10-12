@@ -163,6 +163,13 @@ func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
 	})
 }
 
+// secondarySidebarTitle 是设备页与设置页侧栏顶部的首个标题。两栏共用同一份
+// 定义，保证字号、字重、颜色和左边距一致，不会再各自漂移。
+func secondarySidebarTitle(c *ui.Context, theme *ui.Theme, label string) ui.Element {
+	return ui.Text(c, label).FontSize(font(theme, fontSection)).FontWeight(600).
+		Padding(space(theme, 0.5), 0, space(theme, 0.5), 0).SingleLine()
+}
+
 func standardCard(c *ui.Context, theme *ui.Theme, key string, body func()) {
 	ui.Column(c.Key(key)).FillWidth().Shrink(0).Radius(radius(theme, cardRadius)).
 		Background(panelFill(theme)).Border(1, borderColor(theme)).Children(body)

@@ -28,8 +28,7 @@ func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		ui.Text(c, "设置").FontSize(font(theme, fontSection)).FontWeight(600).
-			Padding(space(theme, 0.5), space(theme, 1), space(theme, 0.5), space(theme, 1)).SingleLine()
+		secondarySidebarTitle(c, theme, "设置")
 
 		ui.Column(c).Gap(space(theme, 0.5)).Children(func() {
 			for _, item := range settingsNavigationItems() {
