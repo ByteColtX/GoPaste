@@ -27,7 +27,7 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 	}
 
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
-		Padding(space(theme, 6), space(theme, 4), space(theme, 5), space(theme, 4)).
+		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
 		ui.Text(c, "本设备").FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2.5), space(theme, 0.75), space(theme, 2.5)).SingleLine()
@@ -214,7 +214,7 @@ func (a *application) deviceDetail(c *ui.Context, theme *ui.Theme) {
 			ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 1.5), 0, 0).
 				Children(func() {
 					ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
-						Padding(space(theme, spacePageTop), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
+						Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
 						Gap(space(theme, spaceSection)).Children(func() {
 						a.deviceDetailHeader(c, theme)
 						a.deviceConnectionNotice(c, theme)

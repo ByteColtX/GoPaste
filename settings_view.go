@@ -26,7 +26,7 @@ func (a *application) settingsPage(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
-		Padding(space(theme, 6), space(theme, 4), space(theme, 5), space(theme, 4)).
+		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
 		ui.Text(c, "设置").FontSize(font(theme, fontSection)).FontWeight(600).
 			Padding(space(theme, 0.5), space(theme, 1), space(theme, 0.5), space(theme, 1)).SingleLine()
@@ -85,7 +85,7 @@ func (a *application) settingsDetail(c *ui.Context, theme *ui.Theme) {
 		ui.Scroll(c).Fill().MinWidth(0).MinHeight(0).
 			ScrollbarInsets(0, space(theme, 1), 0, 0).Children(func() {
 			ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
-				Padding(space(theme, spacePageTop), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
+				Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
 				Gap(space(theme, spaceSection)).Children(func() {
 				switch a.settingsArea {
 				case settingsAppearance:

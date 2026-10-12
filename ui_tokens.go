@@ -14,7 +14,6 @@ const (
 	fontCaption    float32 = 0.82
 	fontCode       float32 = 0.96
 
-	spacePageTop    float32 = 6
 	spacePageSide   float32 = 6
 	spacePageBottom float32 = 7
 	spaceSection    float32 = 6
@@ -41,6 +40,10 @@ const (
 	pageDetailMaxWidth                   = 720
 	historyTrailingInset         float32 = 3
 	historyControlGap            float32 = 1
+
+	// columnTopInset 统一导航栏与历史、设备、设置三页内容列的首行起始内边距，
+	// 让各页栏位从同一高度开始。
+	columnTopInset float32 = 3
 )
 
 func font(theme *ui.Theme, scale float32) float32 {

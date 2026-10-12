@@ -96,7 +96,7 @@ func (a *application) navigationRail(c *ui.Context, theme *ui.Theme) {
 	railWidth := navigationRailSize(c, theme)
 	expanded := railWidth > navigationRailCompactWidth
 	rail := ui.Column(c).Width(railWidth).FillHeight().Shrink(0).
-		Padding(space(theme, 3), space(theme, 2), space(theme, 2.5), space(theme, 2)).
+		Padding(space(theme, columnTopInset), space(theme, 2), space(theme, 2.5), space(theme, 2)).
 		Gap(space(theme, 1.5)).Background(sidebarFill(theme)).
 		Border(1, dividerColor(theme)).
 		DragWindow()
@@ -185,7 +185,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 	panel := ui.Column(c).Fill().
 		MinWidth(minHistoryPaneWidth).
 		Background(sidebarFill(theme)).
-		Padding(space(theme, 4), 0, space(theme, 2.5), space(theme, 4))
+		Padding(space(theme, columnTopInset), 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
 		a.historyHeader(c, theme, view)
@@ -527,7 +527,7 @@ func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Column(c).Shrink(0).Padding(space(theme, 6), space(theme, 7), space(theme, 3.5), space(theme, 7)).
+	ui.Column(c).Shrink(0).Padding(space(theme, columnTopInset), space(theme, 7), space(theme, 3.5), space(theme, 7)).
 		Gap(space(theme, 1.25)).Children(func() {
 		ui.Row(c).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			baseKind := item.Kind.BaseKind()
