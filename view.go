@@ -644,47 +644,32 @@ func historyResolutionLabel(item history.Item) string {
 	return fmt.Sprintf("%dx%d", item.Image.Width, item.Image.Height)
 }
 
+// historyTimestamp 用易读的日期展示时间：今天和昨天带具体时刻，
+// 更早的记录改用「10月8日 15:04」这样的明确日期，跨年时补上年份，
+// 避免「上周三」这类需要心算的模糊表述。
 func historyTimestamp(value time.Time) string {
 	if value.IsZero() {
 		return "—"
 	}
 	now := time.Now()
-	date := func(value time.Time) time.Time {
-		return time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, value.Location())
-	}
-	daysAgo := int(date(now).Sub(date(value)).Hours() / 24)
-	switch daysAgo {
-	case 0:
+	switch daysAgo := calendarDaysAgo(value, now); {
+	case daysAgo <= 0:
 		return "今天 " + value.Format("15:04")
-	case 1:
+	case daysAgo == 1:
 		return "昨天 " + value.Format("15:04")
+	case value.Year() == now.Year():
+		return value.Format("1月2日 15:04")
+	default:
+		return value.Format("2006年1月2日 15:04")
 	}
-	if daysAgo >= 2 && daysAgo < 7 {
-		return "周" + weekdayLabel(value.Weekday()) + " " + value.Format("15:04")
-	}
-	if daysAgo >= 7 && daysAgo < 14 {
-		return "上周" + weekdayLabel(value.Weekday()) + " " + value.Format("15:04")
-	}
-	return value.Format("2006-01-02 15:04")
 }
 
-func weekdayLabel(day time.Weekday) string {
-	switch day {
-	case time.Monday:
-		return "一"
-	case time.Tuesday:
-		return "二"
-	case time.Wednesday:
-		return "三"
-	case time.Thursday:
-		return "四"
-	case time.Friday:
-		return "五"
-	case time.Saturday:
-		return "六"
-	default:
-		return "日"
-	}
+// calendarDaysAgo 按本地日历日计算两个时间相差的整天数，
+// 以 UTC 零点归一化，避免夏令时或具体时刻带来偏差。
+func calendarDaysAgo(value, now time.Time) int {
+	valueDay := time.Date(value.Year(), value.Month(), value.Day(), 0, 0, 0, 0, time.UTC)
+	nowDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	return int(nowDay.Sub(valueDay).Hours() / 24)
 }
 
 func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
