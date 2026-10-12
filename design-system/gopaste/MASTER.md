@@ -133,6 +133,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Keep copy as the primary preview action.
 - Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.
 - Show sync state as a compact chip in the preview metadata row: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.
+- Keep the preview metadata row at one fixed height. An item captured here shows a sync chip and one that arrived over the LAN does not, so the row must not change height or the content below it jumps when the selection changes.
 - Reveal delivery detail in a popover on hover: a batch resend, then each paired device's outcome with a per-device resend while the item is still waiting. A replaced item, never delivered to any device, adds one line of explanation and the same per-device resend list.
 - Distinguish first-use empty, search empty, filter empty, and unavailable preview.
 

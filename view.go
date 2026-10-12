@@ -588,7 +588,9 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
 		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3.5), space(theme, spacePageSide)).
 		Gap(space(theme, 1.25)).Children(func() {
-		ui.Row(c).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
+		// 本机条目带同步状态标记，局域网条目没有。给元信息行预留固定高度，
+		// 标记就不会撑高这一行，切换条目时下方的正文卡片也不再上下抖动。
+		ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			baseKind := item.Kind.BaseKind()
 			kindColor := colorForKind(theme, baseKind)
 			ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.5), space(theme, 3.5)).
