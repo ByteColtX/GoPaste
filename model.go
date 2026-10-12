@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -24,12 +23,7 @@ const (
 	historyTextLimit        = 88
 )
 
-const (
-	copiedStatus          = "已复制到系统剪贴板"
-	favoriteAddedStatus   = "已加入收藏"
-	favoriteRemovedStatus = "已取消收藏"
-	settingsVersion       = "0.1.0"
-)
+const settingsVersion = "0.1.0"
 
 const (
 	appearanceSystem int = iota
@@ -37,27 +31,20 @@ const (
 	appearanceDark
 )
 
-var languageOptions = []string{"简体中文", "English"}
-
 // desktopPlatforms 限定当前同步协议支持的桌面端平台。
 var desktopPlatforms = []string{"macOS", "Windows", "Linux"}
 
-const defaultSyncDirection = "双向同步"
+// syncDirection is the language-independent direction stored for each content
+// type. Labels are derived from the active language at render time, so
+// switching languages never rewrites the stored value.
+type syncDirection uint8
 
-// syncDirectionOptionsForPeer 根据当前 Peer 名称生成同步方向选项，
-// 让发送和接收方向清楚表达内容的去向。
-func syncDirectionOptionsForPeer(peerName string) []string {
-	peerName = strings.TrimSpace(peerName)
-	if peerName == "" {
-		peerName = "该设备"
-	}
-	return []string{
-		defaultSyncDirection,
-		fmt.Sprintf("仅发往 %s", peerName),
-		fmt.Sprintf("仅从 %s 接收", peerName),
-		"不同步",
-	}
-}
+const (
+	syncDirectionTwoWay syncDirection = iota
+	syncDirectionSendOnly
+	syncDirectionReceiveOnly
+	syncDirectionOff
+)
 
 // settingsArea 表示设置页左侧导航中的当前主题。
 type settingsArea uint8
@@ -123,10 +110,10 @@ type pairedDevice struct {
 	lastSeenAt time.Time
 
 	syncEnabled           bool
-	textSyncDirection     string
-	imageSyncDirection    string
-	fileSyncDirection     string
-	richTextSyncDirection string
+	textSyncDirection     syncDirection
+	imageSyncDirection    syncDirection
+	fileSyncDirection     syncDirection
+	richTextSyncDirection syncDirection
 }
 
 // deviceDiscoveryState describes the device provider state exposed by the UI.
@@ -147,6 +134,7 @@ type application struct {
 	page page
 
 	onSyncStateChanged func()
+	onLanguageChanged  func()
 
 	historyPaneWidth float32
 	filter           historyFilter
@@ -173,12 +161,35 @@ type application struct {
 	pairingError             string
 	onStartPairing           func()
 	launchAtLogin            bool
-	language                 string
+	language                 language
 	appearance               int
 	settingsArea             settingsArea
 	confirmDangerousAction   bool
 	pendingDangerousAction   dangerousAction
 	pendingDangerousDeviceID string
+}
+
+// l10n returns the localizer for the current UI language.
+func (a *application) l10n() localizer { return newLocalizer(a.language) }
+
+// t returns the message for key in the current UI language.
+func (a *application) t(key messageKey) string { return a.language.catalog().text(key) }
+
+// tf returns the message for key with its verbs filled in.
+func (a *application) tf(key messageKey, args ...any) string {
+	return a.l10n().format(key, args...)
+}
+
+// kindLabel names a content kind in the current UI language.
+func (a *application) kindLabel(kind contentKind) string { return a.l10n().kindLabel(kind) }
+
+// kindSearchTerms returns every name a content kind can be searched by, across
+// all languages, so search keeps working whichever language is displayed.
+func (a *application) kindSearchTerms(kind contentKind) []string {
+	return []string{
+		newLocalizer(languageSimplifiedChinese).kindLabel(kind),
+		newLocalizer(languageEnglish).kindLabel(kind),
+	}
 }
 
 func displayValue(value string) string {

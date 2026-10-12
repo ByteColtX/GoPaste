@@ -221,6 +221,7 @@ func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.E
 func dangerConfirmDialog(
 	c *ui.Context,
 	theme *ui.Theme,
+	l localizer,
 	open *bool,
 	title string,
 	message string,
@@ -241,9 +242,10 @@ func dangerConfirmDialog(
 			ui.Text(c, message).FontSize(font(theme, fontBody)).
 				TextColor(secondaryText(theme)).Wrap()
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, 2)).Children(func() {
-				cancel := neutralButton(c, theme, "danger-confirm-cancel", "取消")
+				cancelLabel := l.text(msgDangerCancel)
+				cancel := neutralButton(c, theme, "danger-confirm-cancel", cancelLabel)
 				cancel.Children(func() {
-					ui.Text(c, "取消").FontSize(font(theme, fontControl)).SingleLine()
+					ui.Text(c, cancelLabel).FontSize(font(theme, fontControl)).SingleLine()
 				})
 				if cancel.Clicked() {
 					*open = false
@@ -266,4 +268,67 @@ func dangerConfirmDialog(
 
 func statusDot(c *ui.Context, color ui.Color, size float32) {
 	ui.Box(c).Size(size, size).Shrink(0).Radius(size / 2).Background(color)
+}
+
+// option pairs a stable value with the user-facing label shown for it, so a
+// select can bind to a value that does not change with the UI language while
+// the visible text is derived each frame.
+type option[T comparable] struct {
+	value T
+	label string
+}
+
+// labelFor returns the label for value, or "" when value is not an option.
+func labelFor[T comparable](value T, options []option[T]) string {
+	for _, opt := range options {
+		if opt.value == value {
+			return opt.label
+		}
+	}
+	return ""
+}
+
+// selectField renders a themed drop-down that stores a stable value while
+// showing a localized label. It wraps MyGo's SelectBase, so keyboard, focus and
+// popup behavior stay native while the bound value stays language-independent.
+// Apply a width to the returned element, or call FillWidth on it.
+func selectField[T comparable](
+	c *ui.Context,
+	theme *ui.Theme,
+	key string,
+	value *T,
+	label string,
+	options []option[T],
+) ui.Element {
+	sel := ui.SelectBase(c.Key(key), value)
+	trigger := sel.Trigger
+	trigger.Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).
+		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, 1.5)).
+		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
+		Background(theme.Surface).TextColor(primaryText(theme)).
+		Justify(ui.SpaceBetween).Label(label)
+	trigger.Children(func() {
+		ui.Text(c, labelFor(*value, options)).FontSize(font(theme, fontControl)).SingleLine()
+		ui.Icon(c, icons.chevron).Size(space(theme, 3.5), space(theme, 3.5)).
+			Shrink(0).TextColor(secondaryText(theme))
+	})
+	sel.Popup(func(panel ui.Element) {
+		panel.Padding(space(theme, 1)).Radius(radius(theme, controlRadius+2)).
+			Background(theme.Background).Border(1, borderColor(theme)).
+			Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, 0.18))
+		for _, opt := range options {
+			item := sel.Item(opt.value).Padding(space(theme, 1.5), space(theme, 2.5)).
+				Radius(radius(theme, controlRadius))
+			switch {
+			case item.Highlighted():
+				item.Background(theme.Accent).TextColor(theme.AccentText)
+			case opt.value == *value:
+				item.Background(theme.Surface)
+			}
+			item.Children(func() {
+				ui.Text(c, opt.label).FontSize(font(theme, fontControl)).SingleLine()
+			})
+		}
+	})
+	return trigger
 }

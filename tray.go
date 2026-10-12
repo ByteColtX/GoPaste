@@ -12,6 +12,7 @@ const trayDoubleClickWindow = 500 * time.Millisecond
 // systemTrayOptions 把托盘事件转换成应用层回调，避免托盘直接依赖 application。
 type systemTrayOptions struct {
 	syncEnabled  func() bool
+	text         func(messageKey) string
 	onToggleSync func()
 	onOpen       func()
 	onSettings   func()
@@ -29,16 +30,6 @@ type systemTray struct {
 
 func newSystemTray(options systemTrayOptions) (*systemTray, error) {
 	tray := &systemTray{options: options}
-	tray.syncMenuItem = &mygo.MenuItem{
-		ID:    "tray-toggle-sync",
-		Label: tray.syncMenuLabel(),
-		Click: func(*mygo.MenuItem, *mygo.Window) {
-			if tray.options.onToggleSync != nil {
-				tray.options.onToggleSync()
-			}
-		},
-	}
-
 	native, err := mygo.NewTray(mygo.TrayOptions{
 		Icon:           embeddedTrayIcon,
 		IconIsTemplate: runtime.GOOS == "darwin",
@@ -56,27 +47,44 @@ func newSystemTray(options systemTrayOptions) (*systemTray, error) {
 	return tray, nil
 }
 
+// text 返回当前界面语言下的托盘文案。
+func (t *systemTray) text(key messageKey) string {
+	if t.options.text == nil {
+		return ""
+	}
+	return t.options.text(key)
+}
+
 func (t *systemTray) menu() *mygo.Menu {
+	t.syncMenuItem = &mygo.MenuItem{
+		ID:    "tray-toggle-sync",
+		Label: t.syncMenuLabel(),
+		Click: func(*mygo.MenuItem, *mygo.Window) {
+			if t.options.onToggleSync != nil {
+				t.options.onToggleSync()
+			}
+		},
+	}
 	return mygo.NewMenu([]*mygo.MenuItem{
 		t.syncMenuItem,
 		mygo.Separator(),
-		{ID: "tray-open", Label: "打开", Click: func(*mygo.MenuItem, *mygo.Window) {
+		{ID: "tray-open", Label: t.text(msgTrayOpen), Click: func(*mygo.MenuItem, *mygo.Window) {
 			if t.options.onOpen != nil {
 				t.options.onOpen()
 			}
 		}},
-		{ID: "tray-settings", Label: "设置", Click: func(*mygo.MenuItem, *mygo.Window) {
+		{ID: "tray-settings", Label: t.text(msgTraySettings), Click: func(*mygo.MenuItem, *mygo.Window) {
 			if t.options.onSettings != nil {
 				t.options.onSettings()
 			}
 		}},
 		mygo.Separator(),
-		{ID: "tray-relaunch", Label: "重启", Click: func(*mygo.MenuItem, *mygo.Window) {
+		{ID: "tray-relaunch", Label: t.text(msgTrayRelaunch), Click: func(*mygo.MenuItem, *mygo.Window) {
 			if t.options.onRelaunch != nil {
 				t.options.onRelaunch()
 			}
 		}},
-		{ID: "tray-quit", Label: "退出", Click: func(*mygo.MenuItem, *mygo.Window) {
+		{ID: "tray-quit", Label: t.text(msgTrayQuit), Click: func(*mygo.MenuItem, *mygo.Window) {
 			if t.options.onQuit != nil {
 				t.options.onQuit()
 			}
@@ -86,9 +94,9 @@ func (t *systemTray) menu() *mygo.Menu {
 
 func (t *systemTray) syncMenuLabel() string {
 	if t.options.syncEnabled != nil && t.options.syncEnabled() {
-		return "关闭同步"
+		return t.text(msgTrayTurnSyncOff)
 	}
-	return "打开同步"
+	return t.text(msgTrayTurnSyncOn)
 }
 
 // syncStateChanged 在同步开关被窗口或托盘菜单改变后更新菜单文案。
@@ -96,6 +104,14 @@ func (t *systemTray) syncStateChanged() {
 	if t != nil && t.syncMenuItem != nil {
 		t.syncMenuItem.SetLabel(t.syncMenuLabel())
 	}
+}
+
+// refreshLabels 在界面语言变化后重建菜单，让所有托盘文案切换到新语言。
+func (t *systemTray) refreshLabels() {
+	if t == nil || t.native == nil {
+		return
+	}
+	t.native.SetMenu(t.menu())
 }
 
 // handleClick 在 Windows 上把两次连续左键点击识别为双击。

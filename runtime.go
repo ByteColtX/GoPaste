@@ -55,7 +55,9 @@ func runApplication() error {
 
 // ready 在 MyGo 完成平台初始化后运行，此时才能创建窗口和托盘。
 func (r *applicationRuntime) ready() {
+	r.app.applySystemLanguage()
 	r.app.onSyncStateChanged = r.syncStateChanged
+	r.app.onLanguageChanged = r.languageChanged
 	r.app.clipboard = mygoClipboardWriter{}
 	r.window = openMainWindow(r.app)
 	r.window.OnClose(func(event *mygo.CloseEvent) {
@@ -86,6 +88,7 @@ func (r *applicationRuntime) ready() {
 
 	tray, err := newSystemTray(systemTrayOptions{
 		syncEnabled: func() bool { return r.app.deviceSyncEnabled },
+		text:        r.app.t,
 		onToggleSync: func() {
 			r.app.setSyncEnabled(!r.app.deviceSyncEnabled)
 		},
@@ -105,6 +108,16 @@ func (r *applicationRuntime) ready() {
 func (r *applicationRuntime) syncStateChanged() {
 	if r.tray != nil {
 		r.tray.syncStateChanged()
+	}
+	if r.window != nil {
+		r.window.Invalidate()
+	}
+}
+
+// languageChanged 在界面语言变化后重建托盘菜单并重绘窗口。
+func (r *applicationRuntime) languageChanged() {
+	if r.tray != nil {
+		r.tray.refreshLabels()
 	}
 	if r.window != nil {
 		r.window.Invalidate()

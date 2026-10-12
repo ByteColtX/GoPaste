@@ -11,18 +11,40 @@ import (
 )
 
 type historyFilterOption struct {
-	kind  historyFilter
-	label string
+	kind historyFilter
+	key  string
 }
 
 var historyFilterOptions = [...]historyFilterOption{
-	{kind: filterAll, label: "全部"},
-	{kind: filterText, label: "文本"},
-	{kind: filterLinks, label: "链接"},
-	{kind: filterCode, label: "代码"},
-	{kind: filterImages, label: "图片"},
-	{kind: filterFiles, label: "文件"},
-	{kind: filterFavorites, label: "收藏"},
+	{kind: filterAll, key: "all"},
+	{kind: filterText, key: "text"},
+	{kind: filterLinks, key: "links"},
+	{kind: filterCode, key: "code"},
+	{kind: filterImages, key: "images"},
+	{kind: filterFiles, key: "files"},
+	{kind: filterFavorites, key: "favorites"},
+}
+
+// filterLabel 返回筛选条件在当前界面语言下的名称。
+func (a *application) filterLabel(filter historyFilter) string {
+	switch filter {
+	case filterText:
+		return a.t(msgFilterText)
+	case filterLinks:
+		return a.t(msgFilterLinks)
+	case filterCode:
+		return a.t(msgFilterCode)
+	case filterImages:
+		return a.t(msgFilterImages)
+	case filterFiles:
+		return a.t(msgFilterFiles)
+	case filterFavorites:
+		return a.t(msgFilterFavorites)
+	case filterAll:
+		return a.t(msgFilterAll)
+	default:
+		return a.t(msgFilterCurrent)
+	}
 }
 
 func (a *application) view(c *ui.Context) {
@@ -75,7 +97,7 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 		return
 	}
 
-	if dangerConfirmDialog(c, theme, &a.confirmDangerousAction, title, message, confirmLabel) {
+	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel) {
 		if message := a.executeDangerousAction(action, a.pendingDangerousDeviceID); message != "" {
 			c.Toast(message)
 		}
@@ -89,13 +111,13 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 func (a *application) dangerousActionDetails(action dangerousAction, deviceID string) (string, string, string, bool) {
 	switch action {
 	case dangerousActionClearHistory:
-		return "清空历史记录？", "GoPaste 会删除本机保存的全部剪贴板历史记录。此操作不可恢复。", "清空", true
+		return a.t(msgDangerClearTitle), a.t(msgDangerClearMessage), a.t(msgDangerClearConfirm), true
 	case dangerousActionUnpairDevice:
-		name := "该设备"
+		name := a.t(msgSyncThisDevice)
 		if device, ok := a.pairedDeviceByID(deviceID); ok {
 			name = device.name
 		}
-		return "取消配对设备？", fmt.Sprintf("取消配对“%s”后，该设备将不再与本机同步。", name), "取消配对", true
+		return a.t(msgDangerUnpairTitle), a.tf(msgDangerUnpairMessage, name), a.t(msgDangerUnpairConfirm), true
 	default:
 		return "", "", "", false
 	}
@@ -111,15 +133,15 @@ func (a *application) navigationRail(c *ui.Context, theme *ui.Theme) {
 		Border(1, dividerColor(theme)).
 		DragWindow()
 	rail.Children(func() {
-		a.navigationButton(c, theme, pageHistory, icons.history, "历史记录", expanded)
+		a.navigationButton(c, theme, "nav-history", pageHistory, icons.history, a.t(msgNavHistory), expanded)
 		ui.Spacer(c)
-		a.navigationButton(c, theme, pageDevices, icons.devices, "设备", expanded)
-		a.navigationButton(c, theme, pageSettings, icons.settings, "设置", expanded)
+		a.navigationButton(c, theme, "nav-devices", pageDevices, icons.devices, a.t(msgNavDevices), expanded)
+		a.navigationButton(c, theme, "nav-settings", pageSettings, icons.settings, a.t(msgNavSettings), expanded)
 	})
 }
 
-func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, target page, icon *ui.SVG, label string, expanded bool) {
-	button := ui.ButtonBase(c.Key("navigation-"+label)).
+func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, key string, target page, icon *ui.SVG, label string, expanded bool) {
+	button := ui.ButtonBase(c.Key(key)).
 		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1), space(theme, 2)).
 		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).
@@ -160,7 +182,7 @@ func (a *application) pageContent(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) historyPage(c *ui.Context, theme *ui.Theme) {
-	view := a.history.Snapshot(history.Query{Text: a.query, Filter: a.filter})
+	view := a.history.Snapshot(a.historyQuery())
 	a.historySearch.OnShortcut(c, 0, ui.KeyEscape, func() {
 		if a.query != "" {
 			a.query = ""
@@ -212,14 +234,11 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 }
 
 func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history.View) {
-	countLabel := fmt.Sprintf("%d 条记录", len(view.Items))
-	if a.query != "" || a.filter != filterAll {
-		countLabel = fmt.Sprintf("%d / %d 条记录", len(view.Items), view.Total)
-	}
+	countLabel := a.l10n().recordCount(len(view.Items), view.Total, a.query != "" || a.filter != filterAll)
 	ui.Row(c).MinHeight(controlHeightSize(c, theme, 11)).Shrink(0).AlignItems(ui.Start).
 		Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 		ui.Column(c).Gap(space(theme, 0.25)).Padding(space(theme, 0.5), 0, 0, 0).Children(func() {
-			ui.Text(c, "最近复制").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
+			ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
 			ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).SingleLine()
 		})
@@ -231,7 +250,7 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 		AlignItems(ui.Center).Gap(space(theme, 1.5)).Padding(0, space(theme, 2.5)).
 		Radius(radius(theme, controlRadius)).Background(theme.Surface).
 		Border(1, borderColor(theme)).
-		Label("搜索历史记录")
+		Label(a.t(msgHistorySearchLabel))
 
 	field.Children(func() {
 		ui.Icon(c, icons.search).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0).
@@ -239,7 +258,7 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 		input := ui.TextInput(c.Key("history-search-input"), &a.query).
 			Grow(1).MinWidth(0).Padding(0).Radius(0).
 			Background(ui.Transparent).Border(0, ui.Transparent).
-			Label("搜索历史记录").Placeholder("搜索").Bind(&a.historySearch).
+			Label(a.t(msgHistorySearchLabel)).Placeholder(a.t(msgHistorySearchPlaceholder)).Bind(&a.historySearch).
 			FocusRing(c.Focused(a.historySearch))
 		input.Changed()
 
@@ -252,7 +271,7 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 		clearButton := ui.ButtonBase(c.Key("clear-history-search")).
 			Size(space(theme, 5), space(theme, 5)).Shrink(0).Radius(radius(theme, 2.5)).Center().
 			TextColor(secondaryText(theme)).
-			Label("清除搜索").Tooltip("清除搜索").Role(ui.RoleButton)
+			Label(a.t(msgHistoryClearSearch)).Tooltip(a.t(msgHistoryClearSearch)).Role(ui.RoleButton)
 		if clearButton.Hovered() {
 			clearButton.Background(hoverFill(theme))
 		}
@@ -280,14 +299,14 @@ func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
 		ui.Row(c).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
 			Gap(space(theme, 0.5)).Children(func() {
 			for _, option := range historyFilterOptions {
-				a.filterButton(c, theme, option.kind, option.label)
+				a.filterButton(c, theme, option.kind, option.key, a.filterLabel(option.kind))
 			}
 		})
 	})
 }
 
-func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter historyFilter, label string) {
-	button := ui.ButtonBase(c.Key("history-filter-"+label)).
+func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter historyFilter, key, label string) {
+	button := ui.ButtonBase(c.Key("history-filter-"+key)).
 		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 0.75), space(theme, 1.75)).Radius(radius(theme, controlRadius)).
 		Border(1, ui.Transparent).
@@ -311,20 +330,20 @@ func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter histor
 func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.View) {
 	firstUse := view.Total == 0 && a.query == "" && a.filter == filterAll
 	searchEmpty := a.query != ""
-	title := "没有匹配记录"
-	message := "换个关键词或筛选条件试试"
+	title := a.t(msgHistoryEmptyTitle)
+	message := a.t(msgHistoryEmptyMessage)
 	icon := icons.filter
 	if firstUse {
-		title = "这里还没有记录"
-		message = "复制文本或图片后，历史记录会显示在这里。记录保存在本机。"
+		title = a.t(msgHistoryEmptyFirstTitle)
+		message = a.t(msgHistoryEmptyFirstMessage)
 		icon = icons.history
 	} else if searchEmpty {
-		title = "没有找到匹配记录"
-		message = fmt.Sprintf("没有包含“%s”的记录。可以清除搜索或换个关键词。", truncateSingleLine(a.query, 24))
+		title = a.t(msgHistoryEmptySearchTitle)
+		message = a.tf(msgHistoryEmptySearchMessage, truncateSingleLine(a.query, 24))
 		icon = icons.search
 	} else if a.filter != filterAll {
-		title = "这个筛选条件暂无记录"
-		message = fmt.Sprintf("当前没有“%s”记录。可以显示全部记录。", historyFilterLabel(a.filter))
+		title = a.t(msgHistoryEmptyFilterTitle)
+		message = a.tf(msgHistoryEmptyFilterMessage, a.filterLabel(a.filter))
 		icon = icons.filter
 	}
 	ui.Box(c).Grow(1).Center().Children(func() {
@@ -338,11 +357,11 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 			if firstUse {
 				return
 			}
-			resetLabel := "清除搜索和筛选"
+			resetLabel := a.t(msgHistoryResetSearchAndFilt)
 			if searchEmpty && a.filter == filterAll {
-				resetLabel = "清除搜索"
+				resetLabel = a.t(msgHistoryResetSearch)
 			} else if !searchEmpty && a.filter != filterAll {
-				resetLabel = "显示全部记录"
+				resetLabel = a.t(msgHistoryShowAll)
 			}
 			reset := neutralButton(c, theme, "history-empty-reset", resetLabel)
 			reset.Children(func() {
@@ -356,13 +375,10 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 	})
 }
 
-func historyFilterLabel(filter historyFilter) string {
-	for _, option := range historyFilterOptions {
-		if option.kind == filter {
-			return option.label
-		}
-	}
-	return "当前"
+// historyQuery 构造当前历史视图的查询，并带上本地化的类型名称，
+// 让搜索在任意界面语言下都能匹配内容类型。
+func (a *application) historyQuery() history.Query {
+	return history.Query{Text: a.query, Filter: a.filter, KindTerms: a.kindSearchTerms}
 }
 
 func (a *application) historyRows(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -370,7 +386,7 @@ func (a *application) historyRows(c *ui.Context, theme *ui.Theme, view history.V
 	// 键盘快捷键仍注册在列表容器上，因此焦点在任意条目时都能移动选择。
 	a.listState.Selected = nil
 	a.listState.Key = func(index int) any { return view.Items[index].ID }
-	a.listState.Label = func(index int) string { return historyListText(view.Items[index]) }
+	a.listState.Label = func(index int) string { return a.historyListText(view.Items[index]) }
 
 	list := ui.List(c, &a.listState, len(view.Items), func(index int) {
 		item := view.Items[index]
@@ -386,7 +402,7 @@ func (a *application) historyRows(c *ui.Context, theme *ui.Theme, view history.V
 // historyListShortcuts 连接 MyGo 列表的键盘事件和 history 模块的选择状态。
 // 使用 OnShortcut 让 Enter 先由列表处理，避免被条目按钮当成普通点击吞掉。
 func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, view history.View) {
-	query := history.Query{Text: a.query, Filter: a.filter}
+	query := a.historyQuery()
 	move := func(delta int) {
 		if a.history.Move(query, delta) {
 			next := a.history.Snapshot(query)
@@ -431,7 +447,7 @@ func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.It
 		// 预留透明边框，切换选中态时不改变内容布局。
 		Radius(radius(theme, cardRadius)).Border(1, ui.Transparent).Column().
 		Justify(ui.Start).AlignItems(ui.Stretch).
-		TextColor(primaryText(theme)).Label(historyListText(item)).
+		TextColor(primaryText(theme)).Label(a.historyListText(item)).
 		Role(ui.RoleButton).Selected(selected)
 	if selected {
 		row.Background(selectedFill(theme)).
@@ -454,7 +470,7 @@ func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.It
 
 func (a *application) textHistoryRow(c *ui.Context, theme *ui.Theme, item history.Item) {
 	a.historyMetaRow(c, theme, item)
-	ui.Text(c, historyListText(item)).FontSize(font(theme, fontBody)).
+	ui.Text(c, a.historyListText(item)).FontSize(font(theme, fontBody)).
 		TextColor(primaryText(theme)).SingleLine()
 	a.autoTagRow(c, theme, item)
 }
@@ -466,14 +482,14 @@ func (a *application) historyMetaRow(c *ui.Context, theme *ui.Theme, item histor
 		kindColor := colorForKind(theme, baseKind)
 		ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.25), space(theme, 3.25)).
 			Shrink(0).TextColor(kindColor)
-		ui.Text(c, baseKind.DisplayName()).FontSize(font(theme, fontCaption)).FontWeight(600).
+		ui.Text(c, a.kindLabel(baseKind)).FontSize(font(theme, fontCaption)).FontWeight(600).
 			TextColor(kindColor).SingleLine()
 		if item.Favorite {
 			ui.Icon(c, icons.star).Size(space(theme, 2.75), space(theme, 2.75)).Shrink(0).
 				TextColor(favoriteColor(theme))
 		}
 		ui.Spacer(c)
-		ui.Text(c, historyTimestamp(item.CreatedAt)).FontSize(font(theme, fontCaption)).
+		ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
 			TextColor(secondaryText(theme)).SingleLine()
 	})
 }
@@ -487,13 +503,13 @@ func (a *application) imageHistoryRow(c *ui.Context, theme *ui.Theme, item histo
 				ui.Image(c, bitmap).Size(space(theme, 9.5), space(theme, 9.5)).Fit(ui.Cover).Radius(radius(theme, 1.75))
 			}
 		})
-		ui.Text(c, historyResolutionLabel(item)).FontSize(font(theme, fontBody)).
+		ui.Text(c, a.historyResolutionLabel(item)).FontSize(font(theme, fontBody)).
 			TextColor(secondaryText(theme)).SingleLine()
 	})
 }
 
 func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item history.Item) {
-	tag := item.Kind.SmartTag()
+	tag := a.l10n().smartTag(item.Kind)
 	if tag == "" {
 		return
 	}
@@ -535,8 +551,8 @@ func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 		ui.Column(c).Center().Gap(space(theme, 1.75)).Children(func() {
 			ui.Icon(c, icons.history).Size(space(theme, 6), space(theme, 6)).
 				TextColor(secondaryText(theme))
-			ui.Text(c, "选择一条记录").FontSize(font(theme, fontSection)).FontWeight(600)
-			ui.Text(c, "预览会显示在这里").FontSize(font(theme, fontControl)).
+			ui.Text(c, a.t(msgHistorySelectRecord)).FontSize(font(theme, fontSection)).FontWeight(600)
+			ui.Text(c, a.t(msgHistoryPreviewHint)).FontSize(font(theme, fontControl)).
 				TextColor(secondaryText(theme))
 		})
 	})
@@ -553,11 +569,11 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 			kindColor := colorForKind(theme, baseKind)
 			ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.5), space(theme, 3.5)).
 				Shrink(0).TextColor(kindColor)
-			ui.Text(c, baseKind.DisplayName()).FontSize(font(theme, fontMeta)).FontWeight(600).
+			ui.Text(c, a.kindLabel(baseKind)).FontSize(font(theme, fontMeta)).FontWeight(600).
 				TextColor(kindColor).SingleLine()
 			ui.Text(c, "·").FontSize(font(theme, fontMeta)).
 				TextColor(secondaryText(theme))
-			for _, segment := range historyMetaSegments(item) {
+			for _, segment := range a.historyMetaSegments(item) {
 				ui.Text(c, "·").FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme))
 				ui.Text(c, segment).FontSize(font(theme, fontMeta)).
@@ -566,7 +582,7 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 			ui.Spacer(c)
 		})
 		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-			ui.Textf(c, "%s · %s", item.Source, historyTimestamp(item.CreatedAt)).
+			ui.Textf(c, "%s · %s", item.Source, a.timestampLabel(item.CreatedAt)).
 				FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 			ui.Spacer(c)
 			a.actionBar(c, theme, item)
@@ -597,7 +613,7 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 				})
 			case kindImage:
 				if item.Image == nil {
-					ui.Text(c, "图片预览不可用").FontSize(font(theme, fontBody)).
+					ui.Text(c, a.t(msgHistoryImageUnavailable)).FontSize(font(theme, fontBody)).
 						TextColor(secondaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
 						Background(panelFill(theme)).Border(1, borderColor(theme))
 					return
@@ -618,27 +634,27 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 	})
 }
 
-func historyListText(item history.Item) string {
+func (a *application) historyListText(item history.Item) string {
 	if item.Kind == kindImage {
-		return historyImageLabel(item)
+		return a.historyImageLabel(item)
 	}
 	content := strings.TrimSpace(item.Text)
 	if content == "" {
-		return item.Kind.DisplayName()
+		return a.kindLabel(item.Kind)
 	}
 	return truncateSingleLine(content, historyTextLimit)
 }
 
-func historyImageLabel(item history.Item) string {
+func (a *application) historyImageLabel(item history.Item) string {
 	if item.Image == nil {
-		return item.Kind.DisplayName()
+		return a.kindLabel(item.Kind)
 	}
-	return fmt.Sprintf("图片（%dx%d）", item.Image.Width, item.Image.Height)
+	return a.tf(msgHistoryImageLabel, item.Image.Width, item.Image.Height)
 }
 
-func historyResolutionLabel(item history.Item) string {
+func (a *application) historyResolutionLabel(item history.Item) string {
 	if item.Image == nil {
-		return "图片"
+		return a.t(msgHistoryImageShort)
 	}
 	return fmt.Sprintf("%dx%d", item.Image.Width, item.Image.Height)
 }
@@ -646,17 +662,17 @@ func historyResolutionLabel(item history.Item) string {
 // historyMetaSegments 返回预览标题里紧随类型名称的元信息片段：文本为字符数
 // 和大小，图片为分辨率和大小，文件只保留大小（字符数对文件没有意义）。
 // 片段由渲染方用间隔符连接，这里不拼接分隔符，空片段会被丢弃。
-func historyMetaSegments(item history.Item) []string {
+func (a *application) historyMetaSegments(item history.Item) []string {
 	switch {
 	case item.Kind == kindImage && item.Image != nil:
-		return compactSegments(historyResolutionLabel(item), historySizeLabel(item))
+		return compactSegments(a.historyResolutionLabel(item), historySizeLabel(item))
 	case item.Kind == kindFile:
 		if size := historySizeLabel(item); size != "" {
 			return []string{size}
 		}
 		return []string{"—"}
 	default:
-		return compactSegments(fmt.Sprintf("%d 字符", len([]rune(item.Text))), historySizeLabel(item))
+		return compactSegments(a.l10n().charCount(len([]rune(item.Text))), historySizeLabel(item))
 	}
 }
 
@@ -709,24 +725,10 @@ func formatByteSize(size int) string {
 	return fmt.Sprintf("%.1f PB", value/unit)
 }
 
-// historyTimestamp 用易读的日期展示时间：今天和昨天带具体时刻，
-// 更早的记录改用「10月8日 15:04」这样的明确日期，跨年时补上年份，
-// 避免「上周三」这类需要心算的模糊表述。
-func historyTimestamp(value time.Time) string {
-	if value.IsZero() {
-		return "—"
-	}
-	now := time.Now()
-	switch daysAgo := calendarDaysAgo(value, now); {
-	case daysAgo <= 0:
-		return "今天 " + value.Format("15:04")
-	case daysAgo == 1:
-		return "昨天 " + value.Format("15:04")
-	case value.Year() == now.Year():
-		return value.Format("1月2日 15:04")
-	default:
-		return value.Format("2006年1月2日 15:04")
-	}
+// timestampLabel 用当前界面语言渲染时间：今天和昨天带具体时刻，
+// 更早的记录改用明确日期，跨年时补上年份，避免需要心算的模糊表述。
+func (a *application) timestampLabel(value time.Time) string {
+	return a.l10n().dateLabel(value)
 }
 
 // calendarDaysAgo 按本地日历日计算两个时间相差的整天数，
@@ -757,13 +759,13 @@ func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
 
 func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
-		copyLabel := "复制"
+		copyLabel := a.t(msgHistoryCopy)
 		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false)
 		if copyButton.Clicked() {
 			a.copyToClipboard(c, item.ID)
 		}
 
-		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.Favorite), item.Favorite)
+		favoriteButton := actionButton(c, theme, "favorite", icons.star, a.favoriteLabel(item.Favorite), item.Favorite)
 		if favoriteButton.Clicked() {
 			if message := a.toggleFavorite(item.ID); message != "" {
 				c.Toast(message)
@@ -774,14 +776,14 @@ func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Ite
 
 func (a *application) copyToClipboard(c *ui.Context, id string) {
 	if a.clipboard == nil {
-		c.Toast("复制失败")
+		c.Toast(a.t(msgHistoryCopyFailed))
 		return
 	}
 	if err := a.history.Copy(id, a.clipboard); err != nil {
-		c.Toast("复制失败")
+		c.Toast(a.t(msgHistoryCopyFailed))
 		return
 	}
-	c.Toast(copiedStatus)
+	c.Toast(a.t(msgToastCopied))
 }
 
 func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {

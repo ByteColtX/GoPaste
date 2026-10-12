@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"gopaste/internal/history"
 
 	"github.com/egoist/mygo/ui"
@@ -11,6 +9,7 @@ import (
 type settingsNavItem struct {
 	area  settingsArea
 	icon  *ui.SVG
+	key   string
 	title string
 }
 
@@ -28,10 +27,10 @@ func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		secondarySidebarTitle(c, theme, "设置")
+		secondarySidebarTitle(c, theme, a.t(msgNavSettings))
 
 		ui.Column(c).Gap(space(theme, 0.5)).Children(func() {
-			for _, item := range settingsNavigationItems() {
+			for _, item := range a.settingsNavigationItems() {
 				a.settingsNavButton(c, theme, item)
 			}
 		})
@@ -42,17 +41,17 @@ func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-func settingsNavigationItems() []settingsNavItem {
+func (a *application) settingsNavigationItems() []settingsNavItem {
 	return []settingsNavItem{
-		{area: settingsGeneral, icon: icons.settings, title: "通用"},
-		{area: settingsAppearance, icon: icons.appearance, title: "外观"},
-		{area: settingsStorage, icon: icons.storage, title: "存储"},
-		{area: settingsAbout, icon: icons.about, title: "关于"},
+		{area: settingsGeneral, icon: icons.settings, key: "general", title: a.t(msgSettingsGeneral)},
+		{area: settingsAppearance, icon: icons.appearance, key: "appearance", title: a.t(msgSettingsAppearance)},
+		{area: settingsStorage, icon: icons.storage, key: "storage", title: a.t(msgSettingsStorage)},
+		{area: settingsAbout, icon: icons.about, key: "about", title: a.t(msgSettingsAbout)},
 	}
 }
 
 func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item settingsNavItem) {
-	button := ui.ButtonBase(c.Key("settings-nav-"+item.title)).
+	button := ui.ButtonBase(c.Key("settings-nav-"+item.key)).
 		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.25), space(theme, 2)).Radius(radius(theme, controlRadius)).
 		Border(1, ui.Transparent).
@@ -106,15 +105,15 @@ func (a *application) settingsHeader(c *ui.Context, title, description string, t
 }
 
 func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
-	a.settingsHeader(c, "通用", "设备身份和 GoPaste 的基础使用偏好。", theme)
-	a.settingsSubheading(c, "基本设置", theme)
+	a.settingsHeader(c, a.t(msgSettingsGeneral), a.t(msgSettingsGeneralDesc), theme)
+	a.settingsSubheading(c, a.t(msgSettingsBasics), theme)
 	settingsGroup(c, theme, "settings-general-group", func() {
-		a.settingsRow(c, theme, "设备名称", "用于在设备列表中识别本机", func() {
+		a.settingsRow(c, theme, a.t(msgSettingsDeviceName), a.t(msgSettingsDeviceNameDesc), func() {
 			input := ui.TextInput(c.Key("settings-device-name"), &a.deviceName).
 				Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).
 				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 				Background(theme.Surface).Border(1, borderColor(theme)).
-				Label("设备名称").Placeholder("输入设备名称")
+				Label(a.t(msgSettingsDeviceName)).Placeholder(a.t(msgSettingsDeviceNamePlaceholder))
 			if compactDetailLayout(c, theme) {
 				input.FillWidth()
 			} else {
@@ -122,38 +121,40 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 			}
 		})
 		settingsRule(c, theme)
-		a.settingsRow(c, theme, "开机自启", "登录系统后自动打开 GoPaste", func() {
+		a.settingsRow(c, theme, a.t(msgSettingsLaunchAtLogin), a.t(msgSettingsLaunchAtLoginDesc), func() {
 			control := ui.Checkbox(c.Key("settings-launch-at-login"), &a.launchAtLogin, "").
-				Shrink(0).Label("开机自启")
+				Shrink(0).Label(a.t(msgSettingsLaunchAtLogin))
 			if control.Changed() {
 				c.Toast(a.updateLaunchAtLogin())
 			}
 		})
 		settingsRule(c, theme)
-		a.settingsRow(c, theme, "语言", "选择应用界面语言", func() {
-			languageControl := ui.Select(c.Key("settings-language"), &a.language, languageOptions).
-				Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label("语言")
+		a.settingsRow(c, theme, a.t(msgSettingsLanguage), a.t(msgSettingsLanguageDesc), func() {
+			languageControl := selectField(c, theme, "settings-language", &a.language, a.t(msgSettingsLanguage), languageChoices)
 			if compactDetailLayout(c, theme) {
 				languageControl.FillWidth()
 			} else {
 				languageControl.Width(180)
+			}
+			if languageControl.Changed() {
+				a.applyLanguage()
 			}
 		})
 	})
 }
 
 func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
-	a.settingsHeader(c, "外观", "选择 GoPaste 使用的颜色主题。", theme)
-	a.settingsSubheading(c, "视觉风格", theme)
+	a.settingsHeader(c, a.t(msgSettingsAppearance), a.t(msgSettingsAppearanceDesc), theme)
+	a.settingsSubheading(c, a.t(msgSettingsVisualStyle), theme)
 	settingsGroup(c, theme, "settings-appearance-group", func() {
-		a.settingsRow(c, theme, "模式", "跟随系统或固定使用浅色、深色主题", func() {
+		a.settingsRow(c, theme, a.t(msgSettingsMode), a.t(msgSettingsModeDesc), func() {
 			control := ui.Segmented(
 				c.Key("settings-appearance"),
 				&a.appearance,
-				"跟随系统",
-				"浅色",
-				"深色",
-			).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label("外观")
+				a.t(msgSettingsThemeSystem),
+				a.t(msgSettingsThemeLight),
+				a.t(msgSettingsThemeDark),
+			).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label(a.t(msgSettingsAppearance))
 			if compactDetailLayout(c, theme) {
 				control.FillWidth()
 			} else {
@@ -164,42 +165,43 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 			}
 		})
 	})
-	ui.Text(c, "当前使用："+appearanceLabel(a.appearance)).FontSize(font(theme, fontMeta)).
+	ui.Text(c, a.tf(msgSettingsCurrentAppearance, a.appearanceLabel(a.appearance))).FontSize(font(theme, fontMeta)).
 		TextColor(secondaryText(theme)).Padding(space(theme, 1), 0, 0, 0).Wrap()
 }
 
-func appearanceLabel(appearance int) string {
+func (a *application) appearanceLabel(appearance int) string {
 	switch appearance {
 	case appearanceLight:
-		return "浅色主题"
+		return a.t(msgSettingsThemeLightName)
 	case appearanceDark:
-		return "深色主题"
+		return a.t(msgSettingsThemeDarkName)
 	default:
-		return "跟随系统"
+		return a.t(msgSettingsThemeSystemName)
 	}
 }
 
 func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
-	a.settingsHeader(c, "存储", "查看和清理保存在本机的历史记录。", theme)
-	a.settingsSubheading(c, "数据管理", theme)
+	a.settingsHeader(c, a.t(msgSettingsStorage), a.t(msgSettingsStorageDesc), theme)
+	a.settingsSubheading(c, a.t(msgSettingsData), theme)
 	stats := a.history.Snapshot(history.Query{})
 	settingsGroup(c, theme, "settings-storage-group", func() {
-		a.settingsRow(c, theme, "历史记录", "保存在本机的剪贴板记录", func() {
+		a.settingsRow(c, theme, a.t(msgSettingsHistoryRow), a.t(msgSettingsHistoryRowDesc), func() {
 			ui.Column(c).Shrink(0).AlignItems(ui.End).Gap(space(theme, 0.5)).Children(func() {
-				ui.Text(c, storageRecordSummary(stats.Total)).FontSize(font(theme, fontControl)).
+				ui.Text(c, a.l10n().storageRecord(stats.Total)).FontSize(font(theme, fontControl)).
 					TextColor(primaryText(theme)).SingleLine()
-				ui.Textf(c, "%d 张图片", stats.ImageCount).FontSize(font(theme, fontCaption)).
+				ui.Text(c, a.l10n().imageCount(stats.ImageCount)).FontSize(font(theme, fontCaption)).
 					TextColor(secondaryText(theme)).SingleLine()
 			})
 		})
 		settingsRule(c, theme)
-		a.settingsRow(c, theme, "清理历史记录", "删除当前保存的所有本地记录", func() {
-			button := dangerButton(c, theme, "settings-clear-history", "清空历史记录").
+		a.settingsRow(c, theme, a.t(msgSettingsClearHistoryRow), a.t(msgSettingsClearHistoryRowDesc), func() {
+			clearLabel := a.storageClearLabel(stats.Total)
+			button := dangerButton(c, theme, "settings-clear-history", clearLabel).
 				Gap(space(theme, spaceInline)).Disabled(stats.Total == 0)
 			button.Children(func() {
 				ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).
 					Shrink(0).TextColor(theme.Danger)
-				ui.Text(c, storageClearLabel(stats.Total)).FontSize(font(theme, fontControl)).SingleLine()
+				ui.Text(c, clearLabel).FontSize(font(theme, fontControl)).SingleLine()
 			})
 			if button.Clicked() && stats.Total > 0 {
 				a.requestDangerousAction(dangerousActionClearHistory, "")
@@ -207,41 +209,35 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 		})
 	})
 	if stats.Total == 0 {
-		ui.Text(c, "暂无本机历史记录。复制内容后，记录会自动出现在历史页面。").
+		ui.Text(c, a.t(msgSettingsNoHistoryNote)).
 			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).
 			Padding(space(theme, 1), 0, 0, 0).Wrap()
 	}
 }
 
-func storageRecordSummary(total int) string {
+// storageClearLabel 根据是否有记录返回清理按钮的文案。
+func (a *application) storageClearLabel(total int) string {
 	if total == 0 {
-		return "暂无记录"
+		return a.t(msgSettingsNothingToClear)
 	}
-	return fmt.Sprintf("%d 条", total)
-}
-
-func storageClearLabel(total int) string {
-	if total == 0 {
-		return "没有可清理的记录"
-	}
-	return "清空历史记录"
+	return a.t(msgSettingsClearHistory)
 }
 
 func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
-	a.settingsHeader(c, "关于", "GoPaste 剪贴板历史记录工具。", theme)
-	a.settingsSubheading(c, "应用信息", theme)
+	a.settingsHeader(c, a.t(msgSettingsAbout), a.t(msgSettingsAboutDesc), theme)
+	a.settingsSubheading(c, a.t(msgSettingsAppInfo), theme)
 	settingsGroup(c, theme, "settings-about-group", func() {
-		a.settingsRow(c, theme, "版本", "当前应用版本", func() {
+		a.settingsRow(c, theme, a.t(msgSettingsVersion), a.t(msgSettingsVersionDesc), func() {
 			ui.Text(c, settingsVersion).FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).SingleLine()
 		})
 		settingsRule(c, theme)
-		a.settingsRow(c, theme, "同步范围", "只在已配对设备之间建立直连", func() {
-			ui.Text(c, "直连").FontSize(font(theme, fontControl)).
+		a.settingsRow(c, theme, a.t(msgSettingsSyncScope), a.t(msgSettingsSyncScopeDesc), func() {
+			ui.Text(c, a.t(msgDevicesDirect)).FontSize(font(theme, fontControl)).
 				TextColor(theme.Success).SingleLine()
 		})
 		settingsRule(c, theme)
-		a.settingsRow(c, theme, "隐私", "剪贴板内容保存在本机，不写入普通日志或第三方服务", func() {
-			ui.Text(c, "本机保存").FontSize(font(theme, fontControl)).
+		a.settingsRow(c, theme, a.t(msgSettingsPrivacy), a.t(msgSettingsPrivacyDesc), func() {
+			ui.Text(c, a.t(msgSettingsStoredLocally)).FontSize(font(theme, fontControl)).
 				TextColor(secondaryText(theme)).SingleLine()
 		})
 	})
