@@ -696,12 +696,12 @@ func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
 func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
 		copyLabel := "复制"
-		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false, true)
+		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false)
 		if copyButton.Clicked() {
 			a.copyToClipboard(c, item.ID)
 		}
 
-		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.Favorite), item.Favorite, false)
+		favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel(item.Favorite), item.Favorite)
 		if favoriteButton.Clicked() {
 			if message := a.toggleFavorite(item.ID); message != "" {
 				c.Toast(message)
@@ -722,28 +722,19 @@ func (a *application) copyToClipboard(c *ui.Context, id string) {
 	c.Toast(copiedStatus)
 }
 
-func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active, primary bool) ui.Element {
+func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {
 	button := ui.ButtonBase(c.Key("preview-action-"+key)).
 		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).
 		TextColor(secondaryText(theme)).Label(label).Role(ui.RoleButton)
-	if primary {
-		button.Background(theme.Accent).TextColor(theme.AccentText)
-	}
 	if active {
 		button.TextColor(favoriteColor(theme))
 	}
 	if button.Hovered() {
-		if primary {
-			button.Background(theme.AccentHover)
-		} else {
-			button.Background(hoverFill(theme))
-		}
+		button.Background(hoverFill(theme))
 	} else {
-		if !primary {
-			button.Background(ui.Transparent)
-		}
+		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
