@@ -130,6 +130,8 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Show type, favorite state, source, and time in the metadata row.
 - Keep selected list row and preview synchronized by stable item ID.
 - Keep copy as the primary preview action.
+- Summarize delivery as a labeled chip in the preview header: synced, peer offline, or replaced. Hover the chip to list every paired device's delivery outcome.
+- While an item is still waiting, list each paired device with its status and reveal a per-device resend on hover. A replaced item, never delivered to any device, shows one resend for the whole entry.
 - Distinguish first-use empty, search empty, filter empty, and unavailable preview.
 
 ### Devices and settings

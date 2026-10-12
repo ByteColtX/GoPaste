@@ -108,6 +108,23 @@ const (
 	kindFile  = history.KindFile
 )
 
+type syncState = history.SyncState
+
+const (
+	syncStateNone     = history.SyncStateNone
+	syncStateSynced   = history.SyncStateSynced
+	syncStateOffline  = history.SyncStateOffline
+	syncStateReplaced = history.SyncStateReplaced
+)
+
+type deliveryState = history.DeliveryState
+
+const (
+	deliveryPending  = history.DeliveryPending
+	deliveryReceived = history.DeliveryReceived
+	deliveryOffline  = history.DeliveryOffline
+)
+
 // pairedDevice 保存一个已配对设备的运行时状态。
 // 这些字段先保存在内存中，后续接入持久化同步服务时可直接替换数据来源。
 type pairedDevice struct {
@@ -157,6 +174,7 @@ type application struct {
 	historySearch    ui.Handle
 	listState        ui.ListState
 
+	onResendItem             func(itemID, deviceID string)
 	deviceName               string
 	devicePeerID             string
 	devicePlatform           string
