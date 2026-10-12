@@ -49,6 +49,16 @@ func (a *application) globalShortcuts(c *ui.Context) {
 	c.OnShortcut(ui.Cmd, ui.Key1, func() { a.setPage(pageHistory) })
 	c.OnShortcut(ui.Cmd, ui.Key2, func() { a.setPage(pageDevices) })
 	c.OnShortcut(ui.Cmd, ui.Key3, func() { a.setPage(pageSettings) })
+	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.focusHistorySearch(c) })
+	c.OnShortcut(ui.Cmd, ui.KeyF, func() { a.focusHistorySearch(c) })
+}
+
+// focusHistorySearch 在窗口级别响应搜索快捷键，使焦点位于预览区或其他区域时也能聚焦搜索框。
+func (a *application) focusHistorySearch(c *ui.Context) {
+	if a.page != pageHistory {
+		return
+	}
+	a.historySearch.Focus(c)
 }
 
 func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
@@ -158,8 +168,6 @@ func (a *application) historyPage(c *ui.Context, theme *ui.Theme) {
 		}
 		a.historySearch.CancelFocus(c)
 	})
-	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.historySearch.Focus(c) })
-	c.OnShortcut(ui.Cmd, ui.KeyF, func() { a.historySearch.Focus(c) })
 
 	a.constrainHistoryPaneWidth(c, theme)
 
