@@ -82,13 +82,19 @@ type Image struct {
 
 // Item is the data owned by the history module.
 type Item struct {
-	ID        string
-	Kind      Kind
-	Text      string
-	Image     *Image
-	Source    string
-	CreatedAt time.Time
-	Favorite  bool
+	ID     string
+	Kind   Kind
+	Text   string
+	Image  *Image
+	Source string
+	// Origin records whether the item was captured on this machine or arrived
+	// from a paired device. Only local items carry a sync status.
+	Origin Origin
+	// OriginDevice names the paired device an OriginPeer item arrived from, for
+	// the provenance label. It stays empty for local items.
+	OriginDevice string
+	CreatedAt    time.Time
+	Favorite     bool
 	// Sync is the item's delivery summary across paired devices. Its zero
 	// value, SyncStateNone, means the item has no sync record and the
 	// preview hides the sync section.
@@ -318,6 +324,7 @@ func matchesQuery(item Item, query string) bool {
 		item.Text,
 		item.Kind.DisplayName(),
 		item.Source,
+		item.OriginDevice,
 	}, " "))
 	return strings.Contains(searchText, query)
 }

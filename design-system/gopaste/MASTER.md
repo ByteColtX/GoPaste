@@ -127,11 +127,12 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### History
 
-- Show type, favorite state, source, and time in the metadata row.
+- Show type, favorite state, source device, and time in the metadata row. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
 - Keep selected list row and preview synchronized by stable item ID.
 - Keep copy as the primary preview action.
-- Summarize delivery as a labeled chip in the preview header: synced, peer offline, or replaced. Hover the chip to list every paired device's delivery outcome.
-- While an item is still waiting, list each paired device with its status and reveal a per-device resend on hover. A replaced item, never delivered to any device, shows one resend for the whole entry.
+- Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.
+- Show sync state as a compact chip in the preview metadata row: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.
+- Reveal delivery detail in a popover on hover: a batch resend, then each paired device's outcome with a per-device resend while the item is still waiting. A replaced item, never delivered to any device, adds one line of explanation and the same per-device resend list.
 - Distinguish first-use empty, search empty, filter empty, and unavailable preview.
 
 ### Devices and settings

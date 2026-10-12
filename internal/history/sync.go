@@ -12,8 +12,11 @@ const (
 	SyncStateNone SyncState = iota
 	// SyncStateSynced means every target device already holds the item.
 	SyncStateSynced
-	// SyncStateOffline means at least one target device is offline, so the
-	// item is still waiting to be delivered.
+	// SyncStatePartial means some target devices hold the item but not all, so
+	// the item is only partly delivered and at least one device still waits.
+	SyncStatePartial
+	// SyncStateOffline means no target device holds the item yet and at least
+	// one is offline, so delivery is still waiting.
 	SyncStateOffline
 	// SyncStateReplaced means the item never reached any device and a newer
 	// item has replaced it.
@@ -38,3 +41,18 @@ type DeviceDelivery struct {
 	DeviceID string
 	State    DeliveryState
 }
+
+// Origin records where a history item came from. Only items captured on this
+// machine are delivered to paired devices, so only they carry a sync status;
+// an item received from a peer over the LAN already arrived here and shows
+// none.
+type Origin uint8
+
+const (
+	// OriginLocal is the zero value: the item was captured on this machine and
+	// is delivered to paired devices, so the preview shows its sync status.
+	OriginLocal Origin = iota
+	// OriginPeer means the item arrived from a paired device over the LAN. It
+	// needs no sync status, only a note of the device it came from.
+	OriginPeer
+)
