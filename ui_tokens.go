@@ -34,8 +34,8 @@ const (
 	// detail panes begin at the same x position.
 	secondarySidebarWidth                = 224
 	secondarySidebarCompactWidth         = 200
-	navigationRailCompactWidth           = 64
-	navigationRailExpandedWidth          = 176
+	navigationRailCompactWidth           = 56
+	navigationRailExpandedWidth          = 160
 	responsiveCompactWidth               = 1024
 	responsiveExpandedWidth              = 1200
 	pageDetailMaxWidth                   = 720

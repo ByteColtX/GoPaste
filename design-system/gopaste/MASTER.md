@@ -87,8 +87,8 @@ The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tok
 Responsive widths:
 
 - Window minimum: 900 × 560 DIP.
-- Compact navigation rail: 64 DIP.
-- Expanded navigation rail: 176 DIP at 1200 DIP or wider.
+- Compact navigation rail: 56 DIP.
+- Expanded navigation rail: 160 DIP at 1200 DIP or wider.
 - Secondary sidebar: 200 DIP in compact mode, 224 DIP otherwise.
 - History list minimum: 300 DIP.
 - History preview minimum: 460 DIP while split.
