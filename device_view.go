@@ -348,52 +348,14 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	a.deviceSwitchRow(c, theme, fmt.Sprintf("与%s同步", device.name), "双方复制的内容会自动同步。", device.id+"-sync", &device.syncEnabled, false)
 	deviceDivider(c, theme)
 
-	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
-		Padding(space(theme, 3.5), space(theme, 4)).
-		AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "自定义同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
-		ui.Spacer(c)
-		button := ui.ButtonBase(c.Key(device.id+"-all-bidirectional")).
-			Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
-			Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
-			TextColor(secondaryText(theme)).Label("全部双向同步")
-		if button.Hovered() {
-			button.Background(hoverFill(theme))
-		} else {
-			button.Background(ui.Transparent)
-		}
-		button.Children(func() {
-			ui.Text(c, "全部双向同步").FontSize(font(theme, fontControl)).SingleLine()
+	ui.Row(c.Key(device.id+"-sync-content-mode")).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
+		Padding(space(theme, 3.5), space(theme, 4)).AlignItems(ui.Center).Children(func() {
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
+			ui.Text(c, "同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+			ui.Text(c, "分别设置每种内容的同步方向。").FontSize(font(theme, fontMeta)).
+				TextColor(secondaryText(theme)).Wrap()
 		})
-		if button.Clicked() {
-			a.setAllSyncDirections(device, defaultSyncDirection)
-		}
-	})
-	deviceDivider(c, theme)
-
-	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
-		Padding(space(theme, 2.75), space(theme, 4)).
-		AlignItems(ui.Center).Children(func() {
-		ui.Text(c, "分别设置每种内容的同步方向。").FontSize(font(theme, fontMeta)).
-			TextColor(secondaryText(theme)).SingleLine()
-		ui.Spacer(c)
-		button := ui.ButtonBase(c.Key(device.id+"-restore-sync-defaults")).
-			Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
-			Padding(space(theme, 1), space(theme, 2)).Gap(space(theme, spaceInline)).
-			Radius(radius(theme, controlRadius)).
-			TextColor(secondaryText(theme)).Label("恢复默认")
-		if button.Hovered() {
-			button.Background(hoverFill(theme))
-		} else {
-			button.Background(ui.Transparent)
-		}
-		button.Children(func() {
-			ui.Icon(c, icons.clear).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0)
-			ui.Text(c, "恢复默认").FontSize(font(theme, fontControl)).SingleLine()
-		})
-		if button.Clicked() {
-			a.restoreSyncDefaults(device)
-		}
+		deviceBadge(c, theme, syncContentModeLabel(device))
 	})
 	deviceDivider(c, theme)
 
@@ -469,16 +431,16 @@ func syncDirectionDescription(device *pairedDevice, label string) string {
 	return "仅影响此设备的" + label + "内容。"
 }
 
-func (a *application) setAllSyncDirections(device *pairedDevice, direction string) {
-	device.textSyncDirection = direction
-	device.imageSyncDirection = direction
-	device.fileSyncDirection = direction
-	device.richTextSyncDirection = direction
-}
-
-func (a *application) restoreSyncDefaults(device *pairedDevice) {
-	// 演示版默认所有内容都允许双向同步，真实服务接入后可在这里读取持久化策略。
-	a.setAllSyncDirections(device, defaultSyncDirection)
+// syncContentModeLabel 用状态而不是按钮来表达同步内容的当前模式：
+// 四项内容都是双向同步时显示“全部双向同步”，否则视为已自定义。
+func syncContentModeLabel(device *pairedDevice) string {
+	if device.textSyncDirection == defaultSyncDirection &&
+		device.imageSyncDirection == defaultSyncDirection &&
+		device.fileSyncDirection == defaultSyncDirection &&
+		device.richTextSyncDirection == defaultSyncDirection {
+		return "全部双向同步"
+	}
+	return "自定义同步内容"
 }
 
 func (a *application) deviceSwitchRow(
