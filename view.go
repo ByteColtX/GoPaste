@@ -508,18 +508,28 @@ func (a *application) imageHistoryRow(c *ui.Context, theme *ui.Theme, item histo
 	})
 }
 
+// autoTagRow 在列表行里把自动标签渲染成独立一行。
 func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item history.Item) {
+	if a.l10n().smartTag(item.Kind) == "" {
+		return
+	}
+	ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).Shrink(0).AlignItems(ui.Center).Children(func() {
+		a.autoTag(c, theme, item)
+	})
+}
+
+// autoTag 渲染内容子类型的自动标签（链接、代码），没有标签时不占空间。
+// 预览标题把它放在操作行左端，与操作按钮同处第二行，避免标签单独占一行。
+func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item) {
 	tag := a.l10n().smartTag(item.Kind)
 	if tag == "" {
 		return
 	}
 	tagColor := colorForKind(theme, item.Kind)
-	ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).Shrink(0).AlignItems(ui.Center).Children(func() {
-		ui.Text(c, tag).FontSize(font(theme, fontCaption)).TextColor(tagColor).
-			Padding(space(theme, 0.25), space(theme, 1.5)).Radius(radius(theme, controlRadius)).
-			Background(tagColor.Alpha(0.10)).
-			Border(1, tagColor.Alpha(0.24)).SingleLine()
-	})
+	ui.Text(c, tag).FontSize(font(theme, fontCaption)).TextColor(tagColor).
+		Padding(space(theme, 0.25), space(theme, 1.5)).Radius(radius(theme, controlRadius)).
+		Background(tagColor.Alpha(0.10)).
+		Border(1, tagColor.Alpha(0.24)).SingleLine()
 }
 
 func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -586,10 +596,10 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 			a.syncIndicator(c, theme, item)
 		})
 		ui.Row(c).Shrink(0).AlignItems(ui.Center).Children(func() {
+			a.autoTag(c, theme, item)
 			ui.Spacer(c)
 			a.actionBar(c, theme, item)
 		})
-		a.autoTagRow(c, theme, item)
 	})
 }
 

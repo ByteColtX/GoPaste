@@ -129,6 +129,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 - Show type and favorite state in the list metadata row; show type, size, source device, and time in the preview metadata row, with the source device sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
 - Keep selected list row and preview synchronized by stable item ID.
+- Show the automatic content tag (链接, 代码) at the start of the preview action row, on the header's second line opposite the actions, so it never takes its own line; a list row keeps it on its own line below the preview text.
 - Keep copy as the primary preview action.
 - Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.
 - Show sync state as a compact chip in the preview metadata row: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.
