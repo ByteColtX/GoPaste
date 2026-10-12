@@ -234,9 +234,9 @@ func (a *application) deviceConnectionNotice(c *ui.Context, theme *ui.Theme) {
 			AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
 			statusDot(c, theme.Warning, space(theme, 2))
 			ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
-				ui.Text(c, "设备当前离线").FontSize(font(theme, fontControl)).FontWeight(600).
+				ui.Text(c, "设备已离线").FontSize(font(theme, fontControl)).FontWeight(600).
 					TextColor(theme.Warning).SingleLine()
-				ui.Text(c, "重新回到同一局域网后，GoPaste 会恢复局域网直连；离线期间不会通过其他网络路径同步。").
+				ui.Text(c, "该设备当前不在同一局域网内。重新接入局域网后，GoPaste 将自动恢复局域网直连；离线期间不会通过其他网络路径同步内容。").
 					FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 			})
 		})
