@@ -138,7 +138,7 @@ func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 	selected := a.selectedDeviceID == ""
 	entry := a.deviceEntryButton(c, theme, "local-device", selected)
 	entry.Children(func() {
-		deviceIcon(c, theme, icons.devices, selected)
+		deviceIcon(c, theme, iconForPlatform(a.devicePlatform), selected)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
 			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			deviceSyncStatus(c, theme, a.deviceSyncEnabled, "同步已开启", "同步已关闭")
@@ -155,7 +155,7 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 	selected := a.selectedDeviceID == device.id
 	entry := a.deviceEntryButton(c, theme, "paired-device-"+device.id, selected)
 	entry.Children(func() {
-		deviceIcon(c, theme, icons.devices, selected)
+		deviceIcon(c, theme, iconForPlatform(device.platform), selected)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
 			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
@@ -257,7 +257,7 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 	}
 
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 4.5)).Children(func() {
-		deviceIconLarge(c, theme, paired && !online)
+		deviceIconLarge(c, theme, platform, paired && !online)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 2)).Children(func() {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
 				ui.Text(c, name).FontSize(font(theme, fontPageTitle)).FontWeight(600).SingleLine()
@@ -684,14 +684,14 @@ func deviceIcon(c *ui.Context, theme *ui.Theme, icon *ui.SVG, selected bool) {
 	})
 }
 
-func deviceIconLarge(c *ui.Context, theme *ui.Theme, muted bool) {
+func deviceIconLarge(c *ui.Context, theme *ui.Theme, platform string, muted bool) {
 	color := theme.Text
 	if muted {
 		color = theme.TextMuted
 	}
 	ui.Box(c).Size(space(theme, 16.5), space(theme, 16.5)).Shrink(0).Radius(radius(theme, largeRadius)).
 		Background(subtleFill(theme)).Border(1, borderColor(theme)).Center().Children(func() {
-		ui.Icon(c, icons.devices).Size(space(theme, 8), space(theme, 8)).TextColor(color)
+		ui.Icon(c, iconForPlatform(platform)).Size(space(theme, 8), space(theme, 8)).TextColor(color)
 	})
 }
 
