@@ -578,10 +578,14 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 					TextColor(secondaryText(theme)).SingleLine()
 			}
 			ui.Spacer(c)
+			a.historySource(c, theme, item)
+			ui.Text(c, "·").FontSize(font(theme, fontCaption)).
+				TextColor(secondaryText(theme))
+			ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
+				TextColor(secondaryText(theme)).SingleLine()
+			a.syncIndicator(c, theme, item)
 		})
-		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-			ui.Textf(c, "%s · %s", item.Source, a.timestampLabel(item.CreatedAt)).
-				FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+		ui.Row(c).Shrink(0).AlignItems(ui.Center).Children(func() {
 			ui.Spacer(c)
 			a.actionBar(c, theme, item)
 		})
@@ -629,6 +633,252 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 					Background(panelFill(theme)).Border(1, borderColor(theme)).Wrap().Selectable()
 			}
 		})
+	})
+}
+
+// syncDeviceStatus is one paired device's delivery line in the sync popover.
+type syncDeviceStatus struct {
+	deviceID  string
+	name      string
+	label     string
+	color     ui.Color
+	canResend bool
+}
+
+// syncIndicator renders the item's sync state as a compact chip in the preview
+// meta row. The per-device detail and resend actions live in a popover that
+// opens while the pointer rests on the chip, so the section costs no space
+// while it is idle.
+func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history.Item) {
+	// Only items captured on this machine are delivered to peers, so only
+	// they carry a sync status. A peer item already arrived here.
+	if item.Origin != originLocal || item.Sync == syncStateNone {
+		return
+	}
+	label, color := a.syncStateStyle(theme, item.Sync)
+	chip := ui.Row(c.Key("sync-chip-"+item.ID)).Shrink(0).AlignItems(ui.Center).
+		Gap(space(theme, 1.25)).Padding(space(theme, 0.5), space(theme, 1)).
+		Radius(radius(theme, controlRadius))
+	hovered := chip.Hovered()
+	if hovered {
+		chip.Background(hoverFill(theme))
+	}
+	chip.Children(func() {
+		statusDot(c, color, space(theme, 1.5))
+		ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(color).SingleLine()
+	})
+
+	// The popover stays open while the pointer rests on the chip or on the
+	// panel itself, so the pointer can cross between them and a resend inside
+	// it stays reachable; it closes once the pointer has left both.
+	if a.syncPopoverItem != item.ID {
+		a.syncPopoverItem = item.ID
+		a.syncPopoverOpen = false
+	}
+	if hovered {
+		a.syncPopoverOpen = true
+	}
+	open := a.syncPopoverOpen
+	panelHovered := false
+	ui.PopoverBase(c, chip, &open, func(panel ui.Element) {
+		panel.MinWidth(space(theme, 58)).MaxWidth(space(theme, 96)).
+			Padding(space(theme, 1.5)).
+			Radius(radius(theme, cardRadius)).
+			Background(panelFill(theme)).Border(1, borderColor(theme)).
+			Shadow(0, space(theme, 0.5), space(theme, 2), 0, ui.RGBA(0, 0, 0, 0.18)).
+			Margin(0)
+		a.syncPopoverContent(c, theme, item)
+		panelHovered = panel.Hovered()
+	})
+	if !hovered && !panelHovered {
+		a.syncPopoverOpen = false
+	}
+}
+
+// syncPopoverContent builds the popover: a header with the batch resend, then
+// each paired device's outcome and per-device resend. A replaced item — never
+// delivered to any device — adds one line explaining why, then the same list,
+// so the user can still push it to any device by hand.
+func (a *application) syncPopoverContent(c *ui.Context, theme *ui.Theme, item history.Item) {
+	ui.Column(c).Gap(space(theme, 1)).Children(func() {
+		a.syncPopoverHeader(c, theme, item)
+		if item.Sync == syncStateReplaced {
+			a.syncReplacedNote(c, theme)
+		}
+		a.syncDeviceList(c, theme, item)
+	})
+}
+
+func (a *application) syncPopoverHeader(c *ui.Context, theme *ui.Theme, item history.Item) {
+	ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
+		ui.Text(c, a.t(msgSyncStatusTitle)).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(secondaryText(theme)).SingleLine()
+		ui.Spacer(c)
+		if len(a.pairedDevices) > 0 {
+			a.syncResendButton(c, theme, "batch", item.ID, "", a.t(msgSyncResendAll), a.t(msgSyncResendAllAccess))
+		}
+	})
+}
+
+func (a *application) syncDeviceList(c *ui.Context, theme *ui.Theme, item history.Item) {
+	statuses := a.syncDeviceStatuses(theme, item)
+	if len(statuses) == 0 {
+		ui.Text(c, a.t(msgSyncNoDevices)).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme)).SingleLine()
+		return
+	}
+	for _, status := range statuses {
+		a.syncDeviceLine(c, theme, item, status)
+	}
+}
+
+// syncDeviceLine is one device's line: a status dot, the device name, its
+// delivery outcome, and a resend action while the item is still waiting.
+func (a *application) syncDeviceLine(c *ui.Context, theme *ui.Theme, item history.Item, status syncDeviceStatus) {
+	ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
+		statusDot(c, status.color, space(theme, 1.25))
+		ui.Text(c, status.name).Grow(1).MinWidth(0).FontSize(font(theme, fontCaption)).
+			TextColor(primaryText(theme)).SingleLine()
+		ui.Text(c, status.label).Shrink(0).FontSize(font(theme, fontCaption)).
+			TextColor(status.color).SingleLine()
+		a.syncResendSlot(c, theme, item, status)
+	})
+}
+
+// syncResendSlot reserves a fixed trailing column so the status column stays
+// aligned whether or not a device still shows a resend action.
+func (a *application) syncResendSlot(c *ui.Context, theme *ui.Theme, item history.Item, status syncDeviceStatus) {
+	ui.Row(c).Width(space(theme, 14)).Shrink(0).Justify(ui.End).Children(func() {
+		if status.canResend {
+			a.syncResendButton(c, theme, "device", item.ID, status.deviceID, a.t(msgSyncResend), a.tf(msgSyncResendAccess, status.name))
+		}
+	})
+}
+
+// syncReplacedNote explains a replaced item: it was superseded before it
+// reached any device, so no automatic retry is coming and delivery is manual.
+func (a *application) syncReplacedNote(c *ui.Context, theme *ui.Theme) {
+	ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
+		ui.Icon(c, icons.history).Size(space(theme, 3.5), space(theme, 3.5)).
+			Shrink(0).TextColor(secondaryText(theme))
+		ui.Text(c, a.t(msgSyncReplacedNote)).Grow(1).MinWidth(0).
+			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+	})
+}
+
+// syncResendButton is one resend action. label is the visible text; accessLabel
+// is the accessible name, which names the target device for screen readers.
+func (a *application) syncResendButton(c *ui.Context, theme *ui.Theme, scope, itemID, deviceID, label, accessLabel string) ui.Element {
+	button := ui.ButtonBase(c.Key("sync-resend-"+scope+"-"+itemID+"-"+deviceID)).
+		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
+		Padding(space(theme, 0.75), space(theme, 1.5)).Gap(space(theme, 0.75)).
+		Radius(radius(theme, controlRadius)).TextColor(primaryText(theme)).
+		Label(accessLabel).Role(ui.RoleButton)
+	if button.Hovered() {
+		button.Background(hoverFill(theme))
+	} else {
+		button.Background(ui.Transparent)
+	}
+	button.Children(func() {
+		ui.Icon(c, icons.refresh).Size(space(theme, 3), space(theme, 3)).Shrink(0)
+		ui.Text(c, label).FontSize(font(theme, fontCaption)).SingleLine()
+	})
+	if button.Clicked() {
+		a.resendItem(c, itemID, deviceID)
+	}
+	return button
+}
+
+func (a *application) resendItem(c *ui.Context, itemID, deviceID string) {
+	if a.onResendItem == nil {
+		c.Toast(a.t(msgSyncServiceUnavailable))
+		return
+	}
+	a.onResendItem(itemID, deviceID)
+}
+
+// syncDeviceStatuses lists every paired device with the item's delivery
+// outcome. A device the item never reached counts as offline while the device
+// is offline, and pending once it is back online.
+func (a *application) syncDeviceStatuses(theme *ui.Theme, item history.Item) []syncDeviceStatus {
+	statuses := make([]syncDeviceStatus, 0, len(a.pairedDevices))
+	for index := range a.pairedDevices {
+		device := &a.pairedDevices[index]
+		state := deliveryStateForItem(item, device.id)
+		if state != deliveryReceived && !device.online {
+			state = deliveryOffline
+		}
+		label, color := a.deliveryStyle(theme, state, item.Sync == syncStateReplaced)
+		statuses = append(statuses, syncDeviceStatus{
+			deviceID:  device.id,
+			name:      device.name,
+			label:     label,
+			color:     color,
+			canResend: state != deliveryReceived,
+		})
+	}
+	return statuses
+}
+
+// deliveryStateForItem returns a device's recorded outcome, or pending when
+// the item's record has no entry for it.
+func deliveryStateForItem(item history.Item, deviceID string) deliveryState {
+	for _, delivery := range item.Deliveries {
+		if delivery.DeviceID == deviceID {
+			return delivery.State
+		}
+	}
+	return deliveryPending
+}
+
+func (a *application) syncStateStyle(theme *ui.Theme, state syncState) (string, ui.Color) {
+	switch state {
+	case syncStateSynced:
+		return a.t(msgSyncStateSynced), theme.Success
+	case syncStatePartial:
+		return a.t(msgSyncStatePartial), theme.Warning
+	case syncStateOffline:
+		return a.t(msgSyncStateOffline), theme.Warning
+	case syncStateReplaced:
+		return a.t(msgSyncStateReplaced), secondaryText(theme)
+	default:
+		return a.t(msgSyncStateNone), secondaryText(theme)
+	}
+}
+
+// deliveryStyle names one device's outcome. A replaced item has no automatic
+// retry left, so a device it never reached reads 未送达 rather than 待发送.
+func (a *application) deliveryStyle(theme *ui.Theme, state deliveryState, replaced bool) (string, ui.Color) {
+	switch state {
+	case deliveryReceived:
+		return a.t(msgSyncDeliveryReceived), theme.Success
+	case deliveryOffline:
+		return a.t(msgSyncDeliveryOffline), theme.Warning
+	}
+	if replaced {
+		return a.t(msgSyncDeliveryNotSent), secondaryText(theme)
+	}
+	return a.t(msgSyncDeliveryPending), secondaryText(theme)
+}
+
+// historySource names the device an item came from: this machine for a locally
+// captured item, or the paired device it arrived from over the LAN. Only local
+// items are delivered onward, so the sync status refers to this source.
+func (a *application) historySource(c *ui.Context, theme *ui.Theme, item history.Item) {
+	name := strings.TrimSpace(item.Source)
+	if name == "" {
+		if item.Origin == originPeer {
+			name = a.t(msgHistorySourceLanDevice)
+		} else {
+			name = a.t(msgHistorySourceThisDevice)
+		}
+	}
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
+		ui.Icon(c, icons.devices).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0).
+			TextColor(secondaryText(theme))
+		ui.Text(c, name).Shrink(0).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme)).SingleLine()
 	})
 }
 

@@ -55,14 +55,27 @@ type Image struct {
 // payload, while FileSize carries the byte size of a file payload whose
 // content stays on disk, so rendering never touches the filesystem.
 type Item struct {
-	ID        string
-	Kind      Kind
-	Text      string
-	Image     *Image
-	FileSize  int64
-	Source    string
+	ID       string
+	Kind     Kind
+	Text     string
+	Image    *Image
+	FileSize int64
+	// Source names the device an item came from: this machine for a local
+	// capture, or the paired device it arrived from over the LAN.
+	Source string
+	// Origin records whether the item was captured on this machine or arrived
+	// from a paired device. Only local items carry a sync status.
+	Origin    Origin
 	CreatedAt time.Time
 	Favorite  bool
+	// Sync is the item's delivery summary across paired devices. Its zero
+	// value, SyncStateNone, means the item has no sync record and the
+	// preview hides the sync section.
+	Sync SyncState
+	// Deliveries records each target device's delivery outcome, keyed by the
+	// stable paired-device ID. The preview resolves them against the current
+	// device list, so it stays correct as devices are paired or removed.
+	Deliveries []DeviceDelivery
 }
 
 // Query describes the current history view requested by the UI.
@@ -292,6 +305,9 @@ func matchesQuery(item Item, query Query) bool {
 }
 
 func cloneItem(item Item) Item {
+	if len(item.Deliveries) > 0 {
+		item.Deliveries = append([]DeviceDelivery(nil), item.Deliveries...)
+	}
 	if item.Image == nil {
 		return item
 	}

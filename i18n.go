@@ -172,6 +172,27 @@ const (
 	msgSyncDescNormal     messageKey = "sync.desc.normal"
 	msgSyncThisDevice     messageKey = "sync.thisDevice"
 
+	// Sync status.
+	msgSyncStatusTitle         messageKey = "sync.status.title"
+	msgSyncStateSynced         messageKey = "sync.status.synced"
+	msgSyncStatePartial        messageKey = "sync.status.partial"
+	msgSyncStateOffline        messageKey = "sync.status.offline"
+	msgSyncStateReplaced       messageKey = "sync.status.replaced"
+	msgSyncStateNone           messageKey = "sync.status.none"
+	msgSyncDeliveryReceived    messageKey = "sync.delivery.received"
+	msgSyncDeliveryOffline     messageKey = "sync.delivery.offline"
+	msgSyncDeliveryPending     messageKey = "sync.delivery.pending"
+	msgSyncDeliveryNotSent     messageKey = "sync.delivery.notSent"
+	msgSyncResendAll           messageKey = "sync.resend.all"
+	msgSyncResendAllAccess     messageKey = "sync.resend.allAccess"
+	msgSyncResend              messageKey = "sync.resend.one"
+	msgSyncResendAccess        messageKey = "sync.resend.oneAccess"
+	msgSyncNoDevices           messageKey = "sync.noDevices"
+	msgSyncReplacedNote        messageKey = "sync.replacedNote"
+	msgSyncServiceUnavailable  messageKey = "sync.serviceUnavailable"
+	msgHistorySourceThisDevice messageKey = "history.source.thisDevice"
+	msgHistorySourceLanDevice  messageKey = "history.source.lanDevice"
+
 	// Settings.
 	msgSettingsGeneral               messageKey = "settings.general"
 	msgSettingsGeneralDesc           messageKey = "settings.generalDesc"
@@ -376,6 +397,26 @@ var simplifiedChineseCatalog = catalog{
 	msgSyncDescNormal:     "仅影响此设备的%s内容。",
 	msgSyncThisDevice:     "该设备",
 
+	msgSyncStatusTitle:         "同步状态",
+	msgSyncStateSynced:         "已同步",
+	msgSyncStatePartial:        "部分同步",
+	msgSyncStateOffline:        "对端离线",
+	msgSyncStateReplaced:       "已替代",
+	msgSyncStateNone:           "未同步",
+	msgSyncDeliveryReceived:    "已接收",
+	msgSyncDeliveryOffline:     "对端离线",
+	msgSyncDeliveryPending:     "待发送",
+	msgSyncDeliveryNotSent:     "未送达",
+	msgSyncResendAll:           "全部重发",
+	msgSyncResendAllAccess:     "重发到全部设备",
+	msgSyncResend:              "重发",
+	msgSyncResendAccess:        "重发到 %s",
+	msgSyncNoDevices:           "尚无已配对设备",
+	msgSyncReplacedNote:        "从未同步到任何设备，已被新条目替代",
+	msgSyncServiceUnavailable:  "同步服务尚未接入",
+	msgHistorySourceThisDevice: "本机",
+	msgHistorySourceLanDevice:  "局域网设备",
+
 	msgSettingsGeneral:               "通用",
 	msgSettingsGeneralDesc:           "设备身份和 GoPaste 的基础使用偏好。",
 	msgSettingsBasics:                "基本设置",
@@ -570,6 +611,26 @@ var englishCatalog = catalog{
 	msgSyncDescOffline:    "The device is offline. Reconnect over a direct link to set the %s direction.",
 	msgSyncDescNormal:     "Affects only this device's %s content.",
 	msgSyncThisDevice:     "this device",
+
+	msgSyncStatusTitle:         "Sync status",
+	msgSyncStateSynced:         "Synced",
+	msgSyncStatePartial:        "Partly synced",
+	msgSyncStateOffline:        "Peer offline",
+	msgSyncStateReplaced:       "Replaced",
+	msgSyncStateNone:           "Not synced",
+	msgSyncDeliveryReceived:    "Received",
+	msgSyncDeliveryOffline:     "Peer offline",
+	msgSyncDeliveryPending:     "Queued",
+	msgSyncDeliveryNotSent:     "Not delivered",
+	msgSyncResendAll:           "Resend all",
+	msgSyncResendAllAccess:     "Resend to all devices",
+	msgSyncResend:              "Resend",
+	msgSyncResendAccess:        "Resend to %s",
+	msgSyncNoDevices:           "No paired devices yet",
+	msgSyncReplacedNote:        "Never synced to any device; replaced by a newer item",
+	msgSyncServiceUnavailable:  "The sync service is not connected yet",
+	msgHistorySourceThisDevice: "This device",
+	msgHistorySourceLanDevice:  "LAN device",
 
 	msgSettingsGeneral:               "General",
 	msgSettingsGeneralDesc:           "Device identity and basic GoPaste preferences.",
