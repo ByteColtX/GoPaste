@@ -239,6 +239,9 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 		input.Changed()
 
 		if a.query == "" {
+			if !c.Focused(a.historySearch) {
+				searchShortcutHint(c, theme)
+			}
 			return
 		}
 		clearButton := ui.ButtonBase(c.Key("clear-history-search")).
@@ -255,6 +258,14 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 			a.query = ""
 		}
 	})
+}
+
+// searchShortcutHint 在搜索框空且未聚焦时提示聚焦搜索的快捷键，
+// 快捷键本身在 historyPage 中注册（Cmd+K / Cmd+F）。
+func searchShortcutHint(c *ui.Context, theme *ui.Theme) {
+	ui.Text(c, searchShortcutLabel()).FontSize(font(theme, fontCaption)).FontWeight(500).
+		TextColor(secondaryText(theme)).Padding(space(theme, 0.5), space(theme, 1)).
+		Radius(radius(theme, controlRadius)).Background(subtleFill(theme)).SingleLine()
 }
 
 func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {

@@ -39,6 +39,15 @@ func localPlatformName() string {
 	}
 }
 
+// searchShortcutLabel 返回聚焦搜索框的快捷键显示文本，
+// macOS 使用 Command 符号，其他平台使用 Control 名称。
+func searchShortcutLabel() string {
+	if runtime.GOOS == "darwin" {
+		return "⌘K"
+	}
+	return "Ctrl+K"
+}
+
 func truncateSingleLine(value string, limit int) string {
 	value = strings.Join(strings.Fields(value), " ")
 	runes := []rune(value)
