@@ -65,6 +65,14 @@ func (r *applicationRuntime) ready() {
 		event.PreventDefault()
 		r.window.Hide()
 	})
+	// macOS：关闭（隐藏）主窗口后，点击程序坞图标应重新显示窗口。
+	// 该回调由 applicationShouldHandleReopen 触发。
+	mygo.App.OnActivate(func(hasVisibleWindows bool) {
+		if hasVisibleWindows {
+			return
+		}
+		r.showMainWindow()
+	})
 	r.app.loadSystemSettings()
 
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
