@@ -238,6 +238,10 @@ func (a *application) deviceConnectionNotice(c *ui.Context, theme *ui.Theme) {
 					TextColor(theme.Warning).SingleLine()
 				ui.Text(c, "该设备当前不在同一局域网内。重新接入局域网后，GoPaste 将自动恢复局域网直连；离线期间不会通过其他网络路径同步内容。").
 					FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
+				if !device.lastSeenAt.IsZero() {
+					ui.Text(c, "上次在线："+historyTimestamp(device.lastSeenAt)).
+						FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
+				}
 			})
 		})
 	})

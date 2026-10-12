@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"gopaste/internal/history"
 
@@ -118,6 +119,8 @@ type pairedDevice struct {
 	channel  string
 	address  string
 	online   bool
+	// lastSeenAt 记录设备最近一次在线的时间，零值表示未知。
+	lastSeenAt time.Time
 
 	syncEnabled           bool
 	textSyncDirection     string
