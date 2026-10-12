@@ -4,6 +4,7 @@ package history
 
 import (
 	"errors"
+	"sort"
 	"strings"
 	"time"
 )
@@ -129,13 +130,15 @@ type Store struct {
 	selectedID string
 }
 
-// New creates a store from an initial snapshot. The input slice is copied so
-// callers cannot mutate the store by retaining the slice they passed in.
+// New creates a store from an initial snapshot. Items are ordered newest
+// first; the input slice is copied so callers cannot mutate the store by
+// retaining the slice they passed in.
 func New(items []Item) *Store {
 	store := &Store{items: make([]Item, 0, len(items))}
 	for _, item := range items {
 		store.items = append(store.items, cloneItem(item))
 	}
+	sortItemsNewestFirst(store.items)
 	if len(store.items) > 0 {
 		store.selectedID = store.items[0].ID
 	}
@@ -218,7 +221,8 @@ func (s *Store) Move(query Query, delta int) bool {
 	return changed
 }
 
-// Append adds one item at the front of the history. IDs are stable and unique.
+// Append inserts one item, keeping the history ordered newest first. IDs are
+// stable and unique.
 func (s *Store) Append(item Item) error {
 	if strings.TrimSpace(item.ID) == "" {
 		return ErrInvalidItem
@@ -228,7 +232,12 @@ func (s *Store) Append(item Item) error {
 			return ErrDuplicateID
 		}
 	}
-	s.items = append([]Item{cloneItem(item)}, s.items...)
+	index := sort.Search(len(s.items), func(i int) bool {
+		return !s.items[i].CreatedAt.After(item.CreatedAt)
+	})
+	s.items = append(s.items, Item{})
+	copy(s.items[index+1:], s.items[index:])
+	s.items[index] = cloneItem(item)
 	if s.selectedID == "" {
 		s.selectedID = item.ID
 	}
@@ -313,4 +322,12 @@ func cloneItem(item Item) Item {
 	image.PNG = append([]byte(nil), item.Image.PNG...)
 	item.Image = &image
 	return item
+}
+
+// sortItemsNewestFirst orders items from newest to oldest, keeping the
+// original order for items that share a timestamp.
+func sortItemsNewestFirst(items []Item) {
+	sort.SliceStable(items, func(i, j int) bool {
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
 }
