@@ -82,11 +82,10 @@ type Image struct {
 
 // Item is the data owned by the history module.
 type Item struct {
-	ID     string
-	Kind   Kind
-	Text   string
-	Image  *Image
-	Source string
+	ID    string
+	Kind  Kind
+	Text  string
+	Image *Image
 	// Origin records whether the item was captured on this machine or arrived
 	// from a paired device. Only local items carry a sync status.
 	Origin Origin
@@ -323,7 +322,6 @@ func matchesQuery(item Item, query string) bool {
 	searchText := strings.ToLower(strings.Join([]string{
 		item.Text,
 		item.Kind.DisplayName(),
-		item.Source,
 		item.OriginDevice,
 	}, " "))
 	return strings.Contains(searchText, query)

@@ -127,7 +127,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### History
 
-- Show type, favorite state, source device, and time in the metadata row. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
+- Show type and favorite state in the list metadata row; show type, size, source device, and time in the preview metadata row, with the source device sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
 - Keep selected list row and preview synchronized by stable item ID.
 - Keep copy as the primary preview action.
 - Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.

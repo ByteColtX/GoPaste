@@ -566,11 +566,13 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 			}
 			ui.Spacer(c)
 			a.historySource(c, theme, item)
+			ui.Text(c, "·").FontSize(font(theme, fontCaption)).
+				TextColor(secondaryText(theme))
+			ui.Text(c, historyTimestamp(item.CreatedAt)).FontSize(font(theme, fontCaption)).
+				TextColor(secondaryText(theme)).SingleLine()
 			a.syncIndicator(c, theme, item)
 		})
-		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-			ui.Textf(c, "%s · %s", item.Source, historyTimestamp(item.CreatedAt)).
-				FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+		ui.Row(c).Shrink(0).AlignItems(ui.Center).Children(func() {
 			ui.Spacer(c)
 			a.actionBar(c, theme, item)
 		})
