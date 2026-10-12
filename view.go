@@ -378,7 +378,21 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 // historyQuery 构造当前历史视图的查询，并带上本地化的类型名称，
 // 让搜索在任意界面语言下都能匹配内容类型。
 func (a *application) historyQuery() history.Query {
-	return history.Query{Text: a.query, Filter: a.filter, KindTerms: a.kindSearchTerms}
+	return history.Query{
+		Text:       a.query,
+		Filter:     a.filter,
+		KindTerms:  a.kindSearchTerms,
+		SourceName: a.sourceDeviceName,
+	}
+}
+
+// sourceDeviceName 把来源设备 ID 解析成可搜索的设备名。history 包不持有
+// 设备表，所以由界面层提供；未知设备返回空。
+func (a *application) sourceDeviceName(deviceID string) string {
+	if device, ok := a.pairedDeviceByID(deviceID); ok {
+		return device.name
+	}
+	return ""
 }
 
 func (a *application) historyRows(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -662,7 +676,7 @@ type syncDeviceStatus struct {
 func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history.Item) {
 	// Only items captured on this machine are delivered to peers, so only
 	// they carry a sync status. A peer item already arrived here.
-	if item.Origin != originLocal || item.Sync == syncStateNone {
+	if !item.IsLocal() || item.Sync == syncStateNone {
 		return
 	}
 	label, color := a.syncStateStyle(theme, item.Sync)
@@ -873,19 +887,22 @@ func (a *application) deliveryStyle(theme *ui.Theme, state deliveryState, replac
 }
 
 // historySource names the device an item came from: this machine for a locally
-// captured item, or the paired device it arrived from over the LAN. Only local
-// items are delivered onward, so the sync status refers to this source.
+// captured item, or the paired device it arrived from over the LAN. The device
+// is resolved from the device list by its stable ID, so a renamed device still
+// reads correctly.
 func (a *application) historySource(c *ui.Context, theme *ui.Theme, item history.Item) {
-	name := strings.TrimSpace(item.Source)
-	if name == "" {
-		if item.Origin == originPeer {
-			name = a.t(msgHistorySourceLanDevice)
+	icon := icons.devices
+	name := a.t(msgHistorySourceThisDevice)
+	if !item.IsLocal() {
+		icon = icons.lan
+		if device, ok := a.pairedDeviceByID(item.SourceDeviceID); ok {
+			name = a.tf(msgHistorySourceLanFormat, device.name)
 		} else {
-			name = a.t(msgHistorySourceThisDevice)
+			name = a.t(msgHistorySourceLanDevice)
 		}
 	}
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
-		ui.Icon(c, icons.devices).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0).
+		ui.Icon(c, icon).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0).
 			TextColor(secondaryText(theme))
 		ui.Text(c, name).Shrink(0).FontSize(font(theme, fontCaption)).
 			TextColor(secondaryText(theme)).SingleLine()

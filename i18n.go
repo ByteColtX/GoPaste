@@ -192,6 +192,7 @@ const (
 	msgSyncServiceUnavailable  messageKey = "sync.serviceUnavailable"
 	msgHistorySourceThisDevice messageKey = "history.source.thisDevice"
 	msgHistorySourceLanDevice  messageKey = "history.source.lanDevice"
+	msgHistorySourceLanFormat  messageKey = "history.source.lanFormat"
 
 	// Settings.
 	msgSettingsGeneral               messageKey = "settings.general"
@@ -416,6 +417,7 @@ var simplifiedChineseCatalog = catalog{
 	msgSyncServiceUnavailable:  "同步服务尚未接入",
 	msgHistorySourceThisDevice: "本机",
 	msgHistorySourceLanDevice:  "局域网设备",
+	msgHistorySourceLanFormat:  "来自 %s",
 
 	msgSettingsGeneral:               "通用",
 	msgSettingsGeneralDesc:           "设备身份和 GoPaste 的基础使用偏好。",
@@ -631,6 +633,7 @@ var englishCatalog = catalog{
 	msgSyncServiceUnavailable:  "The sync service is not connected yet",
 	msgHistorySourceThisDevice: "This device",
 	msgHistorySourceLanDevice:  "LAN device",
+	msgHistorySourceLanFormat:  "From %s",
 
 	msgSettingsGeneral:               "General",
 	msgSettingsGeneralDesc:           "Device identity and basic GoPaste preferences.",

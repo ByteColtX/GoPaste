@@ -22,6 +22,7 @@ type iconSet struct {
 	brandWindows *ui.SVG
 	brandLinux   *ui.SVG
 	brandUbuntu  *ui.SVG
+	lan          *ui.SVG
 	settings     *ui.SVG
 	search       *ui.SVG
 	clear        *ui.SVG
@@ -53,6 +54,7 @@ func mustLoadIconSet() iconSet {
 		brandWindows: mustLoadIcon("brand-windows.svg"),
 		brandLinux:   mustLoadIcon("brand-linux.svg"),
 		brandUbuntu:  mustLoadIcon("brand-ubuntu.svg"),
+		lan:          mustLoadIcon("LAN.svg"),
 		settings:     mustLoadIcon("settings.svg"),
 		search:       mustLoadIcon("search.svg"),
 		clear:        mustLoadIcon("x.svg"),

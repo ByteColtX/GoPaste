@@ -113,13 +113,6 @@ const (
 	deliveryOffline  = history.DeliveryOffline
 )
 
-type origin = history.Origin
-
-const (
-	originLocal = history.OriginLocal
-	originPeer  = history.OriginPeer
-)
-
 // pairedDevice 保存一个已配对设备的运行时状态。
 // 这些字段先保存在内存中，后续接入持久化同步服务时可直接替换数据来源。
 type pairedDevice struct {

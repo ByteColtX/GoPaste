@@ -60,14 +60,14 @@ type Item struct {
 	Text     string
 	Image    *Image
 	FileSize int64
-	// Source names the device an item came from: this machine for a local
-	// capture, or the paired device it arrived from over the LAN.
-	Source string
-	// Origin records whether the item was captured on this machine or arrived
-	// from a paired device. Only local items carry a sync status.
-	Origin    Origin
-	CreatedAt time.Time
-	Favorite  bool
+	// SourceDeviceID is the stable ID of the paired device the item arrived
+	// from, the same ID the device list uses. It is empty when the item was
+	// captured on this machine. The device name is never stored: the preview
+	// resolves it from the device list, so a renamed device still maps to the
+	// same history record.
+	SourceDeviceID string
+	CreatedAt      time.Time
+	Favorite       bool
 	// Sync is the item's delivery summary across paired devices. Its zero
 	// value, SyncStateNone, means the item has no sync record and the
 	// preview hides the sync section.
@@ -78,6 +78,11 @@ type Item struct {
 	Deliveries []DeviceDelivery
 }
 
+// IsLocal reports whether the item was captured on this machine. Only local
+// items are delivered to paired devices, so only they carry a sync status; an
+// item received from a peer already arrived here.
+func (i Item) IsLocal() bool { return i.SourceDeviceID == "" }
+
 // Query describes the current history view requested by the UI.
 type Query struct {
 	Text   string
@@ -86,6 +91,10 @@ type Query struct {
 	// localized labels the UI shows. The history module owns no display
 	// vocabulary of its own, so callers supply it. It may be nil.
 	KindTerms func(Kind) []string
+	// SourceName resolves an item's SourceDeviceID to a searchable device
+	// name. The history module holds no device table, so callers supply it;
+	// it returns "" for an unknown device. It may be nil.
+	SourceName func(deviceID string) string
 }
 
 // View is a stable snapshot used by both the list and preview panes.
@@ -297,7 +306,12 @@ func matchesQuery(item Item, query Query) bool {
 	if text == "" {
 		return true
 	}
-	parts := []string{item.Text, item.Source}
+	parts := []string{item.Text}
+	if query.SourceName != nil && item.SourceDeviceID != "" {
+		if name := query.SourceName(item.SourceDeviceID); name != "" {
+			parts = append(parts, name)
+		}
+	}
 	if query.KindTerms != nil {
 		parts = append(parts, query.KindTerms(item.Kind)...)
 	}
