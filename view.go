@@ -208,16 +208,16 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 	if a.query != "" || a.filter != filterAll {
 		countLabel = fmt.Sprintf("%d / %d 条记录", len(view.Items), view.Total)
 	}
-	ui.Row(c).MinHeight(controlHeightSize(c, theme, 11)).Shrink(0).AlignItems(ui.Center).
+	ui.Row(c).MinHeight(controlHeightSize(c, theme, 11)).Shrink(0).AlignItems(ui.Start).
 		Margin(0, space(theme, historyTrailingInset), 0, 0).Children(func() {
-		ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
+		ui.Column(c).Gap(space(theme, 0.25)).Padding(space(theme, 0.5), 0, 0, 0).Children(func() {
 			ui.Text(c, "最近复制").FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
 			ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).SingleLine()
 		})
 		ui.Spacer(c)
 		ui.Icon(c, icons.history).Size(space(theme, 4.25), space(theme, 4.25)).
-			TextColor(secondaryText(theme))
+			AlignSelf(ui.Center).TextColor(secondaryText(theme))
 	})
 }
 
