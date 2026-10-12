@@ -223,9 +223,6 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 			ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).SingleLine()
 		})
-		ui.Spacer(c)
-		ui.Icon(c, icons.history).Size(space(theme, 4.25), space(theme, 4.25)).
-			AlignSelf(ui.Center).TextColor(secondaryText(theme))
 	})
 }
 
