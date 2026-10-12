@@ -2,6 +2,7 @@ package main
 
 import (
 	"runtime"
+	"sort"
 	"strings"
 
 	"gopaste/internal/history"
@@ -11,7 +12,7 @@ import (
 
 func newApplication() *application {
 	items, devices := previewData()
-	return &application{
+	app := &application{
 		page:              pageHistory,
 		historyPaneWidth:  defaultHistoryPaneWidth,
 		history:           history.New(items),
@@ -24,6 +25,16 @@ func newApplication() *application {
 		appearance:        appearanceSystem,
 		settingsArea:      settingsGeneral,
 	}
+	app.sortPairedDevices()
+	return app
+}
+
+// sortPairedDevices 让在线设备排在离线设备之前，同组内保持原有顺序。
+// 侧栏按切片顺序渲染，选中状态始终以设备 ID 为准，重排不影响当前选择。
+func (a *application) sortPairedDevices() {
+	sort.SliceStable(a.pairedDevices, func(i, j int) bool {
+		return a.pairedDevices[i].online && !a.pairedDevices[j].online
+	})
 }
 
 func localPlatformName() string {
