@@ -342,7 +342,7 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	deviceDivider(c, theme)
 
 	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
-		Padding(space(theme, 3.5), space(theme, 6)).
+		Padding(space(theme, 3.5), space(theme, 4)).
 		AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "自定义同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 		ui.Spacer(c)
@@ -365,7 +365,7 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	deviceDivider(c, theme)
 
 	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
-		Padding(space(theme, 2.75), space(theme, 6)).
+		Padding(space(theme, 2.75), space(theme, 4)).
 		AlignItems(ui.Center).Children(func() {
 		ui.Text(c, "分别设置每种内容的同步方向。").FontSize(font(theme, fontMeta)).
 			TextColor(secondaryText(theme)).SingleLine()
@@ -440,7 +440,7 @@ func (a *application) syncDirectionRow(
 	}
 
 	ui.Row(c.Key(device.id+"-sync-content-"+setting.key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
-		Padding(space(theme, 3), space(theme, 6)).AlignItems(ui.Center).Gap(space(theme, 3)).Children(func() {
+		Padding(space(theme, 3), space(theme, 4)).AlignItems(ui.Center).Gap(space(theme, 3)).Children(func() {
 		ui.Icon(c, setting.icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(secondaryText(theme))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
 			ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
@@ -487,7 +487,7 @@ func (a *application) deviceSwitchRow(
 		description += " 请先开启设备同步。"
 	}
 	ui.Row(c.Key("device-setting-"+key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
-		Padding(space(theme, 4), space(theme, 6)).AlignItems(ui.Center).Children(func() {
+		Padding(space(theme, 4), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
 			ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
@@ -523,7 +523,7 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 	}
 	standardCard(c, theme, "device-info-card", func() {
 		button := ui.ButtonBase(c.Key("device-info-disclosure")).FillWidth().Shrink(0).
-			MinHeight(space(theme, rowHeight)).Padding(space(theme, 3), space(theme, 6)).
+			MinHeight(space(theme, rowHeight)).Padding(space(theme, 3), space(theme, 4)).
 			Radius(radius(theme, cardRadius)).TextColor(primaryText(theme)).
 			Label(deviceInfoDisclosureLabel(title, a.deviceInfoExpanded)).
 			Role(ui.RoleDisclosure).Expanded(a.deviceInfoExpanded)
@@ -561,7 +561,7 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 				deviceDivider(c, theme)
 			}
 			ui.Row(c.Key("device-info-row-"+info.label)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
-				Padding(space(theme, 2.5), space(theme, 6)).AlignItems(ui.Center).Gap(space(theme, rowGap)).Children(func() {
+				Padding(space(theme, 2.5), space(theme, 4)).AlignItems(ui.Center).Gap(space(theme, rowGap)).Children(func() {
 				ui.Text(c, info.label).Width(space(theme, labelWidth/4)).Shrink(0).FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme)).SingleLine()
 				ui.Text(c, info.value).Grow(1).MinWidth(0).FontSize(font(theme, fontControl)).

@@ -527,7 +527,10 @@ func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Column(c).Shrink(0).Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3.5), space(theme, spacePageSide)).
+	// 与设备、设置详情一致：先限制最大宽度并居中，再应用左右内边距，
+	// 让标题、操作按钮和正文卡片的左右边缘对齐。
+	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3.5), space(theme, spacePageSide)).
 		Gap(space(theme, 1.25)).Children(func() {
 		ui.Row(c).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			baseKind := item.Kind.BaseKind()
@@ -558,10 +561,10 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 }
 
 func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item history.Item) {
-	content := ui.Scroll(c).Grow(1).MinHeight(0).
-		Padding(0, space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide))
+	content := ui.Scroll(c).Grow(1).MinHeight(0)
 	content.Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+			Padding(0, space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
 			Gap(space(theme, 3)).Children(func() {
 			switch item.Kind {
 			case kindCode:
