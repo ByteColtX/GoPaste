@@ -136,7 +136,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 - Use the shared secondary sidebar and detail width.
 - Pair status text with a status dot or icon; never use color alone.
-- Make `局域网直连` explicit in device details and pairing states.
+- Make the direct, peer-to-peer connection explicit in device details and pairing states, without naming a specific network type.
 - Use helper text for switches and direction controls so disabled states explain their scope.
 - Destructive actions confirm the affected data or device.
 

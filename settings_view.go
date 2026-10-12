@@ -235,8 +235,8 @@ func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
 			ui.Text(c, settingsVersion).FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).SingleLine()
 		})
 		settingsRule(c, theme)
-		a.settingsRow(c, theme, "同步范围", "只在已配对设备之间建立局域网直连", func() {
-			ui.Text(c, "局域网直连").FontSize(font(theme, fontControl)).
+		a.settingsRow(c, theme, "同步范围", "只在已配对设备之间建立直连", func() {
+			ui.Text(c, "直连").FontSize(font(theme, fontControl)).
 				TextColor(theme.Success).SingleLine()
 		})
 		settingsRule(c, theme)

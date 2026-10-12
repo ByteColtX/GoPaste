@@ -89,7 +89,7 @@ func (a *application) deviceEmptyState(c *ui.Context, theme *ui.Theme) {
 			TextColor(secondaryText(theme))
 		ui.Text(c, "暂无已配对设备").FontSize(font(theme, fontControl)).FontWeight(600).
 			SingleLine()
-		ui.Text(c, "通过局域网直连配对后，设备会显示在这里。\n剪贴板内容只在已配对设备之间同步。").
+		ui.Text(c, "通过直连配对后，设备会显示在这里。\n剪贴板内容只在已配对设备之间同步。").
 			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
 	})
 }
@@ -100,7 +100,7 @@ func (a *application) deviceLoadingState(c *ui.Context, theme *ui.Theme) {
 		statusDot(c, theme.Accent, space(theme, 2))
 		ui.Text(c, "正在加载设备").FontSize(font(theme, fontControl)).FontWeight(600).
 			SingleLine()
-		ui.Text(c, "正在检查本机局域网内的已配对设备。").
+		ui.Text(c, "正在检查本机已配对的设备。").
 			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
 	})
 }
@@ -240,7 +240,7 @@ func (a *application) deviceConnectionNotice(c *ui.Context, theme *ui.Theme) {
 			ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
 				ui.Text(c, "设备已离线").FontSize(font(theme, fontControl)).FontWeight(600).
 					TextColor(theme.Warning).SingleLine()
-				ui.Text(c, "该设备当前不在同一局域网内。重新接入局域网后，GoPaste 将自动恢复局域网直连；离线期间不会通过其他网络路径同步内容。").
+				ui.Text(c, "该设备当前不在线，重新连接后自动恢复同步。").
 					FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 				if !device.lastSeenAt.IsZero() {
 					ui.Text(c, "上次在线："+historyTimestamp(device.lastSeenAt)).
@@ -310,7 +310,7 @@ func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 func deviceConnectionStatus(c *ui.Context, theme *ui.Theme, device *pairedDevice) {
 	deviceStatus(c, theme, connectionLabel(device.online), connectionColor(theme, device.online))
 	ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
-	ui.Text(c, "局域网直连").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+	ui.Text(c, "直连").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 	if device.platform != "" {
 		ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
 		ui.Text(c, device.platform).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
@@ -426,7 +426,7 @@ func syncDirectionDescription(device *pairedDevice, label string) string {
 		return "设备同步已关闭，开启后可设置" + label + "的方向。"
 	}
 	if !device.online {
-		return "设备离线，重新建立局域网直连后可设置" + label + "的方向。"
+		return "设备离线，重新建立直连后可设置" + label + "的方向。"
 	}
 	return "仅影响此设备的" + label + "内容。"
 }
@@ -486,7 +486,7 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 	if paired {
 		values = []deviceInfo{
 			{label: "Peer ID", value: displayValue(device.peerID)},
-			{label: "连接方式", value: "局域网直连"},
+			{label: "连接方式", value: "直连"},
 			{label: "地址", value: displayValue(device.address)},
 		}
 	}
@@ -558,10 +558,10 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 				Role(ui.RoleHeading).SingleLine()
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 				statusDot(c, theme.Accent, space(theme, 2))
-				ui.Text(c, "仅支持局域网直连").FontSize(font(theme, fontControl)).
+				ui.Text(c, "仅支持直连").FontSize(font(theme, fontControl)).
 					TextColor(theme.Accent).FontWeight(600).SingleLine()
 			})
-			ui.Text(c, "设备配对功能正在接入中。完成协议接入后，可在这里发现同一局域网内的设备并完成配对。GoPaste 不使用云端、中继或其他网络回退连接。").
+			ui.Text(c, "设备配对功能正在接入中。完成协议接入后，可在这里发现设备并完成配对。GoPaste 不使用云端、中继或其他网络回退连接。").
 				FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).Wrap()
 			if a.pairingError != "" {
 				ui.Text(c, a.pairingError).FontSize(font(theme, fontMeta)).
@@ -570,7 +570,7 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 			ui.Spacer(c)
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(func() {
 				if a.pairingPending {
-					ui.Text(c, "等待局域网配对服务…").FontSize(font(theme, fontCaption)).
+					ui.Text(c, "等待配对服务…").FontSize(font(theme, fontCaption)).
 						TextColor(secondaryText(theme)).SingleLine()
 				}
 				startLabel := "开始配对"
