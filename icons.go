@@ -29,6 +29,7 @@ type iconSet struct {
 	filter       *ui.SVG
 	text         *ui.SVG
 	link         *ui.SVG
+	unlink       *ui.SVG
 	code         *ui.SVG
 	image        *ui.SVG
 	file         *ui.SVG
@@ -59,6 +60,7 @@ func mustLoadIconSet() iconSet {
 		filter:       mustLoadIcon("adjustments-horizontal.svg"),
 		text:         mustLoadIcon("file-text.svg"),
 		link:         mustLoadIcon("external-link.svg"),
+		unlink:       mustLoadIcon("unlink.svg"),
 		code:         mustLoadIcon("code.svg"),
 		image:        mustLoadIcon("photo.svg"),
 		file:         mustLoadIcon("file.svg"),
