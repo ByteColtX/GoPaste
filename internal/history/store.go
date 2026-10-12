@@ -20,23 +20,6 @@ const (
 	KindFile
 )
 
-// DisplayName returns the current user-facing name for a kind.
-// The UI can replace this mapping when localization is added.
-func (kind Kind) DisplayName() string {
-	switch kind {
-	case KindLink:
-		return "链接"
-	case KindCode:
-		return "代码"
-	case KindImage:
-		return "图片"
-	case KindFile:
-		return "文件"
-	default:
-		return "文本"
-	}
-}
-
 // BaseKind returns the broad category used by the history row icon.
 func (kind Kind) BaseKind() Kind {
 	switch kind {
@@ -44,18 +27,6 @@ func (kind Kind) BaseKind() Kind {
 		return KindText
 	default:
 		return kind
-	}
-}
-
-// SmartTag returns the optional automatic tag shown for a text subtype.
-func (kind Kind) SmartTag() string {
-	switch kind {
-	case KindLink:
-		return "链接"
-	case KindCode:
-		return "代码"
-	default:
-		return ""
 	}
 }
 
@@ -95,6 +66,10 @@ type Item struct {
 type Query struct {
 	Text   string
 	Filter Filter
+	// KindTerms returns extra searchable names for a kind, such as the
+	// localized labels the UI shows. The history module owns no display
+	// vocabulary of its own, so callers supply it. It may be nil.
+	KindTerms func(Kind) []string
 }
 
 // View is a stable snapshot used by both the list and preview panes.
@@ -149,10 +124,9 @@ func New(items []Item) *Store {
 // longer visible, selection is normalized to the first visible item. This is
 // an in-memory state correction and performs no I/O.
 func (s *Store) Snapshot(query Query) View {
-	text := strings.ToLower(strings.TrimSpace(query.Text))
 	visible := make([]Item, 0, len(s.items))
 	for _, item := range s.items {
-		if !matchesFilter(item, query.Filter) || !matchesQuery(item, text) {
+		if !matchesFilter(item, query.Filter) || !matchesQuery(item, query) {
 			continue
 		}
 		visible = append(visible, item)
@@ -302,16 +276,16 @@ func matchesFilter(item Item, filter Filter) bool {
 	}
 }
 
-func matchesQuery(item Item, query string) bool {
-	if query == "" {
+func matchesQuery(item Item, query Query) bool {
+	text := strings.ToLower(strings.TrimSpace(query.Text))
+	if text == "" {
 		return true
 	}
-	searchText := strings.ToLower(strings.Join([]string{
-		item.Text,
-		item.Kind.DisplayName(),
-		item.Source,
-	}, " "))
-	return strings.Contains(searchText, query)
+	parts := []string{item.Text, item.Source}
+	if query.KindTerms != nil {
+		parts = append(parts, query.KindTerms(item.Kind)...)
+	}
+	return strings.Contains(strings.ToLower(strings.Join(parts, " ")), text)
 }
 
 func cloneItem(item Item) Item {

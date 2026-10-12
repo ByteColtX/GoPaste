@@ -16,12 +16,12 @@ func newApplication() *application {
 		page:              pageHistory,
 		historyPaneWidth:  defaultHistoryPaneWidth,
 		history:           history.New(items),
-		deviceName:        "本机",
+		deviceName:        newLocalizer(languageSimplifiedChinese).text(msgDevicesBadgeLocal),
 		devicePlatform:    localPlatformName(),
 		deviceSyncEnabled: true,
 		deviceFileSync:    true,
 		pairedDevices:     devices,
-		language:          languageOptions[0],
+		language:          languageSimplifiedChinese,
 		appearance:        appearanceSystem,
 		settingsArea:      settingsGeneral,
 	}
@@ -92,6 +92,40 @@ func (a *application) loadSystemSettings() {
 	a.launchAtLogin = mygo.App.OpenAtLogin()
 }
 
+// applySystemLanguage 依据系统语言选择界面语言，并把尚未修改过的本机名称
+// 换成该语言下的默认名称。
+func (a *application) applySystemLanguage() {
+	a.language = languageFromLocale(mygo.App.Locale())
+	a.renameDefaultDevice()
+}
+
+// applyLanguage 在设置页切换语言后刷新派生状态：默认设备名称、托盘和窗口。
+// 选择控件已经写入了新的语言，这里只负责后续的联动。
+func (a *application) applyLanguage() {
+	a.renameDefaultDevice()
+	if a.onLanguageChanged != nil {
+		a.onLanguageChanged()
+	}
+}
+
+// renameDefaultDevice 只在设备名称仍是某个语言的默认名时才替换，
+// 避免覆盖用户自定义的名称。
+func (a *application) renameDefaultDevice() {
+	if a.isDefaultDeviceName(a.deviceName) {
+		a.deviceName = a.t(msgDevicesBadgeLocal)
+	}
+}
+
+// isDefaultDeviceName 判断名称是否等于任一支持语言下的默认本机名称。
+func (a *application) isDefaultDeviceName(name string) bool {
+	for _, l := range []language{languageSimplifiedChinese, languageEnglish} {
+		if name == newLocalizer(l).text(msgDevicesBadgeLocal) {
+			return true
+		}
+	}
+	return false
+}
+
 func (a *application) applyAppearance() {
 	switch a.appearance {
 	case appearanceLight:
@@ -106,12 +140,12 @@ func (a *application) applyAppearance() {
 func (a *application) updateLaunchAtLogin() string {
 	if err := mygo.App.SetOpenAtLogin(a.launchAtLogin); err != nil {
 		a.launchAtLogin = !a.launchAtLogin
-		return "当前运行环境暂不支持开机自启"
+		return a.t(msgToastLaunchAtLoginUnsupported)
 	}
 	if a.launchAtLogin {
-		return "已开启开机自启"
+		return a.t(msgToastLaunchAtLoginOn)
 	}
-	return "已关闭开机自启"
+	return a.t(msgToastLaunchAtLoginOff)
 }
 
 func (a *application) clearHistory() {
@@ -138,12 +172,12 @@ func (a *application) executeDangerousAction(action dangerousAction, deviceID st
 	switch action {
 	case dangerousActionClearHistory:
 		a.clearHistory()
-		return "历史记录已清空"
+		return a.t(msgToastHistoryCleared)
 	case dangerousActionUnpairDevice:
 		if !a.unpairDevice(deviceID) {
 			return ""
 		}
-		return "已取消配对"
+		return a.t(msgToastUnpaired)
 	}
 	return ""
 }
@@ -154,14 +188,15 @@ func (a *application) toggleFavorite(id string) string {
 		return ""
 	}
 	if favorite {
-		return favoriteAddedStatus
+		return a.t(msgToastFavoriteAdded)
 	}
-	return favoriteRemovedStatus
+	return a.t(msgToastFavoriteRemoved)
 }
 
-func favoriteLabel(favorite bool) string {
+// favoriteLabel 返回收藏按钮的文案：已收藏用完成态，未收藏用动作文案。
+func (a *application) favoriteLabel(favorite bool) string {
 	if favorite {
-		return "已收藏"
+		return a.t(msgFavoriteAdded)
 	}
-	return "收藏"
+	return a.t(msgFavorite)
 }

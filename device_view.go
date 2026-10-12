@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/egoist/mygo/ui"
 )
 
@@ -29,19 +27,19 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, columnTopInset), 0, space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		secondarySidebarTitle(c, theme, "本设备")
+		secondarySidebarTitle(c, theme, a.t(msgDevicesTitle))
 		a.localDeviceEntry(c, theme)
 
 		ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
 			Margin(0, space(theme, sidebarTrailingInset), 0, 0).
 			Padding(space(theme, 3), 0, 0, 0).Children(func() {
-			ui.Text(c, "已配对设备").FontSize(font(theme, fontSubheading)).FontWeight(600).
+			ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
 				TextColor(secondaryText(theme)).SingleLine()
 			ui.Spacer(c)
 			refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
 				Size(controlHeightSize(c, theme, controlHeight), controlHeightSize(c, theme, controlHeight)).Shrink(0).Center().
 				Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
-				Label("刷新设备列表").Tooltip("刷新设备列表")
+				Label(a.t(msgDevicesRefresh)).Tooltip(a.t(msgDevicesRefresh))
 			if refresh.Hovered() {
 				refresh.Background(hoverFill(theme))
 			}
@@ -76,7 +74,7 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 			Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 			a.inviteDeviceButton(c, theme)
 			ui.Row(c).Shrink(0).Padding(space(theme, 1), space(theme, 2.5)).Children(func() {
-				deviceStatus(c, theme, fmt.Sprintf("%d 台在线", onlineCount), onlineColor)
+				deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
 			})
 		})
 	})
@@ -87,9 +85,9 @@ func (a *application) deviceEmptyState(c *ui.Context, theme *ui.Theme) {
 		AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
 		ui.Icon(c, icons.devices).Size(space(theme, 5), space(theme, 5)).
 			TextColor(secondaryText(theme))
-		ui.Text(c, "暂无已配对设备").FontSize(font(theme, fontControl)).FontWeight(600).
+		ui.Text(c, a.t(msgDevicesEmptyTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
 			SingleLine()
-		ui.Text(c, "通过直连配对后，设备会显示在这里。\n剪贴板内容只在已配对设备之间同步。").
+		ui.Text(c, a.t(msgDevicesEmptyMessage)).
 			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
 	})
 }
@@ -98,9 +96,9 @@ func (a *application) deviceLoadingState(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).FillWidth().Padding(space(theme, 5), space(theme, 3)).
 		AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
 		statusDot(c, theme.Accent, space(theme, 2))
-		ui.Text(c, "正在加载设备").FontSize(font(theme, fontControl)).FontWeight(600).
+		ui.Text(c, a.t(msgDevicesLoadingTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
 			SingleLine()
-		ui.Text(c, "正在检查本机已配对的设备。").
+		ui.Text(c, a.t(msgDevicesLoadingMessage)).
 			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
 	})
 }
@@ -108,17 +106,18 @@ func (a *application) deviceLoadingState(c *ui.Context, theme *ui.Theme) {
 func (a *application) deviceErrorState(c *ui.Context, theme *ui.Theme) {
 	message := a.deviceDiscoveryMessage
 	if message == "" {
-		message = "暂时无法读取已配对设备。"
+		message = a.t(msgDevicesErrorMessage)
 	}
 	ui.Column(c).FillWidth().Padding(space(theme, 5), space(theme, 3)).
 		AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
 		statusDot(c, theme.Danger, space(theme, 2))
-		ui.Text(c, "设备列表加载失败").FontSize(font(theme, fontControl)).FontWeight(600).
+		ui.Text(c, a.t(msgDevicesErrorTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
 			TextColor(theme.Danger).SingleLine()
 		ui.Text(c, message).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
-		retry := neutralButton(c, theme, "retry-paired-devices", "重试")
+		retryLabel := a.t(msgDevicesRetry)
+		retry := neutralButton(c, theme, "retry-paired-devices", retryLabel)
 		retry.Children(func() {
-			ui.Text(c, "重试").FontSize(font(theme, fontControl)).SingleLine()
+			ui.Text(c, retryLabel).FontSize(font(theme, fontControl)).SingleLine()
 		})
 		if retry.Clicked() {
 			a.refreshDevices(c)
@@ -128,7 +127,7 @@ func (a *application) deviceErrorState(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) refreshDevices(c *ui.Context) {
 	if a.onRefreshDevices == nil {
-		c.Toast("设备发现服务尚未接入")
+		c.Toast(a.t(msgToastDeviceDiscoveryUnavailable))
 		return
 	}
 	a.deviceDiscovery = deviceDiscoveryLoading
@@ -143,7 +142,7 @@ func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 		deviceIcon(c, theme, iconForPlatform(a.devicePlatform), selected)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
 			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
-			deviceSyncStatus(c, theme, a.deviceSyncEnabled, "同步已开启", "同步已关闭")
+			deviceSyncStatus(c, theme, a.deviceSyncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
 		})
 	})
 	if entry.Clicked() {
@@ -161,7 +160,7 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
 			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
-				deviceStatus(c, theme, connectionLabel(device.online), connectionColor(theme, device.online))
+				deviceStatus(c, theme, a.connectionLabel(device.online), connectionColor(theme, device.online))
 			})
 		})
 	})
@@ -177,7 +176,7 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 		Margin(0, space(theme, sidebarTrailingInset), 0, 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
 		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
-		TextColor(primaryText(theme)).Label("选择设备").
+		TextColor(primaryText(theme)).Label(a.t(msgDevicesSelect)).
 		Role(ui.RoleToggleButton).Selected(selected)
 	if selected {
 		entry.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
@@ -193,7 +192,7 @@ func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 	button := ui.ButtonBase(c.Key("invite-device")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
-		TextColor(primaryText(theme)).Label("新增设备")
+		TextColor(primaryText(theme)).Label(a.t(msgDevicesAdd))
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
@@ -201,7 +200,7 @@ func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 	}
 	button.Children(func() {
 		ui.Icon(c, icons.deviceAdd).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0)
-		ui.Text(c, "新增设备").FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		ui.Text(c, a.t(msgDevicesAdd)).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
 	})
 	if button.Clicked() {
 		a.addDeviceDialog = true
@@ -238,12 +237,12 @@ func (a *application) deviceConnectionNotice(c *ui.Context, theme *ui.Theme) {
 			AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
 			statusDot(c, theme.Warning, space(theme, 2))
 			ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
-				ui.Text(c, "设备已离线").FontSize(font(theme, fontControl)).FontWeight(600).
+				ui.Text(c, a.t(msgDevicesOfflineTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
 					TextColor(theme.Warning).SingleLine()
-				ui.Text(c, "该设备当前不在线，重新连接后自动恢复同步。").
+				ui.Text(c, a.t(msgDevicesOfflineMessage)).
 					FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 				if !device.lastSeenAt.IsZero() {
-					ui.Text(c, "上次在线："+historyTimestamp(device.lastSeenAt)).
+					ui.Text(c, a.tf(msgDevicesLastSeen, a.timestampLabel(device.lastSeenAt))).
 						FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
 				}
 			})
@@ -270,17 +269,17 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
 				ui.Text(c, name).FontSize(font(theme, fontPageTitle)).FontWeight(600).SingleLine()
 				if paired {
-					deviceBadge(c, theme, "已配对")
+					deviceBadge(c, theme, a.t(msgDevicesBadgePaired))
 				} else {
-					deviceBadge(c, theme, "本机")
+					deviceBadge(c, theme, a.t(msgDevicesBadgeLocal))
 				}
 			})
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 				if paired {
-					deviceConnectionStatus(c, theme, device)
+					a.deviceConnectionStatus(c, theme, device)
 					return
 				}
-				deviceSyncStatus(c, theme, syncEnabled, "同步已开启", "同步已关闭")
+				deviceSyncStatus(c, theme, syncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
 				ui.Text(c, "·").FontSize(font(theme, fontControl)).TextColor(secondaryText(theme))
 				ui.Text(c, platform).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
 			})
@@ -292,12 +291,13 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
-	button := dangerButton(c, theme, "unpair-selected-device", "取消配对").
+	unpairLabel := a.t(msgDevicesUnpair)
+	button := dangerButton(c, theme, "unpair-selected-device", unpairLabel).
 		Gap(space(theme, spaceInline))
 	button.Children(func() {
 		ui.Icon(c, icons.unlink).Size(space(theme, 3.5), space(theme, 3.5)).
 			Shrink(0).TextColor(theme.Danger)
-		ui.Text(c, "取消配对").FontSize(font(theme, fontControl)).FontWeight(600).
+		ui.Text(c, unpairLabel).FontSize(font(theme, fontControl)).FontWeight(600).
 			TextColor(theme.Danger).SingleLine()
 	})
 	if button.Clicked() {
@@ -307,21 +307,21 @@ func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 	}
 }
 
-func deviceConnectionStatus(c *ui.Context, theme *ui.Theme, device *pairedDevice) {
-	deviceStatus(c, theme, connectionLabel(device.online), connectionColor(theme, device.online))
+func (a *application) deviceConnectionStatus(c *ui.Context, theme *ui.Theme, device *pairedDevice) {
+	deviceStatus(c, theme, a.connectionLabel(device.online), connectionColor(theme, device.online))
 	ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
-	ui.Text(c, "直连").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+	ui.Text(c, a.t(msgDevicesDirect)).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 	if device.platform != "" {
 		ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
 		ui.Text(c, device.platform).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 	}
 }
 
-func connectionLabel(online bool) string {
+func (a *application) connectionLabel(online bool) string {
 	if online {
-		return "在线"
+		return a.t(msgDevicesOnline)
 	}
-	return "离线"
+	return a.t(msgDevicesOffline)
 }
 
 func connectionColor(theme *ui.Theme, online bool) ui.Color {
@@ -338,34 +338,38 @@ func (a *application) deviceSyncSettings(c *ui.Context, theme *ui.Theme) {
 			a.pairedSyncRows(c, theme, device)
 			return
 		}
-		a.deviceSwitchRow(c, theme, "启用同步", "允许设备之间同步内容", "local-sync", &a.deviceSyncEnabled, false)
+		a.deviceSwitchRow(c, theme, a.t(msgDevicesEnableSync), a.t(msgDevicesEnableSyncDesc), "local-sync", &a.deviceSyncEnabled, false)
 		deviceDivider(c, theme)
-		a.deviceSwitchRow(c, theme, "文件同步", "允许在设备间传输文件", "local-file-sync", &a.deviceFileSync, !a.deviceSyncEnabled)
+		fileSyncDescription := a.t(msgDevicesFileSyncDesc)
+		if !a.deviceSyncEnabled {
+			fileSyncDescription = a.tf(msgDevicesFileSyncDisabled, fileSyncDescription)
+		}
+		a.deviceSwitchRow(c, theme, a.t(msgDevicesFileSync), fileSyncDescription, "local-file-sync", &a.deviceFileSync, !a.deviceSyncEnabled)
 	})
 }
 
 func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pairedDevice) {
-	a.deviceSwitchRow(c, theme, fmt.Sprintf("与%s同步", device.name), "双方复制的内容会自动同步。", device.id+"-sync", &device.syncEnabled, false)
+	a.deviceSwitchRow(c, theme, a.tf(msgDevicesSyncWith, device.name), a.t(msgDevicesSyncWithDesc), device.id+"-sync", &device.syncEnabled, false)
 	deviceDivider(c, theme)
 
 	ui.Row(c.Key(device.id+"-sync-content-mode")).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 		Padding(space(theme, 3.5), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
-			ui.Text(c, "同步内容").FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
-			ui.Text(c, "分别设置每种内容的同步方向。").FontSize(font(theme, fontMeta)).
+			ui.Text(c, a.t(msgDevicesSyncContent)).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+			ui.Text(c, a.t(msgDevicesSyncContentDesc)).FontSize(font(theme, fontMeta)).
 				TextColor(secondaryText(theme)).Wrap()
 		})
-		deviceBadge(c, theme, syncContentModeLabel(device))
+		deviceBadge(c, theme, a.syncContentModeLabel(device))
 	})
 	deviceDivider(c, theme)
 
 	settings := []syncContentSetting{
-		{key: "text", label: "文本", icon: icons.text, direction: &device.textSyncDirection},
-		{key: "image", label: "图片", icon: icons.image, direction: &device.imageSyncDirection},
-		{key: "file", label: "文件", icon: icons.file, direction: &device.fileSyncDirection},
-		{key: "rich-text", label: "富文本", icon: icons.text, direction: &device.richTextSyncDirection},
+		{key: "text", label: a.t(msgKindText), icon: icons.text, direction: &device.textSyncDirection},
+		{key: "image", label: a.t(msgKindImage), icon: icons.image, direction: &device.imageSyncDirection},
+		{key: "file", label: a.t(msgKindFile), icon: icons.file, direction: &device.fileSyncDirection},
+		{key: "rich-text", label: a.t(msgKindRichText), icon: icons.text, direction: &device.richTextSyncDirection},
 	}
-	directions := syncDirectionOptionsForPeer(device.name)
+	directions := a.l10n().syncDirectionOptions(device.name)
 	for index, setting := range settings {
 		a.syncDirectionRow(c, theme, device, setting, directions)
 		if index < len(settings)-1 {
@@ -378,7 +382,7 @@ type syncContentSetting struct {
 	key       string
 	label     string
 	icon      *ui.SVG
-	direction *string
+	direction *syncDirection
 }
 
 func (a *application) syncDirectionRow(
@@ -386,10 +390,11 @@ func (a *application) syncDirectionRow(
 	theme *ui.Theme,
 	device *pairedDevice,
 	setting syncContentSetting,
-	directions []string,
+	directions []option[syncDirection],
 ) {
 	disabled := !device.syncEnabled || !device.online
-	description := syncDirectionDescription(device, setting.label)
+	description := a.syncDirectionDescription(device, setting.label)
+	selectLabel := a.tf(msgSyncDirectionLabel, setting.label)
 	if compactDetailLayout(c, theme) {
 		ui.Column(c.Key(device.id+"-sync-content-"+setting.key)).FillWidth().Shrink(0).
 			Padding(space(theme, 3), space(theme, 4)).Gap(space(theme, 1.5)).Children(func() {
@@ -401,9 +406,8 @@ func (a *application) syncDirectionRow(
 					ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 				})
 			})
-			ui.Select(c.Key(device.id+"-direction-"+setting.key), setting.direction, directions).
-				FillWidth().Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Disabled(disabled).
-				Label(setting.label + "同步方向")
+			selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
+				FillWidth().Disabled(disabled)
 		})
 		return
 	}
@@ -415,32 +419,31 @@ func (a *application) syncDirectionRow(
 			ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
-		ui.Select(c.Key(device.id+"-direction-"+setting.key), setting.direction, directions).
-			Width(260).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Disabled(disabled).
-			Label(setting.label + "同步方向")
+		selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
+			Width(260).Disabled(disabled)
 	})
 }
 
-func syncDirectionDescription(device *pairedDevice, label string) string {
+func (a *application) syncDirectionDescription(device *pairedDevice, label string) string {
 	if !device.syncEnabled {
-		return "设备同步已关闭，开启后可设置" + label + "的方向。"
+		return a.tf(msgSyncDescSyncOff, label)
 	}
 	if !device.online {
-		return "设备离线，重新建立直连后可设置" + label + "的方向。"
+		return a.tf(msgSyncDescOffline, label)
 	}
-	return "仅影响此设备的" + label + "内容。"
+	return a.tf(msgSyncDescNormal, label)
 }
 
 // syncContentModeLabel 用状态而不是按钮来表达同步内容的当前模式：
 // 四项内容都是双向同步时显示“全部双向同步”，否则视为已自定义。
-func syncContentModeLabel(device *pairedDevice) string {
-	if device.textSyncDirection == defaultSyncDirection &&
-		device.imageSyncDirection == defaultSyncDirection &&
-		device.fileSyncDirection == defaultSyncDirection &&
-		device.richTextSyncDirection == defaultSyncDirection {
-		return "全部双向同步"
+func (a *application) syncContentModeLabel(device *pairedDevice) string {
+	if device.textSyncDirection == syncDirectionTwoWay &&
+		device.imageSyncDirection == syncDirectionTwoWay &&
+		device.fileSyncDirection == syncDirectionTwoWay &&
+		device.richTextSyncDirection == syncDirectionTwoWay {
+		return a.t(msgDevicesAllTwoWay)
 	}
-	return "自定义同步内容"
+	return a.t(msgDevicesCustomSync)
 }
 
 func (a *application) deviceSwitchRow(
@@ -452,9 +455,6 @@ func (a *application) deviceSwitchRow(
 	value *bool,
 	disabled bool,
 ) {
-	if disabled && title == "文件同步" {
-		description += " 请先开启设备同步。"
-	}
 	ui.Row(c.Key("device-setting-"+key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 		Padding(space(theme, 4), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
@@ -472,29 +472,29 @@ func (a *application) deviceSwitchRow(
 
 func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 	device, paired := a.selectedPairedDevice()
-	title := "设备信息"
+	title := a.t(msgDevicesInfoTitle)
 	if paired {
-		title = "连接信息"
+		title = a.t(msgDevicesConnectionTitle)
 	}
 
 	values := []deviceInfo{
-		{label: "Peer ID", value: displayValue(a.devicePeerID)},
-		{label: "平台", value: displayValue(a.devicePlatform)},
-		{label: "连接方式", value: "本机"},
-		{label: "应用版本", value: settingsVersion},
+		{key: "peer-id", label: a.t(msgDevicesInfoPeerID), value: displayValue(a.devicePeerID)},
+		{key: "platform", label: a.t(msgDevicesInfoPlatform), value: displayValue(a.devicePlatform)},
+		{key: "connection", label: a.t(msgDevicesInfoConnection), value: a.t(msgDevicesInfoLocalValue)},
+		{key: "app-version", label: a.t(msgDevicesInfoAppVersion), value: settingsVersion},
 	}
 	if paired {
 		values = []deviceInfo{
-			{label: "Peer ID", value: displayValue(device.peerID)},
-			{label: "连接方式", value: "直连"},
-			{label: "地址", value: displayValue(device.address)},
+			{key: "peer-id", label: a.t(msgDevicesInfoPeerID), value: displayValue(device.peerID)},
+			{key: "connection", label: a.t(msgDevicesInfoConnection), value: a.t(msgDevicesInfoDirectValue)},
+			{key: "address", label: a.t(msgDevicesInfoAddress), value: displayValue(device.address)},
 		}
 	}
 	standardCard(c, theme, "device-info-card", func() {
 		button := ui.ButtonBase(c.Key("device-info-disclosure")).FillWidth().Shrink(0).
 			MinHeight(space(theme, rowHeight)).Padding(space(theme, 3), space(theme, 4)).
 			Radius(radius(theme, cardRadius)).TextColor(primaryText(theme)).
-			Label(deviceInfoDisclosureLabel(title, a.deviceInfoExpanded)).
+			Label(a.deviceInfoDisclosureLabel(title, a.deviceInfoExpanded)).
 			Role(ui.RoleDisclosure).Expanded(a.deviceInfoExpanded)
 		if button.Hovered() {
 			button.Background(hoverFill(theme))
@@ -529,7 +529,7 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 			if index > 0 {
 				deviceDivider(c, theme)
 			}
-			ui.Row(c.Key("device-info-row-"+info.label)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
+			ui.Row(c.Key("device-info-row-"+info.key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 				Padding(space(theme, 2.5), space(theme, 4)).AlignItems(ui.Center).Gap(space(theme, rowGap)).Children(func() {
 				ui.Text(c, info.label).Width(space(theme, labelWidth/4)).Shrink(0).FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme)).SingleLine()
@@ -540,11 +540,11 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-func deviceInfoDisclosureLabel(title string, expanded bool) string {
+func (a *application) deviceInfoDisclosureLabel(title string, expanded bool) string {
 	if expanded {
-		return "收起" + title
+		return a.tf(msgDevicesCollapse, title)
 	}
-	return "展开" + title
+	return a.tf(msgDevicesExpand, title)
 }
 
 // addDeviceDialogView 保留配对入口的状态容器，不在协议接入前伪造成功结果。
@@ -553,15 +553,15 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 		ui.Column(c).Width(440).Shrink(0).
 			Padding(space(theme, 6), space(theme, 6)).Gap(space(theme, 2)).
 			Radius(radius(theme, largeRadius)).Background(theme.Background).
-			Border(1, borderColor(theme)).Role(ui.RoleDialog).Label("新增设备").Children(func() {
-			ui.Text(c, "新增设备").FontSize(font(theme, fontSection)).FontWeight(600).
+			Border(1, borderColor(theme)).Role(ui.RoleDialog).Label(a.t(msgDevicesAdd)).Children(func() {
+			ui.Text(c, a.t(msgDevicesAdd)).FontSize(font(theme, fontSection)).FontWeight(600).
 				Role(ui.RoleHeading).SingleLine()
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 				statusDot(c, theme.Accent, space(theme, 2))
-				ui.Text(c, "仅支持直连").FontSize(font(theme, fontControl)).
+				ui.Text(c, a.t(msgDevicesPairDirectOnly)).FontSize(font(theme, fontControl)).
 					TextColor(theme.Accent).FontWeight(600).SingleLine()
 			})
-			ui.Text(c, "设备配对功能正在接入中。完成协议接入后，可在这里发现设备并完成配对。GoPaste 不使用云端、中继或其他网络回退连接。").
+			ui.Text(c, a.t(msgDevicesPairDescription)).
 				FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).Wrap()
 			if a.pairingError != "" {
 				ui.Text(c, a.pairingError).FontSize(font(theme, fontMeta)).
@@ -570,12 +570,12 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 			ui.Spacer(c)
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(func() {
 				if a.pairingPending {
-					ui.Text(c, "等待配对服务…").FontSize(font(theme, fontCaption)).
+					ui.Text(c, a.t(msgDevicesPairWaiting)).FontSize(font(theme, fontCaption)).
 						TextColor(secondaryText(theme)).SingleLine()
 				}
-				startLabel := "开始配对"
+				startLabel := a.t(msgDevicesPairStart)
 				if a.onStartPairing == nil {
-					startLabel = "等待配对服务"
+					startLabel = a.t(msgDevicesPairWaitingSvc)
 				}
 				start := neutralButton(c, theme, "start-pairing", startLabel).
 					Disabled(a.onStartPairing == nil || a.pairingPending)
@@ -588,9 +588,10 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 					a.onStartPairing()
 				}
 
-				button := neutralButton(c, theme, "close-invite-device", "关闭")
+				closeLabel := a.t(msgDevicesPairClose)
+				button := neutralButton(c, theme, "close-invite-device", closeLabel)
 				button.Children(func() {
-					ui.Text(c, "关闭").FontSize(font(theme, fontControl)).SingleLine()
+					ui.Text(c, closeLabel).FontSize(font(theme, fontControl)).SingleLine()
 				})
 				if button.Clicked() {
 					a.addDeviceDialog = false
@@ -637,6 +638,7 @@ func (a *application) selectedPairedDevice() (*pairedDevice, bool) {
 }
 
 type deviceInfo struct {
+	key   string
 	label string
 	value string
 }
