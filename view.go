@@ -101,13 +101,6 @@ func (a *application) navigationRail(c *ui.Context, theme *ui.Theme) {
 		Border(1, dividerColor(theme)).
 		DragWindow()
 	rail.Children(func() {
-		if expanded {
-			ui.Text(c, "GoPaste").FontSize(font(theme, fontSection)).FontWeight(600).
-				Padding(space(theme, 1), space(theme, 1)).Role(ui.RoleHeading).SingleLine()
-		} else {
-			ui.Text(c, "GP").FontSize(font(theme, fontSubheading)).FontWeight(700).
-				Padding(space(theme, 1), space(theme, 1)).Role(ui.RoleHeading).SingleLine()
-		}
 		a.navigationButton(c, theme, pageHistory, icons.history, "历史记录", expanded)
 		ui.Spacer(c)
 		a.navigationButton(c, theme, pageDevices, icons.devices, "设备", expanded)
