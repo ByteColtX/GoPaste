@@ -571,8 +571,6 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 				Shrink(0).TextColor(kindColor)
 			ui.Text(c, a.kindLabel(baseKind)).FontSize(font(theme, fontMeta)).FontWeight(600).
 				TextColor(kindColor).SingleLine()
-			ui.Text(c, "·").FontSize(font(theme, fontMeta)).
-				TextColor(secondaryText(theme))
 			for _, segment := range a.historyMetaSegments(item) {
 				ui.Text(c, "·").FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme))
