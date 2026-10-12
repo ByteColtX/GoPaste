@@ -668,8 +668,24 @@ type syncDeviceStatus struct {
 	name      string
 	label     string
 	color     ui.Color
+	textColor ui.Color
 	canResend bool
 }
+
+const (
+	// syncRowHeight is the fixed height every device line keeps, so lines with
+	// and without a resend action share one vertical rhythm instead of the
+	// taller action stretching only some of them.
+	syncRowHeight float32 = 7
+	// syncActionHeight is the height of the resend action inside a device line.
+	// It stays shorter than syncRowHeight so the action reads as a control
+	// centered in the row rather than as tall as the row itself.
+	syncActionHeight float32 = 6
+	// syncTrailingCol is the fixed trailing column the resend action sits in,
+	// so the outcome text and the header action share one right edge whether
+	// or not a device still offers a resend.
+	syncTrailingCol float32 = 13
+)
 
 // syncIndicator renders the item's sync state as a compact chip in the preview
 // meta row. The per-device detail and resend actions live in a popover that
@@ -692,7 +708,7 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	chip.Children(func() {
 		statusDot(c, color, space(theme, 1.5))
 		ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
-			TextColor(color).SingleLine()
+			TextColor(primaryText(theme)).SingleLine()
 	})
 
 	// The popover stays open while the pointer rests on the chip or on the
@@ -708,11 +724,16 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	open := a.syncPopoverOpen
 	panelHovered := false
 	ui.PopoverBase(c, chip, &open, func(panel ui.Element) {
-		panel.MinWidth(space(theme, 58)).MaxWidth(space(theme, 96)).
-			Padding(space(theme, 1.5)).
-			Radius(radius(theme, cardRadius)).
-			Background(panelFill(theme)).Border(1, borderColor(theme)).
-			Shadow(0, space(theme, 0.5), space(theme, 2), 0, ui.RGBA(0, 0, 0, 0.18)).
+		panel.MinWidth(space(theme, 60)).MaxWidth(space(theme, 96)).
+			Padding(space(theme, 2)).
+			Radius(radius(theme, largeRadius)).
+			Background(theme.Background).Border(1, borderColor(theme)).
+			Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
+			Transition(ui.ElementTransition{
+				Duration: 140 * time.Millisecond,
+				Ease:     ui.EaseOut,
+				Enter:    &ui.Motion{Opacity: 0, Scale: 0.98, Y: -4},
+			}).
 			Margin(0)
 		a.syncPopoverContent(c, theme, item)
 		panelHovered = panel.Hovered()
@@ -729,6 +750,7 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 func (a *application) syncPopoverContent(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Column(c).Gap(space(theme, 1)).Children(func() {
 		a.syncPopoverHeader(c, theme, item)
+		standardDivider(c, theme)
 		if item.Sync == syncStateReplaced {
 			a.syncReplacedNote(c, theme)
 		}
@@ -737,9 +759,11 @@ func (a *application) syncPopoverContent(c *ui.Context, theme *ui.Theme, item hi
 }
 
 func (a *application) syncPopoverHeader(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
-		ui.Text(c, a.t(msgSyncStatusTitle)).FontSize(font(theme, fontCaption)).FontWeight(600).
-			TextColor(secondaryText(theme)).SingleLine()
+	ui.Row(c).FillWidth().Height(controlHeightSize(c, theme, syncRowHeight)).
+		Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).
+		Padding(0, space(theme, 1.5)).Children(func() {
+		ui.Text(c, a.t(msgSyncStatusTitle)).FontSize(font(theme, fontMeta)).FontWeight(600).
+			TextColor(secondaryText(theme)).Role(ui.RoleHeading).SingleLine()
 		ui.Spacer(c)
 		if len(a.pairedDevices) > 0 {
 			a.syncResendButton(c, theme, "batch", item.ID, "", a.t(msgSyncResendAll), a.t(msgSyncResendAllAccess))
@@ -760,14 +784,22 @@ func (a *application) syncDeviceList(c *ui.Context, theme *ui.Theme, item histor
 }
 
 // syncDeviceLine is one device's line: a status dot, the device name, its
-// delivery outcome, and a resend action while the item is still waiting.
+// delivery outcome, and a resend action while the item is still waiting. Every
+// line keeps the same fixed height, so lines with and without a resend action
+// share one vertical rhythm instead of the taller button stretching only some.
 func (a *application) syncDeviceLine(c *ui.Context, theme *ui.Theme, item history.Item, status syncDeviceStatus) {
-	ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
-		statusDot(c, status.color, space(theme, 1.25))
-		ui.Text(c, status.name).Grow(1).MinWidth(0).FontSize(font(theme, fontCaption)).
-			TextColor(primaryText(theme)).SingleLine()
-		ui.Text(c, status.label).Shrink(0).FontSize(font(theme, fontCaption)).
-			TextColor(status.color).SingleLine()
+	row := ui.Row(c).FillWidth().Height(controlHeightSize(c, theme, syncRowHeight)).
+		Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).
+		Padding(0, space(theme, 1.5)).Radius(radius(theme, controlRadius))
+	if row.Hovered() {
+		row.Background(subtleFill(theme))
+	}
+	row.Children(func() {
+		statusDot(c, status.color, space(theme, 1.5))
+		ui.Text(c, status.name).Grow(1).MinWidth(0).FontSize(font(theme, fontControl)).
+			FontWeight(500).TextColor(primaryText(theme)).SingleLine()
+		ui.Text(c, status.label).Shrink(0).FontSize(font(theme, fontControl)).
+			TextColor(status.textColor).SingleLine()
 		a.syncResendSlot(c, theme, item, status)
 	})
 }
@@ -775,7 +807,7 @@ func (a *application) syncDeviceLine(c *ui.Context, theme *ui.Theme, item histor
 // syncResendSlot reserves a fixed trailing column so the status column stays
 // aligned whether or not a device still shows a resend action.
 func (a *application) syncResendSlot(c *ui.Context, theme *ui.Theme, item history.Item, status syncDeviceStatus) {
-	ui.Row(c).Width(space(theme, 14)).Shrink(0).Justify(ui.End).Children(func() {
+	ui.Row(c).Width(space(theme, syncTrailingCol)).Shrink(0).Justify(ui.End).Children(func() {
 		if status.canResend {
 			a.syncResendButton(c, theme, "device", item.ID, status.deviceID, a.t(msgSyncResend), a.tf(msgSyncResendAccess, status.name))
 		}
@@ -785,11 +817,14 @@ func (a *application) syncResendSlot(c *ui.Context, theme *ui.Theme, item histor
 // syncReplacedNote explains a replaced item: it was superseded before it
 // reached any device, so no automatic retry is coming and delivery is manual.
 func (a *application) syncReplacedNote(c *ui.Context, theme *ui.Theme) {
-	ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
+	ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).
+		Padding(space(theme, 0.75), space(theme, 1.5)).
+		MinHeight(controlHeightSize(c, theme, syncRowHeight)).
+		Radius(radius(theme, controlRadius)).Background(subtleFill(theme)).Children(func() {
 		ui.Icon(c, icons.history).Size(space(theme, 3.5), space(theme, 3.5)).
 			Shrink(0).TextColor(secondaryText(theme))
 		ui.Text(c, a.t(msgSyncReplacedNote)).Grow(1).MinWidth(0).
-			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap().MaxLines(2)
 	})
 }
 
@@ -797,18 +832,23 @@ func (a *application) syncReplacedNote(c *ui.Context, theme *ui.Theme) {
 // is the accessible name, which names the target device for screen readers.
 func (a *application) syncResendButton(c *ui.Context, theme *ui.Theme, scope, itemID, deviceID, label, accessLabel string) ui.Element {
 	button := ui.ButtonBase(c.Key("sync-resend-"+scope+"-"+itemID+"-"+deviceID)).
-		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
-		Padding(space(theme, 0.75), space(theme, 1.5)).Gap(space(theme, 0.75)).
-		Radius(radius(theme, controlRadius)).TextColor(primaryText(theme)).
-		Label(accessLabel).Role(ui.RoleButton)
-	if button.Hovered() {
-		button.Background(hoverFill(theme))
-	} else {
-		button.Background(ui.Transparent)
+		Height(controlHeightSize(c, theme, syncActionHeight)).Shrink(0).
+		Padding(0, space(theme, 1.5)).Gap(space(theme, 0.75)).
+		Radius(radius(theme, controlRadius)).
+		Label(accessLabel).Role(ui.RoleButton).FocusRing(true)
+	switch {
+	case button.IsDisabled():
+		button.Background(ui.Transparent).TextColor(secondaryText(theme))
+	case button.Pressed():
+		button.Background(theme.SurfacePressed).TextColor(primaryText(theme))
+	case button.Hovered():
+		button.Background(hoverFill(theme)).TextColor(primaryText(theme))
+	default:
+		button.Background(ui.Transparent).TextColor(secondaryText(theme))
 	}
 	button.Children(func() {
 		ui.Icon(c, icons.refresh).Size(space(theme, 3), space(theme, 3)).Shrink(0)
-		ui.Text(c, label).FontSize(font(theme, fontCaption)).SingleLine()
+		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
 	})
 	if button.Clicked() {
 		a.resendItem(c, itemID, deviceID)
@@ -841,6 +881,7 @@ func (a *application) syncDeviceStatuses(theme *ui.Theme, item history.Item) []s
 			name:      device.name,
 			label:     label,
 			color:     color,
+			textColor: deliveryTextColor(theme, state),
 			canResend: state != deliveryReceived,
 		})
 	}
@@ -886,6 +927,18 @@ func (a *application) deliveryStyle(theme *ui.Theme, state deliveryState, replac
 		return a.t(msgSyncDeliveryNotSent), secondaryText(theme)
 	}
 	return a.t(msgSyncDeliveryPending), secondaryText(theme)
+}
+
+// deliveryTextColor keeps a device's outcome text neutral: a settled outcome
+// reads in full, one still in flight stays muted. The state color lives on the
+// status dot, so small text never leans on a low-contrast accent.
+func deliveryTextColor(theme *ui.Theme, state deliveryState) ui.Color {
+	switch state {
+	case deliveryReceived, deliveryOffline:
+		return primaryText(theme)
+	default:
+		return secondaryText(theme)
+	}
 }
 
 // historySource names the device an item came from: this machine for a locally
