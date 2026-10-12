@@ -557,11 +557,10 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 				TextColor(kindColor).SingleLine()
 			ui.Text(c, "·").FontSize(font(theme, fontMeta)).
 				TextColor(secondaryText(theme))
-			if item.Kind == kindImage && item.Image != nil {
-				ui.Text(c, "原始图片").FontSize(font(theme, fontMeta)).
-					TextColor(secondaryText(theme)).SingleLine()
-			} else {
-				ui.Textf(c, "%d 字符", len([]rune(item.Text))).FontSize(font(theme, fontMeta)).
+			for _, segment := range historyMetaSegments(item) {
+				ui.Text(c, "·").FontSize(font(theme, fontMeta)).
+					TextColor(secondaryText(theme))
+				ui.Text(c, segment).FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme)).SingleLine()
 			}
 			ui.Spacer(c)
@@ -642,6 +641,72 @@ func historyResolutionLabel(item history.Item) string {
 		return "图片"
 	}
 	return fmt.Sprintf("%dx%d", item.Image.Width, item.Image.Height)
+}
+
+// historyMetaSegments 返回预览标题里紧随类型名称的元信息片段：文本为字符数
+// 和大小，图片为分辨率和大小，文件只保留大小（字符数对文件没有意义）。
+// 片段由渲染方用间隔符连接，这里不拼接分隔符，空片段会被丢弃。
+func historyMetaSegments(item history.Item) []string {
+	switch {
+	case item.Kind == kindImage && item.Image != nil:
+		return compactSegments(historyResolutionLabel(item), historySizeLabel(item))
+	case item.Kind == kindFile:
+		if size := historySizeLabel(item); size != "" {
+			return []string{size}
+		}
+		return []string{"—"}
+	default:
+		return compactSegments(fmt.Sprintf("%d 字符", len([]rune(item.Text))), historySizeLabel(item))
+	}
+}
+
+// compactSegments 丢弃空片段，避免渲染出多余的分隔符。
+func compactSegments(values ...string) []string {
+	segments := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != "" {
+			segments = append(segments, value)
+		}
+	}
+	return segments
+}
+
+// historySizeLabel 返回记录内容的人类可读大小：图片按 PNG 负载字节数，
+// 文本按 UTF-8 字节数，文件按记录的负载大小计算；未知时返回空字符串。
+func historySizeLabel(item history.Item) string {
+	switch item.Kind {
+	case kindImage:
+		if item.Image == nil || len(item.Image.PNG) == 0 {
+			return ""
+		}
+		return formatByteSize(len(item.Image.PNG))
+	case kindFile:
+		if item.FileSize <= 0 {
+			return ""
+		}
+		return formatByteSize(int(item.FileSize))
+	default:
+		return formatByteSize(len(item.Text))
+	}
+}
+
+// formatByteSize 将字节数格式化为紧凑的大小标签，例如 512 B、1.2 KB、3.4 MB。
+func formatByteSize(size int) string {
+	if size < 0 {
+		size = 0
+	}
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	value := float64(size)
+	for _, suffix := range []string{"KB", "MB", "GB", "TB"} {
+		value /= unit
+		if value < unit {
+			return fmt.Sprintf("%.1f %s", value, suffix)
+		}
+	}
+	return fmt.Sprintf("%.1f PB", value/unit)
 }
 
 // historyTimestamp 用易读的日期展示时间：今天和昨天带具体时刻，

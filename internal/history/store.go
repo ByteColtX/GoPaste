@@ -80,12 +80,15 @@ type Image struct {
 	Height int
 }
 
-// Item is the data owned by the history module.
+// Item is the data owned by the history module. Image carries an inline PNG
+// payload, while FileSize carries the byte size of a file payload whose
+// content stays on disk, so rendering never touches the filesystem.
 type Item struct {
 	ID        string
 	Kind      Kind
 	Text      string
 	Image     *Image
+	FileSize  int64
 	Source    string
 	CreatedAt time.Time
 	Favorite  bool
