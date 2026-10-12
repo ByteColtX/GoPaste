@@ -38,7 +38,7 @@ const (
 	responsiveCompactWidth               = 1024
 	responsiveExpandedWidth              = 1200
 	pageDetailMaxWidth                   = 720
-	historyTrailingInset         float32 = 3
+	historyTrailingInset         float32 = 4
 	historyControlGap            float32 = 1
 
 	// columnTopInset 统一导航栏与历史、设备、设置三页内容列的首行起始内边距，
