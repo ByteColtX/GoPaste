@@ -4,15 +4,18 @@ import "github.com/egoist/mygo/ui"
 
 // GoPaste 的原生界面使用一组共享的尺寸和颜色角色。页面可以有不同的
 // 信息密度，但同一层级的标题、说明、控件和卡片都从这里取值。
+//
+// 设计语言：安静的画布、克制的强调色、以排版和留白建立层级。
 const (
-	fontPageTitle  float32 = 1.7
-	fontSection    float32 = 1.15
-	fontSubheading float32 = 1
+	fontPageTitle  float32 = 1.55
+	fontPaneTitle  float32 = 1.23
+	fontSection    float32 = 1.08
+	fontSubheading float32 = 0.92
 	fontBody       float32 = 1
-	fontControl    float32 = 0.92
-	fontMeta       float32 = 0.86
-	fontCaption    float32 = 0.82
-	fontCode       float32 = 0.96
+	fontControl    float32 = 0.95
+	fontMeta       float32 = 0.88
+	fontCaption    float32 = 0.85
+	fontCode       float32 = 0.92
 
 	spacePageSide   float32 = 6
 	spacePageBottom float32 = 7
@@ -23,21 +26,24 @@ const (
 	controlHeight float32 = 9
 	compactHeight float32 = 8
 	rowHeight     float32 = 14
-	cardRadius    float32 = 2
-	controlRadius float32 = 1.5
-	largeRadius   float32 = 2.5
+	cardRadius    float32 = 3
+	controlRadius float32 = 2
+	largeRadius   float32 = 3.5
 )
 
 const (
 	// secondarySidebarWidth is shared by the device and settings pages so their
 	// detail panes begin at the same x position.
-	secondarySidebarWidth        = 224
-	secondarySidebarCompactWidth = 200
-	navigationRailCompactWidth   = 56
-	navigationRailExpandedWidth  = 160
-	responsiveCompactWidth       = 1024
-	responsiveExpandedWidth      = 1200
-	pageDetailMaxWidth           = 720
+	secondarySidebarWidth        = 236
+	secondarySidebarCompactWidth = 208
+	navigationRailCompactWidth   = 60
+	navigationRailExpandedWidth  = 176
+	// navigationRailControlClearance 是紧凑轨道在窗口控制按钮（macOS 红绿灯）
+	// 右侧额外预留的间距，单位与其它间距一致（×4 DIP）。
+	navigationRailControlClearance = 3
+	responsiveCompactWidth         = 1024
+	responsiveExpandedWidth        = 1200
+	pageDetailMaxWidth             = 720
 	// sidebarTrailingInset 是历史、设备侧栏右侧的统一留白：既对齐各页内容，
 	// 也为滚动条预留出空间，避免滚动条遮挡选中卡片的边框。
 	sidebarTrailingInset float32 = 4
@@ -69,11 +75,11 @@ func panelFill(theme *ui.Theme) ui.Color {
 }
 
 func subtleFill(theme *ui.Theme) ui.Color {
-	return theme.SurfaceHover.Alpha(0.48)
+	return theme.SurfaceHover.Alpha(0.5)
 }
 
 func selectedFill(theme *ui.Theme) ui.Color {
-	return theme.Selection
+	return theme.Accent.Alpha(0.12)
 }
 
 func hoverFill(theme *ui.Theme) ui.Color {
@@ -100,6 +106,10 @@ func favoriteColor(theme *ui.Theme) ui.Color {
 	return theme.Warning
 }
 
+func accentColor(theme *ui.Theme) ui.Color {
+	return theme.Accent
+}
+
 func successFill(theme *ui.Theme) ui.Color {
 	return theme.Success.Alpha(0.14)
 }
@@ -116,7 +126,7 @@ func selectionBorder(c *ui.Context, theme *ui.Theme) ui.Color {
 	if c.Preferences().HighContrast {
 		return theme.Accent
 	}
-	return theme.Accent.Alpha(0.22)
+	return theme.Accent.Alpha(0.30)
 }
 
 func contentWidth(c *ui.Context) float32 {
@@ -147,7 +157,14 @@ func navigationRailSize(c *ui.Context, theme *ui.Theme) float32 {
 	if contentWidth(c) >= responsiveExpandedWidth {
 		return space(theme, navigationRailExpandedWidth/4)
 	}
-	return navigationRailCompactWidth
+	// 紧凑轨道必须足够宽以容纳窗口控制按钮（macOS 红绿灯位于左上角）。
+	// 轨道比按钮组更窄时，轨道与列表之间的分割线会穿过按钮，所以按标题栏
+	// 预留宽度取较大值；非 macOS 平台标题栏为 0，轨道保持原始宽度。
+	compact := float32(navigationRailCompactWidth)
+	if clear := c.TitleBar().Left + space(theme, navigationRailControlClearance); clear > compact {
+		compact = clear
+	}
+	return compact
 }
 
 func compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
@@ -158,7 +175,7 @@ func compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
 // pageHeader keeps page title and description aligned across settings and
 // device detail panes.
 func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
-	ui.Column(c).Shrink(0).Gap(space(theme, spaceInline)).Children(func() {
+	ui.Column(c).Shrink(0).Gap(space(theme, 1)).Children(func() {
 		ui.Text(c, title).FontSize(font(theme, fontPageTitle)).FontWeight(600).
 			Role(ui.RoleHeading).SingleLine()
 		ui.Text(c, description).FontSize(font(theme, fontBody)).TextColor(secondaryText(theme)).Wrap()
@@ -168,7 +185,7 @@ func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
 // secondarySidebarTitle 是设备页与设置页侧栏顶部的首个标题。两栏共用同一份
 // 定义，保证字号、字重、颜色和左边距一致，不会再各自漂移。
 func secondarySidebarTitle(c *ui.Context, theme *ui.Theme, label string) ui.Element {
-	return ui.Text(c, label).FontSize(font(theme, fontSection)).FontWeight(600).
+	return ui.Text(c, label).FontSize(font(theme, fontPaneTitle)).FontWeight(600).
 		Padding(space(theme, 0.5), 0, space(theme, 0.5), 0).SingleLine()
 }
 
@@ -331,4 +348,21 @@ func selectField[T comparable](
 		}
 	})
 	return trigger
+}
+
+// primaryButton 是面板中的主操作按钮：使用系统强调色填充，文字与图标反色。
+// 复制是历史预览的首要动作，因此它承担这一角色。
+func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string) ui.Element {
+	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
+		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, 1)).
+		Radius(radius(theme, controlRadius)).
+		Background(theme.Accent).TextColor(theme.AccentText).Label(label).Role(ui.RoleButton)
+	if button.Hovered() {
+		button.Background(theme.AccentHover)
+	}
+	button.Children(func() {
+		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+	})
+	return button
 }

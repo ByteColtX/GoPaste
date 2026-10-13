@@ -20,7 +20,8 @@ const (
 	KindFile
 )
 
-// BaseKind returns the broad category used by the history row icon.
+// BaseKind returns the broad category a subtype belongs to, such as the
+// preview's primary type label for a link or code item.
 func (kind Kind) BaseKind() Kind {
 	switch kind {
 	case KindLink, KindCode:

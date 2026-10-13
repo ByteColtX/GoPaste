@@ -190,6 +190,9 @@ type application struct {
 	confirmDangerousAction   bool
 	pendingDangerousAction   dangerousAction
 	pendingDangerousDeviceID string
+
+	// theme 是收敛后的当前帧主题，跨帧复用同一份存储以避免每帧分配。
+	theme ui.Theme
 }
 
 // l10n returns the localizer for the current UI language.

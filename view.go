@@ -48,23 +48,28 @@ func (a *application) filterLabel(filter historyFilter) string {
 }
 
 func (a *application) view(c *ui.Context) {
-	theme := c.Theme()
-	titleBar := c.TitleBar()
-	chromeHeight := max(float32(windowChromeMinHeight), titleBar.Height)
+	theme := a.applyTheme(c)
 	a.globalShortcuts(c)
 
-	ui.Column(c).Fill().Background(theme.Background).Children(func() {
-		// 这条透明区域同时承担红绿灯避让和窗口拖拽两个职责。
-		ui.Row(c).Height(chromeHeight).FillWidth().Shrink(0).
-			Padding(0, titleBar.Right, 0, titleBar.Left).DragWindow()
-		ui.Row(c).Grow(1).MinHeight(0).Children(func() {
-			a.navigationRail(c, theme)
-			ui.Box(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
-				a.pageContent(c, theme)
-			})
+	ui.Row(c).Fill().Background(theme.Background).Children(func() {
+		a.navigationRail(c, theme)
+		ui.Box(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
+			a.pageContent(c, theme)
 		})
 	})
 	a.dangerousConfirmation(c, theme)
+}
+
+// chromeHeight 返回窗口标题栏（macOS 红绿灯、Windows/Linux 窗口按钮）占用的高度。
+// 各内容列用它作为顶部留白，让面板表面一直延伸到窗口顶边。
+func chromeHeight(c *ui.Context) float32 {
+	return max(float32(windowChromeMinHeight), c.TitleBar().Height)
+}
+
+// paneTop 是每个内容面板顶部的透明拖拽条：高度与标题栏一致，
+// 让面板背景延伸到窗口顶边，同时提供整条的窗口拖动区。
+func paneTop(c *ui.Context) {
+	ui.Row(c).Height(chromeHeight(c)).FillWidth().Shrink(0).DragWindow()
 }
 
 func (a *application) globalShortcuts(c *ui.Context) {
@@ -123,47 +128,55 @@ func (a *application) dangerousActionDetails(action dangerousAction, deviceID st
 	}
 }
 
-// navigationRail 是窄导航轨道，避免额外占用历史列表的横向空间。
+// navigationRail 是窗口左侧的固定导航轨道：整列延伸到窗口顶边，顶部为标题栏留白，
+// 因此它同时承担拖动窗口的职责。窄窗口只显示图标，宽窗口显示图标与文字。
 func (a *application) navigationRail(c *ui.Context, theme *ui.Theme) {
 	railWidth := navigationRailSize(c, theme)
-	expanded := railWidth > navigationRailCompactWidth
+	// 是否展开由窗口宽度决定，不能再用轨道宽度判断：紧凑轨道会为避开
+	// 窗口控制按钮而加宽，那样会被误判成展开态而显示文字标签。
+	expanded := contentWidth(c) >= responsiveExpandedWidth
 	rail := ui.Column(c).Width(railWidth).FillHeight().Shrink(0).
-		Padding(space(theme, columnTopInset), space(theme, 2), space(theme, 2.5), space(theme, 2)).
-		Gap(space(theme, 1.5)).Background(sidebarFill(theme)).
+		Padding(chromeHeight(c)+space(theme, 1.5), space(theme, 2), space(theme, 2.5), space(theme, 2)).
+		Gap(space(theme, 1)).Background(sidebarFill(theme)).
 		Border(1, dividerColor(theme)).
 		DragWindow()
 	rail.Children(func() {
 		a.navigationButton(c, theme, "nav-history", pageHistory, icons.history, a.t(msgNavHistory), expanded)
-		ui.Spacer(c)
 		a.navigationButton(c, theme, "nav-devices", pageDevices, icons.devices, a.t(msgNavDevices), expanded)
 		a.navigationButton(c, theme, "nav-settings", pageSettings, icons.settings, a.t(msgNavSettings), expanded)
 	})
 }
 
 func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, key string, target page, icon *ui.SVG, label string, expanded bool) {
+	selected := a.page == target
 	button := ui.ButtonBase(c.Key(key)).
-		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1), space(theme, 2)).
-		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).
+		Height(controlHeightSize(c, theme, 10)).FillWidth().Shrink(0).
+		Padding(space(theme, 1.5), space(theme, 2.5)).
+		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).
 		Border(1, ui.Transparent).
 		TextColor(secondaryText(theme)).
-		Label(label).Tooltip(label).Role(ui.RoleToggleButton).Selected(a.page == target)
-	if a.page == target {
+		Label(label).Tooltip(label).Role(ui.RoleToggleButton).Selected(selected)
+	switch {
+	case selected:
 		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
-	} else if button.Hovered() {
+	case button.Hovered():
 		button.Background(hoverFill(theme))
-	} else {
+	default:
 		button.Background(ui.Transparent)
+	}
+	iconColor := secondaryText(theme)
+	if selected {
+		iconColor = accentColor(theme)
 	}
 	button.Children(func() {
 		if expanded {
-			ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
-				ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0)
-				ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+			ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
+				ui.Icon(c, icon).Size(space(theme, 4.75), space(theme, 4.75)).Shrink(0).TextColor(iconColor)
+				ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
 			})
 			return
 		}
-		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5))
+		ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5)).TextColor(iconColor)
 	})
 	if button.Clicked() {
 		a.page = target
@@ -215,9 +228,10 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 	panel := ui.Column(c).Fill().
 		MinWidth(minHistoryPaneWidth).
 		Background(sidebarFill(theme)).
-		Padding(space(theme, columnTopInset), 0, space(theme, 2.5), space(theme, 4))
+		Padding(0, 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
+		paneTop(c)
 		a.historyHeader(c, theme, view)
 		ui.Box(c).Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 			a.searchField(c, theme)
@@ -235,10 +249,10 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 
 func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history.View) {
 	countLabel := a.l10n().recordCount(len(view.Items), view.Total, a.query != "" || a.filter != filterAll)
-	ui.Row(c).MinHeight(controlHeightSize(c, theme, 11)).Shrink(0).AlignItems(ui.Start).
-		Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
-		ui.Column(c).Gap(space(theme, 0.25)).Padding(space(theme, 0.5), 0, 0, 0).Children(func() {
-			ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontSection)).FontWeight(600).SingleLine()
+	ui.Row(c).Shrink(0).AlignItems(ui.Start).
+		Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), 0).Children(func() {
+		ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
+			ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
 			ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).SingleLine()
 		})
@@ -246,11 +260,15 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 }
 
 func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
+	focused := c.Focused(a.historySearch)
 	field := ui.Row(c.Key("history-search")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		AlignItems(ui.Center).Gap(space(theme, 1.5)).Padding(0, space(theme, 2.5)).
-		Radius(radius(theme, controlRadius)).Background(theme.Surface).
+		Radius(radius(theme, controlRadius)).Background(theme.Background).
 		Border(1, borderColor(theme)).
 		Label(a.t(msgHistorySearchLabel))
+	if focused {
+		field.BorderColor(theme.Accent)
+	}
 
 	field.Children(func() {
 		ui.Icon(c, icons.search).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0).
@@ -259,11 +277,11 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 			Grow(1).MinWidth(0).Padding(0).Radius(0).
 			Background(ui.Transparent).Border(0, ui.Transparent).
 			Label(a.t(msgHistorySearchLabel)).Placeholder(a.t(msgHistorySearchPlaceholder)).Bind(&a.historySearch).
-			FocusRing(c.Focused(a.historySearch))
+			FocusRing(focused)
 		input.Changed()
 
 		if a.query == "" {
-			if !c.Focused(a.historySearch) {
+			if !focused {
 				searchShortcutHint(c, theme)
 			}
 			return
@@ -306,13 +324,14 @@ func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter historyFilter, key, label string) {
+	selected := a.filter == filter
 	button := ui.ButtonBase(c.Key("history-filter-"+key)).
 		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
-		Padding(space(theme, 0.75), space(theme, 1.75)).Radius(radius(theme, controlRadius)).
+		Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
 		Border(1, ui.Transparent).
 		TextColor(secondaryText(theme)).Label(label).
-		Role(ui.RoleToggleButton).Selected(a.filter == filter)
-	if a.filter == filter {
+		Role(ui.RoleToggleButton).Selected(selected)
+	if selected {
 		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {
 		button.Background(hoverFill(theme))
@@ -320,7 +339,7 @@ func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter histor
 		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
-		ui.Text(c, label).FontSize(font(theme, fontCaption)).SingleLine()
+		ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(500).SingleLine()
 	})
 	if button.Clicked() {
 		a.filter = filter
@@ -347,9 +366,11 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 		icon = icons.filter
 	}
 	ui.Box(c).Grow(1).Center().Children(func() {
-		ui.Column(c).FillWidth().MaxWidth(320).Shrink(0).Center().Gap(space(theme, 1.75)).Children(func() {
-			ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5)).
-				TextColor(secondaryText(theme))
+		ui.Column(c).FillWidth().MaxWidth(320).Shrink(0).Center().Gap(space(theme, 2)).Children(func() {
+			ui.Box(c).Size(space(theme, 12), space(theme, 12)).Shrink(0).Radius(radius(theme, largeRadius)).
+				Background(subtleFill(theme)).Center().Children(func() {
+				ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5)).TextColor(secondaryText(theme))
+			})
 			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).
 				Role(ui.RoleHeading).SingleLine()
 			ui.Text(c, message).FontSize(font(theme, fontControl)).
@@ -455,80 +476,71 @@ func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, view 
 
 func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.Item, selected bool) ui.Element {
 	row := ui.ButtonBase(c.Key("history-row-"+item.ID)).
-		MinHeight(controlHeightSize(c, theme, historyItemHeight/4)).AlignSelf(ui.Stretch).Shrink(0).
-		Margin(space(theme, historyControlGap), space(theme, sidebarTrailingInset), space(theme, historyControlGap), 0).
-		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 1.5)).
-		// 预留透明边框，切换选中态时不改变内容布局。
-		Radius(radius(theme, cardRadius)).Border(1, ui.Transparent).Column().
-		Justify(ui.Start).AlignItems(ui.Stretch).
+		MinHeight(controlHeightSize(c, theme, 16)).AlignSelf(ui.Stretch).Shrink(0).
+		Margin(space(theme, 0.5), space(theme, sidebarTrailingInset), space(theme, 0.5), 0).
+		Padding(space(theme, 2), space(theme, 2.5)).Gap(space(theme, 3)).
+		Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).Row().
+		AlignItems(ui.Center).
 		TextColor(primaryText(theme)).Label(a.historyListText(item)).
 		Role(ui.RoleButton).Selected(selected)
-	if selected {
-		row.Background(selectedFill(theme)).
-			BorderColor(selectionBorder(c, theme))
-	} else if row.Hovered() {
+	switch {
+	case selected:
+		row.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
+	case row.Hovered():
 		row.Background(hoverFill(theme)).BorderColor(ui.Transparent)
-	} else {
+	default:
 		row.Background(ui.Transparent).BorderColor(ui.Transparent)
 	}
 
 	row.Children(func() {
-		if item.Kind == kindImage && item.Image != nil {
-			a.imageHistoryRow(c, theme, item)
-			return
-		}
-		a.textHistoryRow(c, theme, item)
+		a.historyRowTile(c, theme, item)
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
+			a.historyRowTitle(c, theme, item)
+			a.historyRowMeta(c, theme, item)
+		})
 	})
 	return row
 }
 
-func (a *application) textHistoryRow(c *ui.Context, theme *ui.Theme, item history.Item) {
-	a.historyMetaRow(c, theme, item)
-	ui.Text(c, a.historyListText(item)).FontSize(font(theme, fontBody)).
-		TextColor(primaryText(theme)).SingleLine()
-	a.autoTagRow(c, theme, item)
-}
-
-func (a *application) historyMetaRow(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Row(c).MinHeight(controlHeightSize(c, theme, 4)).Shrink(0).AlignItems(ui.Center).
-		Gap(space(theme, 1.25)).Children(func() {
-		baseKind := item.Kind.BaseKind()
-		kindColor := colorForKind(theme, baseKind)
-		ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.25), space(theme, 3.25)).
-			Shrink(0).TextColor(kindColor)
-		ui.Text(c, a.kindLabel(baseKind)).FontSize(font(theme, fontCaption)).FontWeight(600).
-			TextColor(kindColor).SingleLine()
-		if item.Favorite {
-			ui.Icon(c, icons.star).Size(space(theme, 2.75), space(theme, 2.75)).Shrink(0).
-				TextColor(favoriteColor(theme))
-		}
-		ui.Spacer(c)
-		ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
-			TextColor(secondaryText(theme)).SingleLine()
-	})
-}
-
-func (a *application) imageHistoryRow(c *ui.Context, theme *ui.Theme, item history.Item) {
-	a.historyMetaRow(c, theme, item)
-	ui.Row(c).MinHeight(controlHeightSize(c, theme, 10)).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
-		ui.Box(c).Size(space(theme, 10), space(theme, 10)).Shrink(0).Radius(radius(theme, controlRadius)).
-			Background(subtleFill(theme)).Border(1, borderColor(theme)).Children(func() {
+func (a *application) historyRowTile(c *ui.Context, theme *ui.Theme, item history.Item) {
+	size := space(theme, 8.5)
+	tile := ui.Box(c).Size(size, size).Shrink(0).Radius(radius(theme, controlRadius)).Center()
+	if item.Kind == kindImage && item.Image != nil {
+		tile.Background(subtleFill(theme)).Border(1, borderColor(theme)).Children(func() {
 			if bitmap := a.historyBitmap(item); bitmap != nil {
-				ui.Image(c, bitmap).Size(space(theme, 9.5), space(theme, 9.5)).Fit(ui.Cover).Radius(radius(theme, 1.75))
+				ui.Image(c, bitmap).Size(size-2, size-2).Fit(ui.Cover).Radius(radius(theme, controlRadius) - 1)
 			}
 		})
-		ui.Text(c, a.historyResolutionLabel(item)).FontSize(font(theme, fontBody)).
-			TextColor(secondaryText(theme)).SingleLine()
+		return
+	}
+	// 列表行的图标按内容子类型着色（链接、代码各自不同），
+	// 让一屏记录只靠图标就能区分，而不必逐行读文字。
+	kindColor := colorForKind(theme, item.Kind)
+	tile.Background(kindColor.Alpha(0.14)).Children(func() {
+		ui.Icon(c, iconForKind(item.Kind)).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
 	})
 }
 
-// autoTagRow 在列表行里把自动标签渲染成独立一行。
-func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item history.Item) {
-	if a.l10n().smartTag(item.Kind) == "" {
-		return
-	}
-	ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).Shrink(0).AlignItems(ui.Center).Children(func() {
-		a.autoTag(c, theme, item)
+func (a *application) historyRowTitle(c *ui.Context, theme *ui.Theme, item history.Item) {
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
+		ui.Text(c, a.historyListText(item)).Grow(1).MinWidth(0).
+			FontSize(font(theme, fontBody)).FontWeight(500).
+			TextColor(primaryText(theme)).SingleLine()
+		if item.Favorite {
+			ui.Icon(c, icons.star).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0).
+				TextColor(favoriteColor(theme))
+		}
+	})
+}
+
+func (a *application) historyRowMeta(c *ui.Context, theme *ui.Theme, item history.Item) {
+	kindColor := colorForKind(theme, item.Kind)
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
+		ui.Text(c, a.kindLabel(item.Kind)).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(kindColor).SingleLine()
+		ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
+		ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme)).SingleLine()
 	})
 }
 
@@ -550,13 +562,14 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view histor
 	pane := ui.Column(c).Grow(1).FillHeight().
 		MinWidth(minPreviewPaneWidth).Background(theme.Background)
 	pane.Children(func() {
+		paneTop(c)
 		item, ok := selectedHistoryItem(view)
 		if !ok {
 			a.emptyPreview(c, theme)
 			return
 		}
 
-		ui.Column(c).Fill().Children(func() {
+		ui.Column(c).Grow(1).MinHeight(0).FillWidth().Children(func() {
 			a.previewHeader(c, theme, item)
 			a.previewContent(c, theme, item)
 		})
@@ -572,9 +585,11 @@ func selectedHistoryItem(view history.View) (history.Item, bool) {
 
 func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 	ui.Box(c).Grow(1).Center().Children(func() {
-		ui.Column(c).Center().Gap(space(theme, 1.75)).Children(func() {
-			ui.Icon(c, icons.history).Size(space(theme, 6), space(theme, 6)).
-				TextColor(secondaryText(theme))
+		ui.Column(c).Center().Gap(space(theme, 2)).Children(func() {
+			ui.Box(c).Size(space(theme, 12), space(theme, 12)).Shrink(0).Radius(radius(theme, largeRadius)).
+				Background(subtleFill(theme)).Center().Children(func() {
+				ui.Icon(c, icons.history).Size(space(theme, 5), space(theme, 5)).TextColor(secondaryText(theme))
+			})
 			ui.Text(c, a.t(msgHistorySelectRecord)).FontSize(font(theme, fontSection)).FontWeight(600)
 			ui.Text(c, a.t(msgHistoryPreviewHint)).FontSize(font(theme, fontControl)).
 				TextColor(secondaryText(theme))
@@ -586,14 +601,14 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 	// 与设备、设置详情一致：先限制最大宽度并居中，再应用左右内边距，
 	// 让标题、操作按钮和正文卡片的左右边缘对齐。
 	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
-		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3.5), space(theme, spacePageSide)).
-		Gap(space(theme, 1.25)).Children(func() {
+		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3), space(theme, spacePageSide)).
+		Gap(space(theme, 1.75)).Children(func() {
 		// 本机条目带同步状态标记，局域网条目没有。给元信息行预留固定高度，
 		// 标记就不会撑高这一行，切换条目时下方的正文卡片也不再上下抖动。
 		ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			baseKind := item.Kind.BaseKind()
 			kindColor := colorForKind(theme, baseKind)
-			ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.5), space(theme, 3.5)).
+			ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.75), space(theme, 3.75)).
 				Shrink(0).TextColor(kindColor)
 			ui.Text(c, a.kindLabel(baseKind)).FontSize(font(theme, fontMeta)).FontWeight(600).
 				TextColor(kindColor).SingleLine()
@@ -611,7 +626,7 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 				TextColor(secondaryText(theme)).SingleLine()
 			a.syncIndicator(c, theme, item)
 		})
-		ui.Row(c).Shrink(0).AlignItems(ui.Center).Children(func() {
+		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 			a.autoTag(c, theme, item)
 			ui.Spacer(c)
 			a.actionBar(c, theme, item)
@@ -1088,9 +1103,9 @@ func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
 }
 
 func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 		copyLabel := a.t(msgHistoryCopy)
-		copyButton := actionButton(c, theme, "copy", icons.copy, copyLabel, false)
+		copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel)
 		if copyButton.Clicked() {
 			a.copyToClipboard(c, item.ID)
 		}
@@ -1132,7 +1147,7 @@ func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, labe
 	}
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
-		ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
 	})
 	return button
 }
