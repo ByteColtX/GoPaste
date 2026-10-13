@@ -22,6 +22,7 @@ var supportedSnippets = map[string]string{
 	"TOML":       "# GoPaste local settings\n[server]\nhost = \"127.0.0.1\"\nport = 8765\n\n[logging]\nlevel = \"info\"\nredact_clipboard = true\n\n[[devices]]\nid = \"macbook-pro\"\nplatform = \"macOS\"\naddress = \"192.168.1.21:8765\"\n",
 	"YAML":       "server:\n  host: 127.0.0.1\n  port: 8765\ndevices:\n  - id: macbook-pro\n    platform: macOS\n",
 	"Go":         "package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hi\")\n}\n",
+	"Docker":     "FROM golang:1.23-alpine AS build\nWORKDIR /src\nCOPY . .\nRUN CGO_ENABLED=0 go build -o /out/gopaste .\n\nFROM gcr.io/distroless/static\nCOPY --from=build /out/gopaste /gopaste\nENTRYPOINT [\"/gopaste\"]\n",
 	"Rust":       "fn main() {\n    let mut x = 1;\n    println!(\"{}\", x);\n}\n",
 	"TypeScript": "interface User {\n  id: number;\n  name: string;\n}\n\nfunction greet(u: User): void {\n  console.log(u.name);\n}\n",
 	"JavaScript": "const x = 1;\nfunction add(a, b) {\n  return a + b;\n}\nconsole.log(add(x, 2));\n",
@@ -49,6 +50,26 @@ func TestAnalyseDetectsSupportedLanguages(t *testing.T) {
 		}
 		if len(got.Tokens) == 0 {
 			t.Errorf("Analyse(%s): no tokens", want)
+		}
+	}
+}
+
+// TestAnalyseDetectsCommonFragments covers snippets that carry a language's
+// idiom without its file-level scaffolding, such as an anonymous Go callback
+// or a Dockerfile stage, which the detectors must still recognise.
+func TestAnalyseDetectsCommonFragments(t *testing.T) {
+	cases := []struct {
+		want string
+		src  string
+	}{
+		{"Go", "mygo.App.WhenReady(func() {\n\tmygo.NewWindow(mygo.WindowOptions{\n\t\tTitle:   \"GoPaste\",\n\t\tContent: ui.View(app.view),\n\t})\n})\n"},
+		{"Go", "if err != nil {\n\treturn err\n}\n"},
+		{"Go", "ch := make(chan int)\n"},
+		{"Docker", "FROM alpine:3.20\nRUN apk add --no-cache \\\n    git \\\n    make\nCMD [\"sh\"]\n"},
+	}
+	for _, tc := range cases {
+		if got := Analyse(tc.src); got.Language != tc.want {
+			t.Errorf("Analyse(%q): language = %q, want %q", tc.src, got.Language, tc.want)
 		}
 	}
 }

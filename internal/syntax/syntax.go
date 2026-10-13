@@ -100,9 +100,10 @@ var rules = []rule{
 	{"HTML", regexpMatcher(`(?i)<!doctype\s+html|<html[\s>/]|</html>|<head[\s>]|<body[\s>]|<div[\s>]|<span[\s>]|<meta[\s>]|<script[\s>]|<style[\s>]|<h[1-6][\s>]|<p[\s>]|<a\s+href`)},
 	{"XML", looksLikeXML},
 	{"JSON", looksLikeJSON},
+	{"Docker", looksLikeDockerfile},
 	{"TOML", looksLikeTOML},
 	{"YAML", looksLikeYAML},
-	{"Go", regexpMatcher(`(?m)^\s*package\s+[A-Za-z_]\w*|\bfunc\s+(?:\([^)]*\)\s*)?[A-Za-z_]\w*\s*\(|:=|(?m)^\s*import\s*\(|(?m)^\s*import\s+"[^"]+"\s*$`)},
+	{"Go", regexpMatcher(`(?m)^\s*package\s+[A-Za-z_]\w*|\bfunc\s+(?:\([^)]*\)\s*)?[A-Za-z_]\w*\s*\(|\bfunc\s*\(|:=|(?m)^\s*import\s*\(|(?m)^\s*import\s+"[^"]+"\s*$|\bchan\s+[A-Za-z_]|\bmap\[[A-Za-z_]\w*\]|\berr\s*!=\s*nil`)},
 	{"Rust", regexpMatcher(`\bfn\s+[A-Za-z_]\w*|\blet\s+mut\b|\bimpl\b|\buse\s+[a-z]\w*::|\bpub\s+(?:fn|struct|enum|trait|mod)\b|\bprintln!\s*\(|\bmatch\s+[A-Za-z_]\w*\s*\{`)},
 	{"TypeScript", regexpMatcher(`\binterface\s+[A-Za-z_]\w*|:\s*(?:string|number|boolean|any|void|unknown|never|object)\b|\benum\s+[A-Za-z_]\w*|(?m)^\s*type\s+[A-Za-z_]\w*\s*=|\bimplements\s+[A-Za-z_]\w*|\breadonly\s+[A-Za-z_]\w*`)},
 	{"JavaScript", regexpMatcher(`\bfunction\s+[A-Za-z_$]\w*\s*\(|\bconst\s+[A-Za-z_$]\w*\s*=|\blet\s+[A-Za-z_$]\w*\s*=|=>|\bconsole\.\w+|\brequire\s*\(|(?m)^\s*import\s+[\w{},*\s]+\s+from\s+['"]|\bdocument\.\w+|\bwindow\.\w+|(?m)^\s*export\s+(?:default|const|function|class|let)\b`)},
@@ -144,6 +145,9 @@ var (
 	yamlItemRe = regexp.MustCompile(`^\s*-\s`)
 	cssRuleRe  = regexp.MustCompile(`(?m)^\s*[.#]?[A-Za-z][\w-]*\s*(?:,[^{}]*)?\{`)
 	cssDeclRe  = regexp.MustCompile(`\b[a-z-]+\s*:\s*[^;{}]+;`)
+	// A Dockerfile instruction at the start of a line, capturing the keyword so
+	// the FROM stages can be counted.
+	dockerInstructionRe = regexp.MustCompile(`(?i)^(FROM|RUN|CMD|LABEL|MAINTAINER|EXPOSE|ENV|ADD|COPY|ENTRYPOINT|VOLUME|USER|WORKDIR|ARG|ONBUILD|STOPSIGNAL|HEALTHCHECK|SHELL)(?:\s|$)`)
 )
 
 // looksLikeJSON reports whether text is a JSON object or array.
@@ -217,6 +221,38 @@ func looksLikeYAML(text string) bool {
 // block, the shape of a stylesheet rather than of other brace languages.
 func looksLikeCSS(text string) bool {
 	return cssRuleRe.MatchString(text) && cssDeclRe.MatchString(text)
+}
+
+// looksLikeDockerfile reports whether text is a Dockerfile: every significant
+// line is a comment or a known instruction, instruction continuations are
+// allowed, and at least one FROM stage is declared. Requiring the whole
+// document to fit the shape keeps shell scripts and prose out.
+func looksLikeDockerfile(text string) bool {
+	lines := significantLines(text)
+	if len(lines) == 0 {
+		return false
+	}
+	stages := 0
+	continuation := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		if continuation {
+			continuation = strings.HasSuffix(trimmed, `\`)
+			continue
+		}
+		match := dockerInstructionRe.FindStringSubmatch(trimmed)
+		if match == nil {
+			return false
+		}
+		if strings.EqualFold(match[1], "FROM") {
+			stages++
+		}
+		continuation = strings.HasSuffix(trimmed, `\`)
+	}
+	return stages > 0
 }
 
 // significantLines splits text into its non-blank, trimmed lines.
