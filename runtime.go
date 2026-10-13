@@ -149,7 +149,6 @@ func openMainWindow(app *application) *mygo.Window {
 		MinHeight:            minimumWindowHeight,
 		TitleBarStyle:        mygo.TitleBarHiddenInset,
 		TrafficLightPosition: &mygo.Point{X: windowControlsInset, Y: 11},
-		TitleBarHeight:       windowTitleBarHeight,
 		BackgroundColor:      "light-dark(#ffffff, #1c1c1e)",
 		Vibrancy:             mygo.VibrancyNone,
 		StateKey:             "main",

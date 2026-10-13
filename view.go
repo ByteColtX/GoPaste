@@ -61,9 +61,10 @@ func (a *application) view(c *ui.Context) {
 }
 
 // chromeHeight 返回窗口标题栏（macOS 红绿灯、Windows/Linux 窗口按钮）占用的高度。
-// 各内容列用它作为顶部留白，让面板表面一直延伸到窗口顶边。
+// 各内容列用它作为顶部留白，让面板表面一直延伸到窗口顶边。高度完全交给
+// 平台：Windows/Linux 取系统原生标题栏高度，macOS 由红绿灯位置决定。
 func chromeHeight(c *ui.Context) float32 {
-	return max(float32(windowChromeMinHeight), c.TitleBar().Height)
+	return c.TitleBar().Height
 }
 
 // paneTop 是每个内容面板顶部的透明拖拽条：高度与标题栏一致，
