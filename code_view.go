@@ -30,13 +30,20 @@ func (a *application) codeHighlight(item history.Item) syntax.Highlight {
 	return highlight
 }
 
+// codeLanguage names a code item's detected language, or "" when the item is
+// not code or its language is not recognised.
+func (a *application) codeLanguage(item history.Item) string {
+	if item.Kind != kindCode {
+		return ""
+	}
+	return a.codeHighlight(item).Language
+}
+
 // codeTag names a code item's language for its auto tag, falling back to the
 // generic kind label when the language is not recognised.
 func (a *application) codeTag(item history.Item) string {
-	if item.Kind == kindCode {
-		if language := a.codeHighlight(item).Language; language != "" {
-			return language
-		}
+	if language := a.codeLanguage(item); language != "" {
+		return language
 	}
 	return a.l10n().smartTag(item.Kind)
 }

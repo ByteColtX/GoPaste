@@ -601,9 +601,15 @@ func (a *application) historyRowTitle(c *ui.Context, theme *ui.Theme, item histo
 func (a *application) historyRowMeta(c *ui.Context, theme *ui.Theme, item history.Item) {
 	kindColor := colorForKind(theme, item.Kind)
 	// 内容类型靠左、时间靠右：时间与行右侧留白对齐，扫视一列时更整齐。
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Children(func() {
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 		ui.Text(c, a.kindLabel(item.Kind)).FontSize(font(theme, fontCaption)).FontWeight(600).
 			TextColor(kindColor).SingleLine()
+		// 代码条目在类型后接上识别出的语言（代码 · Go），让列表不读图标也能分辨语言；
+		// 识别不出时只留类型。
+		if language := a.codeLanguage(item); language != "" {
+			ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
+			ui.Text(c, language).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+		}
 		ui.Spacer(c)
 		ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
 			TextColor(secondaryText(theme)).SingleLine()
