@@ -191,6 +191,10 @@ type application struct {
 	confirmDangerousAction   bool
 	pendingDangerousAction   dangerousAction
 	pendingDangerousTargetID string
+	// dangerDontAskAgain 是当前危险操作弹窗里“不再询问”的勾选状态；
+	// suppressDeleteConfirmation 在勾选确认后生效，让后续删除跳过二次确认。
+	dangerDontAskAgain         bool
+	suppressDeleteConfirmation bool
 
 	// theme 是收敛后的当前帧主题，跨帧复用同一份存储以避免每帧分配。
 	theme ui.Theme

@@ -102,7 +102,16 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 		return
 	}
 
-	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel) {
+	// 只有删除需要“不再询问”：勾选后本次确认即记住偏好，之后删除直接执行。
+	dontAskLabel := ""
+	if action == dangerousActionDeleteItem {
+		dontAskLabel = a.t(msgDangerDontAskAgain)
+	}
+
+	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel, dontAskLabel, &a.dangerDontAskAgain) {
+		if action == dangerousActionDeleteItem && a.dangerDontAskAgain {
+			a.suppressDeleteConfirmation = true
+		}
 		if message := a.executeDangerousAction(action, a.pendingDangerousTargetID); message != "" {
 			c.Toast(message)
 		}
@@ -1138,7 +1147,9 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 						deleteLabel := a.t(msgHistoryDelete)
 						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel)
 						if deleteButton.Clicked() {
-							a.requestDangerousAction(dangerousActionDeleteItem, item.ID)
+							if message := a.requestDangerousAction(dangerousActionDeleteItem, item.ID); message != "" {
+								c.Toast(message)
+							}
 						}
 
 						ui.Box(c).Width(1).Height(controlHeightSize(c, theme, 4.5)).Shrink(0).

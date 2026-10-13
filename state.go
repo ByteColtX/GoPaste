@@ -153,10 +153,17 @@ func (a *application) clearHistory() {
 	a.historyBitmaps = nil
 }
 
-func (a *application) requestDangerousAction(action dangerousAction, targetID string) {
+// requestDangerousAction 记录待确认的高影响操作并打开确认弹窗。删除操作在用户
+// 勾选“不再询问”后不再弹窗，而是直接执行并返回提示文案，供调用方展示。
+func (a *application) requestDangerousAction(action dangerousAction, targetID string) string {
+	if action == dangerousActionDeleteItem && a.suppressDeleteConfirmation {
+		return a.executeDangerousAction(action, targetID)
+	}
 	a.pendingDangerousAction = action
 	a.pendingDangerousTargetID = targetID
+	a.dangerDontAskAgain = false
 	a.confirmDangerousAction = true
+	return ""
 }
 
 func (a *application) pairedDeviceByID(id string) (*pairedDevice, bool) {

@@ -253,6 +253,7 @@ const (
 	msgDangerDeleteMessage       messageKey = "danger.delete.message"
 	msgDangerDeleteMessageFormat messageKey = "danger.delete.messageFormat"
 	msgDangerDeleteConfirm       messageKey = "danger.delete.confirm"
+	msgDangerDontAskAgain        messageKey = "danger.dontAskAgain"
 	msgDangerUnpairTitle         messageKey = "danger.unpair.title"
 	msgDangerUnpairMessage       messageKey = "danger.unpair.message"
 	msgDangerUnpairConfirm       messageKey = "danger.unpair.confirm"
@@ -482,6 +483,7 @@ var simplifiedChineseCatalog = catalog{
 	msgDangerDeleteMessage:       "GoPaste 会从本机历史记录中删除这条记录。此操作不可恢复。",
 	msgDangerDeleteMessageFormat: "GoPaste 会从本机历史记录中删除“%s”。此操作不可恢复。",
 	msgDangerDeleteConfirm:       "删除",
+	msgDangerDontAskAgain:        "不再询问",
 	msgDangerUnpairTitle:         "取消配对设备？",
 	msgDangerUnpairMessage:       "取消配对“%s”后，该设备将不再与本机同步。",
 	msgDangerUnpairConfirm:       "取消配对",
@@ -704,6 +706,7 @@ var englishCatalog = catalog{
 	msgDangerDeleteMessage:       "GoPaste will remove this record from this device's history. This can't be undone.",
 	msgDangerDeleteMessageFormat: "GoPaste will remove “%s” from this device's history. This can't be undone.",
 	msgDangerDeleteConfirm:       "Delete",
+	msgDangerDontAskAgain:        "Don't ask again",
 	msgDangerUnpairTitle:         "Unpair device?",
 	msgDangerUnpairMessage:       "After you unpair “%s”, it will no longer sync with this device.",
 	msgDangerUnpairConfirm:       "Unpair",

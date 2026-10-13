@@ -243,6 +243,8 @@ func dangerConfirmDialog(
 	title string,
 	message string,
 	confirmLabel string,
+	dontAskLabel string,
+	dontAsk *bool,
 ) bool {
 	if !*open {
 		return false
@@ -258,6 +260,10 @@ func dangerConfirmDialog(
 				Role(ui.RoleHeading).SingleLine()
 			ui.Text(c, message).FontSize(font(theme, fontBody)).
 				TextColor(secondaryText(theme)).Wrap()
+			if dontAskLabel != "" {
+				ui.Checkbox(c.Key("danger-confirm-dont-ask"), dontAsk, dontAskLabel).
+					Shrink(0).Label(dontAskLabel)
+			}
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, 2)).Children(func() {
 				cancelLabel := l.text(msgDangerCancel)
 				cancel := neutralButton(c, theme, "danger-confirm-cancel", cancelLabel)
