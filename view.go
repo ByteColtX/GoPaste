@@ -547,7 +547,7 @@ func (a *application) historyRowMeta(c *ui.Context, theme *ui.Theme, item histor
 }
 
 // autoTag 渲染内容子类型的自动标签（链接、代码），没有标签时不占空间。
-// 预览标题把它放在操作行左端，与操作按钮同处第二行，避免标签单独占一行。
+// 预览标题把它紧跟在类型标签之后，让子类型与类型同处首行，不再单独占位。
 func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item) {
 	tag := a.l10n().smartTag(item.Kind)
 	if tag == "" {
@@ -614,6 +614,7 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 				Shrink(0).TextColor(kindColor)
 			ui.Text(c, a.kindLabel(baseKind)).FontSize(font(theme, fontMeta)).FontWeight(600).
 				TextColor(kindColor).SingleLine()
+			a.autoTag(c, theme, item)
 			for _, segment := range a.historyMetaSegments(item) {
 				ui.Text(c, "·").FontSize(font(theme, fontMeta)).
 					TextColor(secondaryText(theme))
@@ -629,7 +630,6 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 			a.syncIndicator(c, theme, item)
 		})
 		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
-			a.autoTag(c, theme, item)
 			ui.Spacer(c)
 			a.actionBar(c, theme, item)
 		})
