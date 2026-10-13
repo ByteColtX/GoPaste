@@ -1192,7 +1192,7 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 					Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
 					Children(func() {
 						deleteLabel := a.t(msgHistoryDelete)
-						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel)
+						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel, "D")
 						deleteButton.Tooltip(shortcutHint(deleteLabel, "D"))
 						if deleteButton.Clicked() {
 							a.requestDeleteItem(c, item.ID)
@@ -1202,7 +1202,7 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 							Background(dividerColor(theme))
 
 						favoriteLabel := a.favoriteLabel(item.Favorite)
-						favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel, item.Favorite)
+						favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel, item.Favorite, "F")
 						favoriteButton.Tooltip(shortcutHint(favoriteLabel, "F"))
 						if favoriteButton.Clicked() {
 							if message := a.toggleFavorite(item.ID); message != "" {
@@ -1211,7 +1211,7 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 						}
 
 						copyLabel := a.t(msgHistoryCopy)
-						copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel)
+						copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel, "C")
 						copyButton.Tooltip(shortcutHint(copyLabel, "C"))
 						if copyButton.Clicked() {
 							a.copyToClipboard(c, item.ID)
@@ -1246,14 +1246,16 @@ func shortcutHint(label, key string) string {
 	return label + " (" + key + ")"
 }
 
-func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {
+func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool, shortcut string) ui.Element {
 	button := ui.ButtonBase(c.Key("preview-action-"+key)).
 		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).
 		TextColor(secondaryText(theme)).Label(label).Role(ui.RoleButton)
+	fg := secondaryText(theme)
 	if active {
-		button.TextColor(favoriteColor(theme))
+		fg = favoriteColor(theme)
+		button.TextColor(fg)
 	}
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
@@ -1263,13 +1265,16 @@ func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, labe
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
 		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+		if shortcut != "" {
+			keycap(c, theme, shortcut, fg)
+		}
 	})
 	return button
 }
 
 // destructiveActionButton 是预览操作条里的删除按钮：尺寸与其它动作一致，但
 // 文字与图标取危险色、悬停带一层危险色底，提示这是不可恢复的操作。
-func destructiveActionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string) ui.Element {
+func destructiveActionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, shortcut string) ui.Element {
 	button := ui.ButtonBase(c.Key("preview-action-"+key)).
 		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
@@ -1283,6 +1288,9 @@ func destructiveActionButton(c *ui.Context, theme *ui.Theme, key string, icon *u
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
 		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+		if shortcut != "" {
+			keycap(c, theme, shortcut, theme.Danger)
+		}
 	})
 	return button
 }

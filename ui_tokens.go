@@ -356,9 +356,21 @@ func selectField[T comparable](
 	return trigger
 }
 
+// keycap 渲染单键快捷键提示：小圆角方块内一个字母，跟在按钮文字之后。fg 取按钮
+// 前景色，让提示在强调色按钮和普通按钮上都与文字保持同一色调。
+func keycap(c *ui.Context, theme *ui.Theme, key string, fg ui.Color) {
+	ui.Box(c).Shrink(0).Center().
+		MinWidth(space(theme, 4)).Height(space(theme, 4)).
+		Padding(0, space(theme, 0.75)).Radius(radius(theme, controlRadius)).
+		Background(fg.Alpha(0.16)).Border(1, fg.Alpha(0.28)).Children(func() {
+		ui.Text(c, key).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(fg).SingleLine()
+	})
+}
+
 // primaryButton 是面板中的主操作按钮：使用系统强调色填充，文字与图标反色。
-// 复制是历史预览的首要动作，因此它承担这一角色。
-func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string) ui.Element {
+// 复制是历史预览的首要动作，因此它承担这一角色。shortcut 非空时在文字后显示快捷键。
+func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, shortcut string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, 1)).
 		Radius(radius(theme, controlRadius)).
@@ -369,6 +381,9 @@ func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, lab
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
 		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		if shortcut != "" {
+			keycap(c, theme, shortcut, theme.AccentText)
+		}
 	})
 	return button
 }
