@@ -39,7 +39,7 @@ All runtime colors come from `ui.Theme`, so system accent, high contrast, and li
 | Surface | `theme.Surface` | Sidebars, controls, inputs |
 | Elevated surface | `theme.Surface` | Cards, preview content, dialogs |
 | Hover | `theme.SurfaceHover` | Hover and pressed state layers |
-| Selected | `theme.Selection` | Selected rows, filters, navigation |
+| Selected | `theme.Accent` (tinted) | Selected rows, filters, navigation; use `selectedFill` and `selectionBorder` |
 | Border | `theme.Border` | Cards, controls, separators |
 | Primary text | `theme.Text` | Headings and content |
 | Secondary text | `theme.TextMuted` | Metadata, helper copy, timestamps |
@@ -58,9 +58,11 @@ Use MyGo's system font. It keeps Chinese, Latin, numbers, and platform controls 
 | Role | Token | Weight | Use |
 | --- | --- | ---: | --- |
 | Page title | `fontPageTitle` | 600 | Detail page titles |
-| Section | `fontSection` | 600 | Pane, group, and dialog titles |
+| Pane title | `fontPaneTitle` | 600 | History list and secondary sidebar titles |
+| Section | `fontSection` | 600 | Empty-state and dialog titles |
 | Subheading | `fontSubheading` | 600 | Settings group headings |
 | Body | `fontBody` | 400 | Main content and descriptions |
+| Row label | `fontBody` | 500 | Settings, device, and switch row titles |
 | Control | `fontControl` | 500–600 | Buttons, fields, values |
 | Metadata | `fontMeta` | 400 | Device and source metadata |
 | Caption | `fontCaption` | 500 | Timestamps, compact tags |
@@ -75,21 +77,22 @@ The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tok
 - Inline: 8 DIP
 - Control group: 8–12 DIP
 - Section: 24 DIP
-- Page top: 24 DIP
+- Page top: 12 DIP below the title-bar strip
 - Page side: 24 DIP on standard windows, 16–20 DIP in compact mode
 - Page bottom: 28 DIP
 - Control height: 36 DIP
 - Compact control height: 32 DIP
-- Card radius: 8 DIP
-- Control radius: 6 DIP
-- Dialog radius: 10 DIP
+- Card radius: 12 DIP
+- Control radius: 8 DIP
+- Dialog radius: 14 DIP
 
 Responsive widths:
 
 - Window minimum: 900 × 560 DIP.
-- Compact navigation rail: 56 DIP.
-- Expanded navigation rail: 160 DIP at 1200 DIP or wider.
-- Secondary sidebar: 200 DIP in compact mode, 224 DIP otherwise.
+- Compact navigation rail: 60 DIP.
+- Expanded navigation rail: 176 DIP at 1200 DIP or wider.
+- The compact rail widens to hold the window controls and center them: it is as wide as the controls' left inset plus their right edge, so the macOS traffic lights (or a left-aligned window button row) sit centered with equal margins, and the rail's trailing divider never crosses them. The platform reports no inset on Windows and Linux, so the rail stays at its base width there.
+- Secondary sidebar: 208 DIP in compact mode, 236 DIP otherwise.
 - History list minimum: 300 DIP.
 - History preview minimum: 460 DIP while split.
 - Detail content maximum: 720 DIP.
@@ -101,6 +104,7 @@ At compact widths, controls stack before they clip. The history filter row may s
 ### Navigation
 
 - Keep History, Devices, and Settings in the same order on every platform.
+- Keep the three destinations grouped together at the top of the rail; never anchor one to the bottom, so the current location always sits in the same region.
 - Wide windows show icon and text. Compact windows keep a labeled, tooltip-enabled icon rail.
 - Current location uses `Selected(true)`, `selectedFill(theme)`, and primary text.
 - Navigation controls have stable keys, labels, tooltips, and visible focus rings.
@@ -127,9 +131,10 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### History
 
+- A list row is two lines: a rounded, kind-tinted icon tile, then the content title with its favorite star, then a metadata line of type and time. The tile icon and color follow the item's own kind, so text, link, code, image, and file rows are told apart by icon before the label is read.
 - Show type and favorite state in the list metadata row; show type, size, source device, and time in the preview metadata row, with the source device sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
 - Keep selected list row and preview synchronized by stable item ID.
-- Show the automatic content tag (链接, 代码) at the start of the preview action row, on the header's second line opposite the actions, so it never takes its own line; a list row keeps it on its own line below the preview text.
+- Show the automatic content tag (链接, 代码) at the start of the preview action row, on the header's second line opposite the actions, so it never takes its own line. The list row carries the same subtype through its tile icon and colored metadata label instead of a separate tag line.
 - Keep copy as the primary preview action.
 - Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.
 - Show sync state as a compact chip in the preview metadata row: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.

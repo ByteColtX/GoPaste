@@ -27,6 +27,7 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, columnTopInset), 0, space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
+		paneTop(c)
 		secondarySidebarTitle(c, theme, a.t(msgDevicesTitle))
 		a.localDeviceEntry(c, theme)
 
@@ -213,6 +214,7 @@ func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 func (a *application) deviceDetail(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Grow(1).FillHeight().MinWidth(0).Background(theme.Background).
 		Children(func() {
+			paneTop(c)
 			ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 1), 0, 0).
 				Children(func() {
 					ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
@@ -355,7 +357,7 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	ui.Row(c.Key(device.id+"-sync-content-mode")).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 		Padding(space(theme, 3.5), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
-			ui.Text(c, a.t(msgDevicesSyncContent)).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+			ui.Text(c, a.t(msgDevicesSyncContent)).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			ui.Text(c, a.t(msgDevicesSyncContentDesc)).FontSize(font(theme, fontMeta)).
 				TextColor(secondaryText(theme)).Wrap()
 		})
@@ -402,7 +404,7 @@ func (a *application) syncDirectionRow(
 				ui.Icon(c, setting.icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).
 					TextColor(secondaryText(theme))
 				ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
-					ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+					ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 					ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 				})
 			})
@@ -416,7 +418,7 @@ func (a *application) syncDirectionRow(
 		Padding(space(theme, 3), space(theme, 4)).AlignItems(ui.Center).Gap(space(theme, 3)).Children(func() {
 		ui.Icon(c, setting.icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(secondaryText(theme))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
-			ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+			ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
 		selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
@@ -458,7 +460,7 @@ func (a *application) deviceSwitchRow(
 	ui.Row(c.Key("device-setting-"+key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 		Padding(space(theme, 4), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
-			ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+			ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
 		switchControl := ui.Switch(c.Key("device-switch-"+key), value).

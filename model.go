@@ -11,12 +11,17 @@ import (
 
 const (
 	// 窗口和分栏的最小尺寸，保证窄窗口下内容仍然可读。
-	navigationRailWidth   = navigationRailCompactWidth
-	minHistoryPaneWidth   = 300
-	minPreviewPaneWidth   = 460
-	splitDividerWidth     = 1
-	windowChromeMinHeight = 36
-	windowTitleBarHeight  = 52
+	navigationRailWidth = navigationRailCompactWidth
+	minHistoryPaneWidth = 300
+	minPreviewPaneWidth = 460
+	splitDividerWidth   = 1
+	// windowControlsInset 是隐藏标题栏窗口左上角窗口控制按钮（macOS 红绿灯）
+	// 距窗口左边缘的水平间距，与 runtime 里的 TrafficLightPosition.X 一致。
+	// 紧凑轨道用它把按钮组在轨道内居中。
+	windowControlsInset = 18
+	// windowControlsTopInset 是红绿灯距窗口顶边的垂直间距。macOS 用它和
+	// 红绿灯直径（14）算出标题栏高度：14 + 2×9 = 32，与系统原生高度一致。
+	windowControlsTopInset = 9
 
 	defaultHistoryPaneWidth = 320
 	historyItemHeight       = 82
@@ -190,6 +195,9 @@ type application struct {
 	confirmDangerousAction   bool
 	pendingDangerousAction   dangerousAction
 	pendingDangerousDeviceID string
+
+	// theme 是收敛后的当前帧主题，跨帧复用同一份存储以避免每帧分配。
+	theme ui.Theme
 }
 
 // l10n returns the localizer for the current UI language.
