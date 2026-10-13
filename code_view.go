@@ -45,8 +45,13 @@ func (a *application) codeTag(item history.Item) string {
 // plain-text card when the language is not recognised.
 func (a *application) codePreview(c *ui.Context, theme *ui.Theme, item history.Item) {
 	highlight := a.codeHighlight(item)
-	block := ui.Text(c, item.Text)
-	if !highlight.Empty() {
+	// ui.Text and ui.RichText each attach their element to the context on
+	// call, so build exactly one of them: creating both would render the
+	// snippet twice, once uncoloured above the styled block.
+	var block ui.Element
+	if highlight.Empty() {
+		block = ui.Text(c, item.Text)
+	} else {
 		block = ui.RichText(c, codeSpans(theme, highlight)...)
 	}
 	block = block.Font("monospace").FontSize(font(theme, fontCode)).
