@@ -145,9 +145,9 @@ func looksLikeXML(text string) bool {
 	return strings.Contains(trimmed, ">") && strings.Contains(trimmed, "</")
 }
 
-// looksLikeTOML reports whether every significant line is a TOML table header
-// or key/value assignment, with at least one table header. Requiring the whole
-// document to fit the shape keeps ordinary code assignments out.
+// looksLikeTOML reports whether every significant line is a TOML comment, table
+// header, or key/value assignment, with at least one table header. Requiring
+// the whole document to fit the shape keeps ordinary code assignments out.
 func looksLikeTOML(text string) bool {
 	lines := significantLines(text)
 	if len(lines) == 0 {
@@ -155,6 +155,9 @@ func looksLikeTOML(text string) bool {
 	}
 	headers := 0
 	for _, line := range lines {
+		if strings.HasPrefix(strings.TrimSpace(line), "#") {
+			continue
+		}
 		switch {
 		case tomlTableRe.MatchString(line):
 			headers++
