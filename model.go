@@ -63,6 +63,7 @@ const (
 	dangerousActionNone dangerousAction = iota
 	dangerousActionClearHistory
 	dangerousActionUnpairDevice
+	dangerousActionDeleteItem
 )
 
 type page uint8
@@ -189,7 +190,7 @@ type application struct {
 	settingsArea             settingsArea
 	confirmDangerousAction   bool
 	pendingDangerousAction   dangerousAction
-	pendingDangerousDeviceID string
+	pendingDangerousTargetID string
 
 	// theme 是收敛后的当前帧主题，跨帧复用同一份存储以避免每帧分配。
 	theme ui.Theme

@@ -153,9 +153,9 @@ func (a *application) clearHistory() {
 	a.historyBitmaps = nil
 }
 
-func (a *application) requestDangerousAction(action dangerousAction, deviceID string) {
+func (a *application) requestDangerousAction(action dangerousAction, targetID string) {
 	a.pendingDangerousAction = action
-	a.pendingDangerousDeviceID = deviceID
+	a.pendingDangerousTargetID = targetID
 	a.confirmDangerousAction = true
 }
 
@@ -168,13 +168,19 @@ func (a *application) pairedDeviceByID(id string) (*pairedDevice, bool) {
 	return nil, false
 }
 
-func (a *application) executeDangerousAction(action dangerousAction, deviceID string) string {
+func (a *application) executeDangerousAction(action dangerousAction, targetID string) string {
 	switch action {
 	case dangerousActionClearHistory:
 		a.clearHistory()
 		return a.t(msgToastHistoryCleared)
+	case dangerousActionDeleteItem:
+		if err := a.history.Delete(targetID); err != nil {
+			return ""
+		}
+		delete(a.historyBitmaps, targetID)
+		return a.t(msgToastDeleted)
 	case dangerousActionUnpairDevice:
-		if !a.unpairDevice(deviceID) {
+		if !a.unpairDevice(targetID) {
 			return ""
 		}
 		return a.t(msgToastUnpaired)

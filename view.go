@@ -94,32 +94,38 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 	}
 
 	action := a.pendingDangerousAction
-	title, message, confirmLabel, ok := a.dangerousActionDetails(action, a.pendingDangerousDeviceID)
+	title, message, confirmLabel, ok := a.dangerousActionDetails(action, a.pendingDangerousTargetID)
 	if !ok {
 		a.confirmDangerousAction = false
 		a.pendingDangerousAction = dangerousActionNone
-		a.pendingDangerousDeviceID = ""
+		a.pendingDangerousTargetID = ""
 		return
 	}
 
 	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel) {
-		if message := a.executeDangerousAction(action, a.pendingDangerousDeviceID); message != "" {
+		if message := a.executeDangerousAction(action, a.pendingDangerousTargetID); message != "" {
 			c.Toast(message)
 		}
 	}
 	if !a.confirmDangerousAction {
 		a.pendingDangerousAction = dangerousActionNone
-		a.pendingDangerousDeviceID = ""
+		a.pendingDangerousTargetID = ""
 	}
 }
 
-func (a *application) dangerousActionDetails(action dangerousAction, deviceID string) (string, string, string, bool) {
+func (a *application) dangerousActionDetails(action dangerousAction, targetID string) (string, string, string, bool) {
 	switch action {
 	case dangerousActionClearHistory:
 		return a.t(msgDangerClearTitle), a.t(msgDangerClearMessage), a.t(msgDangerClearConfirm), true
+	case dangerousActionDeleteItem:
+		message := a.t(msgDangerDeleteMessage)
+		if item, ok := a.history.Item(targetID); ok {
+			message = a.tf(msgDangerDeleteMessageFormat, truncateSingleLine(a.historyListText(item), 40))
+		}
+		return a.t(msgDangerDeleteTitle), message, a.t(msgDangerDeleteConfirm), true
 	case dangerousActionUnpairDevice:
 		name := a.t(msgSyncThisDevice)
-		if device, ok := a.pairedDeviceByID(deviceID); ok {
+		if device, ok := a.pairedDeviceByID(targetID); ok {
 			name = device.name
 		}
 		return a.t(msgDangerUnpairTitle), a.tf(msgDangerUnpairMessage, name), a.t(msgDangerUnpairConfirm), true
@@ -1113,13 +1119,14 @@ const (
 	previewBarBottomInset float32 = 3
 )
 
-// previewActions 把复制与收藏放进预览区底部的悬浮操作条：操作条固定在面板
-// 底部、与正文列同宽居中，所以按钮右缘与上方内容卡片对齐；正文滚动到它下方，
-// 它始终浮在内容之上。收藏在左、复制（主操作）在右，符合主按钮靠右的习惯。
+// previewActions 把预览区的操作放进底部的悬浮操作条：操作条固定在面板底部、
+// 与正文列同宽并整体居中，所以药丸水平居中悬浮；正文滚动到它下方，它始终浮在
+// 内容之上。删除（破坏性）居左，与收藏之间用竖线分隔；复制（主操作）居右，
+// 符合主按钮靠右、破坏性操作远离主操作的习惯。
 func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Shrink(0).
 		Justify(ui.Center).Children(func() {
-		ui.Row(c).FillWidth().MaxWidth(pageDetailMaxWidth).Justify(ui.End).
+		ui.Row(c).FillWidth().MaxWidth(pageDetailMaxWidth).Justify(ui.Center).
 			Padding(0, space(theme, spacePageSide), space(theme, previewBarBottomInset), space(theme, spacePageSide)).
 			Children(func() {
 				ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).
@@ -1128,6 +1135,15 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 					Background(theme.Background).Border(1, borderColor(theme)).
 					Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
 					Children(func() {
+						deleteLabel := a.t(msgHistoryDelete)
+						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel)
+						if deleteButton.Clicked() {
+							a.requestDangerousAction(dangerousActionDeleteItem, item.ID)
+						}
+
+						ui.Box(c).Width(1).Height(controlHeightSize(c, theme, 4.5)).Shrink(0).
+							Background(dividerColor(theme))
+
 						favoriteButton := actionButton(c, theme, "favorite", icons.star, a.favoriteLabel(item.Favorite), item.Favorite)
 						if favoriteButton.Clicked() {
 							if message := a.toggleFavorite(item.ID); message != "" {
@@ -1176,6 +1192,26 @@ func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, labe
 	}
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
+	} else {
+		button.Background(ui.Transparent)
+	}
+	button.Children(func() {
+		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+	})
+	return button
+}
+
+// destructiveActionButton 是预览操作条里的删除按钮：尺寸与其它动作一致，但
+// 文字与图标取危险色、悬停带一层危险色底，提示这是不可恢复的操作。
+func destructiveActionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string) ui.Element {
+	button := ui.ButtonBase(c.Key("preview-action-"+key)).
+		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
+		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
+		Radius(radius(theme, controlRadius)).
+		TextColor(theme.Danger).Label(label).Role(ui.RoleButton)
+	if button.Hovered() {
+		button.Background(theme.Danger.Alpha(0.12))
 	} else {
 		button.Background(ui.Transparent)
 	}

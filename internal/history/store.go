@@ -256,6 +256,39 @@ func (s *Store) ToggleFavorite(id string) (bool, error) {
 	return false, ErrItemNotFound
 }
 
+// Item returns one stored item by ID and whether it exists. The caller only
+// reads the result, so the item is returned by value like a Snapshot entry.
+func (s *Store) Item(id string) (Item, bool) {
+	for _, item := range s.items {
+		if item.ID == id {
+			return item, true
+		}
+	}
+	return Item{}, false
+}
+
+// Delete removes one item and returns ErrItemNotFound when the ID is unknown.
+// When the removed item was selected, selection moves to the item that takes
+// its place, or to the previous item when the last one was removed, so the
+// preview keeps its position instead of jumping back to the top of the list.
+func (s *Store) Delete(id string) error {
+	for index := range s.items {
+		if s.items[index].ID != id {
+			continue
+		}
+		s.items = append(s.items[:index], s.items[index+1:]...)
+		if s.selectedID == id {
+			if len(s.items) == 0 {
+				s.selectedID = ""
+			} else {
+				s.selectedID = s.items[min(index, len(s.items)-1)].ID
+			}
+		}
+		return nil
+	}
+	return ErrItemNotFound
+}
+
 // Copy writes the exact stored payload to the supplied clipboard adapter.
 func (s *Store) Copy(id string, writer ClipboardWriter) error {
 	if writer == nil {
