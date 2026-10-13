@@ -31,8 +31,24 @@ type Highlight struct {
 // fall back to plain text.
 func (h Highlight) Empty() bool { return h.Language == "" || len(h.Tokens) == 0 }
 
+// Tokenising is linear in the input and runs on the UI thread, so two bounds
+// keep a pathological snippet from stalling a frame. Detection stays cheap at
+// any size, so an over-budget snippet still reports its language and only
+// drops the coloured tokens.
+const (
+	// maxHighlightBytes is the largest snippet that gets tokenised. Larger
+	// snippets fall back to plain text while keeping their language label.
+	maxHighlightBytes = 16 << 10
+	// maxHighlightTokens bounds the coloured runs. Dense snippets such as
+	// minified sources yield many runs from few bytes, and the UI rebuilds one
+	// span per run on every frame, so past this bound the snippet stays plain.
+	maxHighlightTokens = 6000
+)
+
 // Analyse detects the snippet's language and tokenises it. An unrecognised
-// snippet yields a Highlight with no language and no tokens.
+// snippet yields a Highlight with no language and no tokens. A recognised but
+// over-budget snippet keeps its language and returns no tokens, which callers
+// render as plain text.
 func Analyse(text string) Highlight {
 	name := detectLanguage(text)
 	if name == "" {
@@ -42,11 +58,15 @@ func Analyse(text string) Highlight {
 	if lexer == nil {
 		return Highlight{}
 	}
-	tokens, err := tokenise(lexer, text)
-	if err != nil {
-		return Highlight{}
+	language := lexer.Config().Name
+	if len(text) > maxHighlightBytes {
+		return Highlight{Language: language}
 	}
-	return Highlight{Language: lexer.Config().Name, Tokens: tokens}
+	tokens, err := tokenise(lexer, text)
+	if err != nil || len(tokens) > maxHighlightTokens {
+		return Highlight{Language: language}
+	}
+	return Highlight{Language: language, Tokens: tokens}
 }
 
 // tokenise runs the lexer over text and keeps its non-empty runs. Coalesce
