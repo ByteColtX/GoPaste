@@ -35,6 +35,7 @@ type iconSet struct {
 	image        *ui.SVG
 	file         *ui.SVG
 	copy         *ui.SVG
+	trash        *ui.SVG
 	check        *ui.SVG
 	star         *ui.SVG
 	chevron      *ui.SVG
@@ -67,6 +68,7 @@ func mustLoadIconSet() iconSet {
 		image:        mustLoadIcon("photo.svg"),
 		file:         mustLoadIcon("file.svg"),
 		copy:         mustLoadIcon("copy.svg"),
+		trash:        mustLoadIcon("trash.svg"),
 		check:        mustLoadIcon("check.svg"),
 		star:         mustLoadIcon("star.svg"),
 		chevron:      mustLoadIcon("chevron-down.svg"),

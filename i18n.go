@@ -83,6 +83,7 @@ const (
 	msgHistoryImageShort         messageKey = "history.imageShort"
 	msgHistoryCopy               messageKey = "history.copy"
 	msgHistoryCopyFailed         messageKey = "history.copyFailed"
+	msgHistoryDelete             messageKey = "history.delete"
 
 	// Content kind names.
 	msgKindText     messageKey = "kind.text"
@@ -101,6 +102,9 @@ const (
 	msgToastFavoriteAdded              messageKey = "toast.favoriteAdded"
 	msgToastFavoriteRemoved            messageKey = "toast.favoriteRemoved"
 	msgToastHistoryCleared             messageKey = "toast.historyCleared"
+	msgToastDeleted                    messageKey = "toast.deleted"
+	msgToastUndo                       messageKey = "toast.undo"
+	msgToastRestored                   messageKey = "toast.restored"
 	msgToastUnpaired                   messageKey = "toast.unpaired"
 	msgToastLaunchAtLoginUnsupported   messageKey = "toast.launchAtLoginUnsupported"
 	msgToastLaunchAtLoginOn            messageKey = "toast.launchAtLoginOn"
@@ -244,13 +248,18 @@ const (
 	msgSettingsStoredLocally         messageKey = "settings.storedLocally"
 
 	// Destructive-action dialogs.
-	msgDangerClearTitle    messageKey = "danger.clear.title"
-	msgDangerClearMessage  messageKey = "danger.clear.message"
-	msgDangerClearConfirm  messageKey = "danger.clear.confirm"
-	msgDangerUnpairTitle   messageKey = "danger.unpair.title"
-	msgDangerUnpairMessage messageKey = "danger.unpair.message"
-	msgDangerUnpairConfirm messageKey = "danger.unpair.confirm"
-	msgDangerCancel        messageKey = "danger.cancel"
+	msgDangerClearTitle          messageKey = "danger.clear.title"
+	msgDangerClearMessage        messageKey = "danger.clear.message"
+	msgDangerClearConfirm        messageKey = "danger.clear.confirm"
+	msgDangerDeleteTitle         messageKey = "danger.delete.title"
+	msgDangerDeleteMessage       messageKey = "danger.delete.message"
+	msgDangerDeleteMessageFormat messageKey = "danger.delete.messageFormat"
+	msgDangerDeleteConfirm       messageKey = "danger.delete.confirm"
+	msgDangerDontAskAgain        messageKey = "danger.dontAskAgain"
+	msgDangerUnpairTitle         messageKey = "danger.unpair.title"
+	msgDangerUnpairMessage       messageKey = "danger.unpair.message"
+	msgDangerUnpairConfirm       messageKey = "danger.unpair.confirm"
+	msgDangerCancel              messageKey = "danger.cancel"
 
 	// Tray menu.
 	msgTrayTurnSyncOff messageKey = "tray.turnSyncOff"
@@ -314,6 +323,7 @@ var simplifiedChineseCatalog = catalog{
 	msgHistoryImageShort:         "图片",
 	msgHistoryCopy:               "复制",
 	msgHistoryCopyFailed:         "复制失败",
+	msgHistoryDelete:             "删除",
 
 	msgKindText:     "文本",
 	msgKindLink:     "链接",
@@ -329,6 +339,9 @@ var simplifiedChineseCatalog = catalog{
 	msgToastFavoriteAdded:              "已加入收藏",
 	msgToastFavoriteRemoved:            "已取消收藏",
 	msgToastHistoryCleared:             "历史记录已清空",
+	msgToastDeleted:                    "已删除",
+	msgToastUndo:                       "撤销",
+	msgToastRestored:                   "已恢复",
 	msgToastUnpaired:                   "已取消配对",
 	msgToastLaunchAtLoginUnsupported:   "当前运行环境暂不支持开机自启",
 	msgToastLaunchAtLoginOn:            "已开启开机自启",
@@ -467,13 +480,18 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsPrivacyDesc:           "剪贴板内容保存在本机，不写入普通日志或第三方服务",
 	msgSettingsStoredLocally:         "本机保存",
 
-	msgDangerClearTitle:    "清空历史记录？",
-	msgDangerClearMessage:  "GoPaste 会删除本机保存的全部剪贴板历史记录。此操作不可恢复。",
-	msgDangerClearConfirm:  "清空",
-	msgDangerUnpairTitle:   "取消配对设备？",
-	msgDangerUnpairMessage: "取消配对“%s”后，该设备将不再与本机同步。",
-	msgDangerUnpairConfirm: "取消配对",
-	msgDangerCancel:        "取消",
+	msgDangerClearTitle:          "清空历史记录？",
+	msgDangerClearMessage:        "GoPaste 会删除本机保存的全部剪贴板历史记录。此操作不可恢复。",
+	msgDangerClearConfirm:        "清空",
+	msgDangerDeleteTitle:         "删除这条记录？",
+	msgDangerDeleteMessage:       "GoPaste 会从本机历史记录中删除这条记录。此操作不可恢复。",
+	msgDangerDeleteMessageFormat: "GoPaste 会从本机历史记录中删除“%s”。此操作不可恢复。",
+	msgDangerDeleteConfirm:       "删除",
+	msgDangerDontAskAgain:        "不再询问",
+	msgDangerUnpairTitle:         "取消配对设备？",
+	msgDangerUnpairMessage:       "取消配对“%s”后，该设备将不再与本机同步。",
+	msgDangerUnpairConfirm:       "取消配对",
+	msgDangerCancel:              "取消",
 
 	msgTrayTurnSyncOff: "关闭同步",
 	msgTrayTurnSyncOn:  "打开同步",
@@ -530,6 +548,7 @@ var englishCatalog = catalog{
 	msgHistoryImageShort:         "Image",
 	msgHistoryCopy:               "Copy",
 	msgHistoryCopyFailed:         "Copy failed",
+	msgHistoryDelete:             "Delete",
 
 	msgKindText:     "Text",
 	msgKindLink:     "Link",
@@ -545,6 +564,9 @@ var englishCatalog = catalog{
 	msgToastFavoriteAdded:              "Added to favorites",
 	msgToastFavoriteRemoved:            "Removed from favorites",
 	msgToastHistoryCleared:             "History cleared",
+	msgToastDeleted:                    "Deleted",
+	msgToastUndo:                       "Undo",
+	msgToastRestored:                   "Restored",
 	msgToastUnpaired:                   "Unpaired",
 	msgToastLaunchAtLoginUnsupported:   "Launch at login isn't supported here",
 	msgToastLaunchAtLoginOn:            "Launch at login turned on",
@@ -683,13 +705,18 @@ var englishCatalog = catalog{
 	msgSettingsPrivacyDesc:           "Clipboard content stays on this device and is never written to logs or third-party services",
 	msgSettingsStoredLocally:         "Stored locally",
 
-	msgDangerClearTitle:    "Clear history?",
-	msgDangerClearMessage:  "GoPaste will delete all clipboard history saved on this device. This can't be undone.",
-	msgDangerClearConfirm:  "Clear",
-	msgDangerUnpairTitle:   "Unpair device?",
-	msgDangerUnpairMessage: "After you unpair “%s”, it will no longer sync with this device.",
-	msgDangerUnpairConfirm: "Unpair",
-	msgDangerCancel:        "Cancel",
+	msgDangerClearTitle:          "Clear history?",
+	msgDangerClearMessage:        "GoPaste will delete all clipboard history saved on this device. This can't be undone.",
+	msgDangerClearConfirm:        "Clear",
+	msgDangerDeleteTitle:         "Delete this record?",
+	msgDangerDeleteMessage:       "GoPaste will remove this record from this device's history. This can't be undone.",
+	msgDangerDeleteMessageFormat: "GoPaste will remove “%s” from this device's history. This can't be undone.",
+	msgDangerDeleteConfirm:       "Delete",
+	msgDangerDontAskAgain:        "Don't ask again",
+	msgDangerUnpairTitle:         "Unpair device?",
+	msgDangerUnpairMessage:       "After you unpair “%s”, it will no longer sync with this device.",
+	msgDangerUnpairConfirm:       "Unpair",
+	msgDangerCancel:              "Cancel",
 
 	msgTrayTurnSyncOff: "Turn sync off",
 	msgTrayTurnSyncOn:  "Turn sync on",

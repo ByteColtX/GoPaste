@@ -50,6 +50,7 @@ func (a *application) filterLabel(filter historyFilter) string {
 func (a *application) view(c *ui.Context) {
 	theme := a.applyTheme(c)
 	a.globalShortcuts(c)
+	a.previewShortcuts(c)
 
 	ui.Row(c).Fill().Background(theme.Background).Children(func() {
 		a.navigationRail(c, theme)
@@ -58,6 +59,47 @@ func (a *application) view(c *ui.Context) {
 		})
 	})
 	a.dangerousConfirmation(c, theme)
+	a.flushPendingToast(c)
+}
+
+// previewShortcuts 为预览区操作注册单键快捷键：C 复制、F 收藏、D 删除。它们只在
+// 历史页且存在选中记录时生效。文本输入框聚焦时按键会先被输入框接管，因此在搜索框
+// 里输入 c、f、d 不会误触发这些操作。
+func (a *application) previewShortcuts(c *ui.Context) {
+	if a.page != pageHistory {
+		return
+	}
+	item, ok := selectedHistoryItem(a.history.Snapshot(a.historyQuery()))
+	if !ok {
+		return
+	}
+	c.OnShortcut(0, ui.KeyC, func() { a.copyToClipboard(c, item.ID) })
+	c.OnShortcut(0, ui.KeyF, func() {
+		if message := a.toggleFavorite(item.ID); message != "" {
+			c.Toast(message)
+		}
+	})
+	c.OnShortcut(0, ui.KeyD, func() { a.requestDeleteItem(c, item.ID) })
+}
+
+// requestDeleteItem 按“不再询问”偏好决定删除方式：已记住偏好就直接删除，
+// 否则先弹二次确认框。按钮点击与 D 快捷键共用这条路径。
+func (a *application) requestDeleteItem(c *ui.Context, id string) {
+	if a.suppressDeleteConfirmation {
+		a.deleteHistoryItem(c, id)
+		return
+	}
+	a.requestDangerousAction(dangerousActionDeleteItem, id)
+}
+
+// flushPendingToast 展示由回调产生的提示（例如撤销删除后的确认），只在下一次
+// 构建帧时消费一次。
+func (a *application) flushPendingToast(c *ui.Context) {
+	if a.pendingToast == "" {
+		return
+	}
+	c.Toast(a.pendingToast)
+	a.pendingToast = ""
 }
 
 // chromeHeight 返回窗口标题栏（macOS 红绿灯、Windows/Linux 窗口按钮）占用的高度。
@@ -95,32 +137,52 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 	}
 
 	action := a.pendingDangerousAction
-	title, message, confirmLabel, ok := a.dangerousActionDetails(action, a.pendingDangerousDeviceID)
+	title, message, confirmLabel, ok := a.dangerousActionDetails(action, a.pendingDangerousTargetID)
 	if !ok {
 		a.confirmDangerousAction = false
 		a.pendingDangerousAction = dangerousActionNone
-		a.pendingDangerousDeviceID = ""
+		a.pendingDangerousTargetID = ""
 		return
 	}
 
-	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel) {
-		if message := a.executeDangerousAction(action, a.pendingDangerousDeviceID); message != "" {
-			c.Toast(message)
+	// 只有删除需要“不再询问”：勾选后本次确认即记住偏好，之后删除直接执行。
+	dontAskLabel := ""
+	if action == dangerousActionDeleteItem {
+		dontAskLabel = a.t(msgDangerDontAskAgain)
+	}
+
+	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel, dontAskLabel, &a.dangerDontAskAgain) {
+		switch action {
+		case dangerousActionDeleteItem:
+			if a.dangerDontAskAgain {
+				a.suppressDeleteConfirmation = true
+			}
+			a.deleteHistoryItem(c, a.pendingDangerousTargetID)
+		default:
+			if message := a.executeDangerousAction(action, a.pendingDangerousTargetID); message != "" {
+				c.Toast(message)
+			}
 		}
 	}
 	if !a.confirmDangerousAction {
 		a.pendingDangerousAction = dangerousActionNone
-		a.pendingDangerousDeviceID = ""
+		a.pendingDangerousTargetID = ""
 	}
 }
 
-func (a *application) dangerousActionDetails(action dangerousAction, deviceID string) (string, string, string, bool) {
+func (a *application) dangerousActionDetails(action dangerousAction, targetID string) (string, string, string, bool) {
 	switch action {
 	case dangerousActionClearHistory:
 		return a.t(msgDangerClearTitle), a.t(msgDangerClearMessage), a.t(msgDangerClearConfirm), true
+	case dangerousActionDeleteItem:
+		message := a.t(msgDangerDeleteMessage)
+		if item, ok := a.history.Item(targetID); ok {
+			message = a.tf(msgDangerDeleteMessageFormat, truncateSingleLine(a.historyListText(item), 40))
+		}
+		return a.t(msgDangerDeleteTitle), message, a.t(msgDangerDeleteConfirm), true
 	case dangerousActionUnpairDevice:
 		name := a.t(msgSyncThisDevice)
-		if device, ok := a.pairedDeviceByID(deviceID); ok {
+		if device, ok := a.pairedDeviceByID(targetID); ok {
 			name = device.name
 		}
 		return a.t(msgDangerUnpairTitle), a.tf(msgDangerUnpairMessage, name), a.t(msgDangerUnpairConfirm), true
@@ -575,6 +637,7 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view histor
 			a.previewHeader(c, theme, item)
 			a.previewContent(c, theme, item)
 		})
+		a.previewActions(c, theme, item)
 	})
 }
 
@@ -605,8 +668,11 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
 		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3), space(theme, spacePageSide)).
 		Gap(space(theme, 1.75)).Children(func() {
-		// 本机条目带同步状态标记，局域网条目没有。给元信息行预留固定高度，
-		// 标记就不会撑高这一行，切换条目时下方的正文卡片也不再上下抖动。
+		// 本机条目带同步状态标记，局域网条目没有。标记并进来源「本机」一组，
+		// 让「本机 已同步」读作这条记录的来源与去向；它带弹出浮层，且正好落在
+		// 复制/收藏按钮上方，所以改成点击展开，指针滑过不会再误触发（见
+		// syncIndicator）。元信息行预留固定高度，标记就不会撑高这一行，切换
+		// 条目时下方的正文卡片也不再上下抖动。
 		ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			baseKind := item.Kind.BaseKind()
 			kindColor := colorForKind(theme, baseKind)
@@ -622,16 +688,16 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 					TextColor(secondaryText(theme)).SingleLine()
 			}
 			ui.Spacer(c)
-			a.historySource(c, theme, item)
+			// 来源与同步标记收进同一子行并收紧间距，让「本机 已同步」读作一组：
+			// 先交代记录从哪来，再交代同步到了哪。
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
+				a.historySource(c, theme, item)
+				a.syncIndicator(c, theme, item)
+			})
 			ui.Text(c, "·").FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme))
 			ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).SingleLine()
-			a.syncIndicator(c, theme, item)
-		})
-		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
-			ui.Spacer(c)
-			a.actionBar(c, theme, item)
 		})
 	})
 }
@@ -640,7 +706,7 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 	content := ui.Scroll(c).Grow(1).MinHeight(0)
 	content.Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
-			Padding(0, space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
+			Padding(0, space(theme, spacePageSide), previewActionsClearance(c, theme)+space(theme, 2), space(theme, spacePageSide)).
 			Gap(space(theme, 3)).Children(func() {
 			switch item.Kind {
 			case kindCode:
@@ -705,9 +771,9 @@ const (
 )
 
 // syncIndicator renders the item's sync state as a compact chip in the preview
-// meta row. The per-device detail and resend actions live in a popover that
-// opens while the pointer rests on the chip, so the section costs no space
-// while it is idle.
+// meta row. The per-device detail and resend actions live in a popover the chip
+// opens on click, so the section costs no space while it is idle and never
+// springs open as the pointer travels past it.
 func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history.Item) {
 	// Only items captured on this machine are delivered to peers, so only
 	// they carry a sync status. A peer item already arrived here.
@@ -718,8 +784,7 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	chip := ui.Row(c.Key("sync-chip-"+item.ID)).Shrink(0).AlignItems(ui.Center).
 		Gap(space(theme, 1.25)).Padding(space(theme, 0.5), space(theme, 1)).
 		Radius(radius(theme, controlRadius))
-	hovered := chip.Hovered()
-	if hovered {
+	if chip.Hovered() {
 		chip.Background(hoverFill(theme))
 	}
 	chip.Children(func() {
@@ -728,18 +793,17 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 			TextColor(primaryText(theme)).SingleLine()
 	})
 
-	// The popover stays open while the pointer rests on the chip or on the
-	// panel itself, so the pointer can cross between them and a resend inside
-	// it stays reachable; it closes once the pointer has left both.
+	// 浮层由点击展开，点击别处或按 Esc 收起。标记正好落在复制/收藏按钮的上方，
+	// 若改成指针悬停展开，鼠标移向按钮时会从它上面划过而误弹；展开状态按条目
+	// 记忆，切换条目即收起。
 	if a.syncPopoverItem != item.ID {
 		a.syncPopoverItem = item.ID
 		a.syncPopoverOpen = false
 	}
-	if hovered {
-		a.syncPopoverOpen = true
+	if chip.Clicked() {
+		a.syncPopoverOpen = !a.syncPopoverOpen
 	}
 	open := a.syncPopoverOpen
-	panelHovered := false
 	ui.PopoverBase(c, chip, &open, func(panel ui.Element) {
 		panel.MinWidth(space(theme, 60)).MaxWidth(space(theme, 96)).
 			Padding(space(theme, 2)).
@@ -753,11 +817,8 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 			}).
 			Margin(0)
 		a.syncPopoverContent(c, theme, item)
-		panelHovered = panel.Hovered()
 	})
-	if !hovered && !panelHovered {
-		a.syncPopoverOpen = false
-	}
+	a.syncPopoverOpen = open
 }
 
 // syncPopoverContent builds the popover: a header with the batch resend, then
@@ -1104,21 +1165,64 @@ func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
 	return bitmap
 }
 
-func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-		copyLabel := a.t(msgHistoryCopy)
-		copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel)
-		if copyButton.Clicked() {
-			a.copyToClipboard(c, item.ID)
-		}
+// 预览区底部悬浮操作条的几何（单位与其它间距一致，×4 DIP）。
+const (
+	previewBarPadding     float32 = 1
+	previewBarBottomInset float32 = 3
+)
 
-		favoriteButton := actionButton(c, theme, "favorite", icons.star, a.favoriteLabel(item.Favorite), item.Favorite)
-		if favoriteButton.Clicked() {
-			if message := a.toggleFavorite(item.ID); message != "" {
-				c.Toast(message)
-			}
-		}
+// previewActions 把预览区的操作放进底部的悬浮操作条：操作条固定在面板底部、
+// 与正文列同宽并整体居中，所以药丸水平居中悬浮；正文滚动到它下方，它始终浮在
+// 内容之上。删除（破坏性）居左，与收藏之间用竖线分隔；复制（主操作）居右，
+// 符合主按钮靠右、破坏性操作远离主操作的习惯。
+func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item history.Item) {
+	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Shrink(0).
+		Justify(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().MaxWidth(pageDetailMaxWidth).Justify(ui.Center).
+			Padding(0, space(theme, spacePageSide), space(theme, previewBarBottomInset), space(theme, spacePageSide)).
+			Children(func() {
+				ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).
+					Padding(space(theme, previewBarPadding)).
+					Radius(radius(theme, largeRadius)).
+					Background(theme.Background).Border(1, borderColor(theme)).
+					Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
+					Children(func() {
+						deleteLabel := a.t(msgHistoryDelete)
+						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel, "D")
+						deleteButton.Tooltip(shortcutHint(deleteLabel, "D"))
+						if deleteButton.Clicked() {
+							a.requestDeleteItem(c, item.ID)
+						}
+
+						ui.Box(c).Width(1).Height(controlHeightSize(c, theme, 4.5)).Shrink(0).
+							Background(dividerColor(theme))
+
+						favoriteLabel := a.favoriteLabel(item.Favorite)
+						favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel, item.Favorite, "F")
+						favoriteButton.Tooltip(shortcutHint(favoriteLabel, "F"))
+						if favoriteButton.Clicked() {
+							if message := a.toggleFavorite(item.ID); message != "" {
+								c.Toast(message)
+							}
+						}
+
+						copyLabel := a.t(msgHistoryCopy)
+						copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel, "C")
+						copyButton.Tooltip(shortcutHint(copyLabel, "C"))
+						if copyButton.Clicked() {
+							a.copyToClipboard(c, item.ID)
+						}
+					})
+			})
 	})
+}
+
+// previewActionsClearance 是悬浮操作条占用的高度（药丸加底边距，含边框），
+// 预览正文在底部预留同样多的空白，让最后一行内容能滚到操作条上方而不被遮挡。
+func previewActionsClearance(c *ui.Context, theme *ui.Theme) float32 {
+	return space(theme, previewBarBottomInset) +
+		space(theme, previewBarPadding)*2 +
+		controlHeightSize(c, theme, compactHeight) + 2
 }
 
 func (a *application) copyToClipboard(c *ui.Context, id string) {
@@ -1133,14 +1237,21 @@ func (a *application) copyToClipboard(c *ui.Context, id string) {
 	c.Toast(a.t(msgToastCopied))
 }
 
-func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {
+// shortcutHint 在按钮提示里附带单键快捷键，例如“复制 (C)”，让快捷键可被发现。
+func shortcutHint(label, key string) string {
+	return label + " (" + key + ")"
+}
+
+func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool, shortcut string) ui.Element {
 	button := ui.ButtonBase(c.Key("preview-action-"+key)).
 		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).
 		TextColor(secondaryText(theme)).Label(label).Role(ui.RoleButton)
+	fg := secondaryText(theme)
 	if active {
-		button.TextColor(favoriteColor(theme))
+		fg = favoriteColor(theme)
+		button.TextColor(fg)
 	}
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
@@ -1150,6 +1261,32 @@ func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, labe
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
 		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+		if shortcut != "" {
+			keycap(c, theme, shortcut, fg)
+		}
+	})
+	return button
+}
+
+// destructiveActionButton 是预览操作条里的删除按钮：尺寸与其它动作一致，但
+// 文字与图标取危险色、悬停带一层危险色底，提示这是不可恢复的操作。
+func destructiveActionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, shortcut string) ui.Element {
+	button := ui.ButtonBase(c.Key("preview-action-"+key)).
+		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
+		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, spaceInline)).
+		Radius(radius(theme, controlRadius)).
+		TextColor(theme.Danger).Label(label).Role(ui.RoleButton)
+	if button.Hovered() {
+		button.Background(theme.Danger.Alpha(0.12))
+	} else {
+		button.Background(ui.Transparent)
+	}
+	button.Children(func() {
+		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+		if shortcut != "" {
+			keycap(c, theme, shortcut, theme.Danger)
+		}
 	})
 	return button
 }

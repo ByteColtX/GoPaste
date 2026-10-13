@@ -132,14 +132,16 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 ### History
 
 - A list row is two lines: a rounded, kind-tinted icon tile, then the content title with its favorite star, then a metadata line of type and time. The tile icon and color follow the item's own kind, so text, link, code, image, and file rows are told apart by icon before the label is read.
-- Show type and favorite state in the list metadata row; show type, size, source device, and time in the preview metadata row, with the source device sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
+- Show type and favorite state in the list metadata row; show type, size, source device, sync state, and time in the preview metadata row, with the source device and its sync chip sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
 - Keep selected list row and preview synchronized by stable item ID.
-- Show the automatic content tag (链接, 代码) at the start of the preview action row, on the header's second line opposite the actions, so it never takes its own line. The list row carries the same subtype through its tile icon and colored metadata label instead of a separate tag line.
-- Keep copy as the primary preview action.
+- Show the automatic content tag (链接, 代码) on the preview header's first line, beside the type label, so the type and its subtype read together and the tag never takes its own line. The list row carries the same subtype through its tile icon and colored metadata label instead of a separate tag line.
+- Keep the preview's item actions in a floating bar pinned to the bottom of the preview pane and centered horizontally over the content column: delete (destructive) sits on the left, separated by a divider from favorite and copy (the primary action, on the right). Let it float over scrolled content while the body reserves matching bottom space, so the last line never hides behind it.
+- Confirm deleting one record the same way as clearing all history, so no history action removes saved data in a single step.
 - Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.
-- Show sync state as a compact chip in the preview metadata row: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.
+- Show sync state as a compact chip in the preview metadata row, set beside the source device so the record's origin and its delivery read as one group: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.
+- Open the sync chip's popover on click, not on hover: the chip sits above the floating preview action bar, so a hover-opened popover misfires when the pointer crosses it on the way to the buttons.
 - Keep the preview metadata row at one fixed height. An item captured here shows a sync chip and one that arrived over the LAN does not, so the row must not change height or the content below it jumps when the selection changes.
-- Reveal delivery detail in a popover on hover: a batch resend, then each paired device's outcome with a per-device resend while the item is still waiting. A replaced item, never delivered to any device, adds one line of explanation and the same per-device resend list.
+- Reveal delivery detail in a popover opened by clicking the chip: a batch resend, then each paired device's outcome with a per-device resend while the item is still waiting. A replaced item, never delivered to any device, adds one line of explanation and the same per-device resend list.
 - Distinguish first-use empty, search empty, filter empty, and unavailable preview.
 
 ### Devices and settings
