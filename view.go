@@ -158,6 +158,8 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 				a.suppressDeleteConfirmation = true
 			}
 			a.deleteHistoryItem(c, a.pendingDangerousTargetID)
+		case dangerousActionUnpairDevice:
+			a.unpairDeviceWithUndo(c, a.pendingDangerousTargetID)
 		default:
 			if message := a.executeDangerousAction(action, a.pendingDangerousTargetID); message != "" {
 				c.Toast(message)

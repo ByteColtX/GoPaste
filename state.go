@@ -2,6 +2,7 @@ package main
 
 import (
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -176,20 +177,15 @@ func (a *application) executeDangerousAction(action dangerousAction, targetID st
 	case dangerousActionClearHistory:
 		a.clearHistory()
 		return a.t(msgToastHistoryCleared)
-	case dangerousActionUnpairDevice:
-		if !a.unpairDevice(targetID) {
-			return ""
-		}
-		return a.t(msgToastUnpaired)
 	}
 	return ""
 }
 
-// undoDeleteWindow 是删除后可撤销的时间窗口：提示在这么久之后关闭，撤销机会随之结束。
-const undoDeleteWindow = 5 * time.Second
+// undoWindow 是危险操作后可撤销的时间窗口：提示在这么久之后关闭，撤销机会随之结束。
+const undoWindow = 5 * time.Second
 
 // deleteHistoryItem 删除一条记录，并弹出限时可撤销的提示。撤销会把记录放回原
-// 有顺序并重新选中；超过 undoDeleteWindow 未撤销，删除即成为最终结果。
+// 有顺序并重新选中；超过 undoWindow 未撤销，删除即成为最终结果。
 func (a *application) deleteHistoryItem(c *ui.Context, id string) {
 	item, ok := a.history.Item(id)
 	if !ok {
@@ -202,7 +198,7 @@ func (a *application) deleteHistoryItem(c *ui.Context, id string) {
 	// 每次删除使用独立的 toast ID，快速连续删除时各自的撤销互不覆盖。
 	c.AddToast(ui.Toast{
 		Title:    a.t(msgToastDeleted),
-		Timeout:  undoDeleteWindow,
+		Timeout:  undoWindow,
 		Action:   a.t(msgToastUndo),
 		OnAction: func() { a.restoreHistoryItem(item) },
 	})
@@ -213,6 +209,48 @@ func (a *application) restoreHistoryItem(item history.Item) {
 	if err := a.history.Restore(item); err != nil {
 		return
 	}
+	a.pendingToast = a.t(msgToastRestored)
+}
+
+// unpairDeviceWithUndo 取消一台设备的配对，并弹出限时可撤销的提示。撤销会把设备
+// 放回原有位置并重新选中；超过 undoWindow 未撤销，取消配对即成为最终结果。
+func (a *application) unpairDeviceWithUndo(c *ui.Context, id string) {
+	index, device, ok := a.removePairedDevice(id)
+	if !ok {
+		return
+	}
+	// 每次取消配对使用独立的 toast，快速连续操作时各自的撤销互不覆盖。
+	c.AddToast(ui.Toast{
+		Title:    a.t(msgToastUnpaired),
+		Timeout:  undoWindow,
+		Action:   a.t(msgToastUndo),
+		OnAction: func() { a.restorePairedDevice(index, device) },
+	})
+}
+
+// removePairedDevice 从已配对设备中移除一台并清空选中，返回它原来的下标，供撤销
+// 时放回原位。
+func (a *application) removePairedDevice(id string) (int, pairedDevice, bool) {
+	for index, device := range a.pairedDevices {
+		if device.id != id {
+			continue
+		}
+		a.pairedDevices = append(a.pairedDevices[:index], a.pairedDevices[index+1:]...)
+		a.selectedDeviceID = ""
+		a.deviceInfoExpanded = false
+		return index, device, true
+	}
+	return 0, pairedDevice{}, false
+}
+
+// restorePairedDevice 把撤销窗口内取消配对的设备放回原有位置并重新选中，再安排
+// 下一帧提示。
+func (a *application) restorePairedDevice(index int, device pairedDevice) {
+	if index < 0 || index > len(a.pairedDevices) {
+		index = len(a.pairedDevices)
+	}
+	a.pairedDevices = slices.Insert(a.pairedDevices, index, device)
+	a.selectedDeviceID = device.id
 	a.pendingToast = a.t(msgToastRestored)
 }
 

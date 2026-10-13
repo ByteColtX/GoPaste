@@ -151,6 +151,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Make the direct, peer-to-peer connection explicit in device details and pairing states, without naming a specific network type.
 - Use helper text for switches and direction controls so disabled states explain their scope.
 - Destructive actions confirm the affected data or device.
+- Let a device unpairing be undone for a short window: the toast offers Undo, which puts the device back in its place and reselects it, and the chance ends when the toast times out.
 
 ## Interaction and accessibility
 

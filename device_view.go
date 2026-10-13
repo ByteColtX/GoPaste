@@ -604,19 +604,6 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-func (a *application) unpairDevice(id string) bool {
-	for index, device := range a.pairedDevices {
-		if device.id != id {
-			continue
-		}
-		a.pairedDevices = append(a.pairedDevices[:index], a.pairedDevices[index+1:]...)
-		a.selectedDeviceID = ""
-		a.deviceInfoExpanded = false
-		return true
-	}
-	return false
-}
-
 func (a *application) onlineDeviceCount() int {
 	count := 0
 	for _, device := range a.pairedDevices {
