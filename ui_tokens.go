@@ -38,12 +38,9 @@ const (
 	secondarySidebarCompactWidth = 208
 	navigationRailCompactWidth   = 60
 	navigationRailExpandedWidth  = 176
-	// navigationRailControlClearance 是紧凑轨道在窗口控制按钮（macOS 红绿灯）
-	// 右侧额外预留的间距，单位与其它间距一致（×4 DIP）。
-	navigationRailControlClearance = 3
-	responsiveCompactWidth         = 1024
-	responsiveExpandedWidth        = 1200
-	pageDetailMaxWidth             = 720
+	responsiveCompactWidth       = 1024
+	responsiveExpandedWidth      = 1200
+	pageDetailMaxWidth           = 720
 	// sidebarTrailingInset 是历史、设备侧栏右侧的统一留白：既对齐各页内容，
 	// 也为滚动条预留出空间，避免滚动条遮挡选中卡片的边框。
 	sidebarTrailingInset float32 = 4
@@ -157,12 +154,14 @@ func navigationRailSize(c *ui.Context, theme *ui.Theme) float32 {
 	if contentWidth(c) >= responsiveExpandedWidth {
 		return space(theme, navigationRailExpandedWidth/4)
 	}
-	// 紧凑轨道必须足够宽以容纳窗口控制按钮（macOS 红绿灯位于左上角）。
-	// 轨道比按钮组更窄时，轨道与列表之间的分割线会穿过按钮，所以按标题栏
-	// 预留宽度取较大值；非 macOS 平台标题栏为 0，轨道保持原始宽度。
+	// 紧凑轨道必须容纳窗口控制按钮（macOS 红绿灯位于左上角），并让它们在
+	// 轨道内水平居中：轨道宽度取「左留白 + 按钮组右边缘」，两侧留白相等，
+	// 分割线也不会再穿过按钮。非 macOS 平台标题栏为 0，轨道保持原始宽度。
 	compact := float32(navigationRailCompactWidth)
-	if clear := c.TitleBar().Left + space(theme, navigationRailControlClearance); clear > compact {
-		compact = clear
+	if left := c.TitleBar().Left; left > 0 {
+		if centered := float32(windowControlsInset) + left; centered > compact {
+			compact = centered
+		}
 	}
 	return compact
 }

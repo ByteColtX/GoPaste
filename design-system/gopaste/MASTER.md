@@ -91,7 +91,7 @@ Responsive widths:
 - Window minimum: 900 × 560 DIP.
 - Compact navigation rail: 60 DIP.
 - Expanded navigation rail: 176 DIP at 1200 DIP or wider.
-- The compact rail widens to clear the window controls: it is at least as wide as the hidden title bar's left inset plus one spacing step, so the rail's trailing divider never crosses the macOS traffic lights (or a left-aligned window button row). The platform reports no inset on Windows and Linux, so the rail stays at its base width there.
+- The compact rail widens to hold the window controls and center them: it is as wide as the controls' left inset plus their right edge, so the macOS traffic lights (or a left-aligned window button row) sit centered with equal margins, and the rail's trailing divider never crosses them. The platform reports no inset on Windows and Linux, so the rail stays at its base width there.
 - Secondary sidebar: 208 DIP in compact mode, 236 DIP otherwise.
 - History list minimum: 300 DIP.
 - History preview minimum: 460 DIP while split.

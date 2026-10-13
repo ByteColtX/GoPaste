@@ -17,6 +17,10 @@ const (
 	splitDividerWidth     = 1
 	windowChromeMinHeight = 36
 	windowTitleBarHeight  = 52
+	// windowControlsInset 是隐藏标题栏窗口左上角窗口控制按钮（macOS 红绿灯）
+	// 距窗口左边缘的水平间距，与 runtime 里的 TrafficLightPosition.X 一致。
+	// 紧凑轨道用它把按钮组在轨道内居中。
+	windowControlsInset = 18
 
 	defaultHistoryPaneWidth = 320
 	historyItemHeight       = 82
