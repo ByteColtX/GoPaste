@@ -50,6 +50,7 @@ func (a *application) filterLabel(filter historyFilter) string {
 func (a *application) view(c *ui.Context) {
 	theme := a.applyTheme(c)
 	a.globalShortcuts(c)
+	a.previewShortcuts(c)
 
 	ui.Row(c).Fill().Background(theme.Background).Children(func() {
 		a.navigationRail(c, theme)
@@ -59,6 +60,36 @@ func (a *application) view(c *ui.Context) {
 	})
 	a.dangerousConfirmation(c, theme)
 	a.flushPendingToast(c)
+}
+
+// previewShortcuts 为预览区操作注册单键快捷键：C 复制、F 收藏、D 删除。它们只在
+// 历史页且存在选中记录时生效。文本输入框聚焦时按键会先被输入框接管，因此在搜索框
+// 里输入 c、f、d 不会误触发这些操作。
+func (a *application) previewShortcuts(c *ui.Context) {
+	if a.page != pageHistory {
+		return
+	}
+	item, ok := selectedHistoryItem(a.history.Snapshot(a.historyQuery()))
+	if !ok {
+		return
+	}
+	c.OnShortcut(0, ui.KeyC, func() { a.copyToClipboard(c, item.ID) })
+	c.OnShortcut(0, ui.KeyF, func() {
+		if message := a.toggleFavorite(item.ID); message != "" {
+			c.Toast(message)
+		}
+	})
+	c.OnShortcut(0, ui.KeyD, func() { a.requestDeleteItem(c, item.ID) })
+}
+
+// requestDeleteItem 按“不再询问”偏好决定删除方式：已记住偏好就直接删除，
+// 否则先弹二次确认框。按钮点击与 D 快捷键共用这条路径。
+func (a *application) requestDeleteItem(c *ui.Context, id string) {
+	if a.suppressDeleteConfirmation {
+		a.deleteHistoryItem(c, id)
+		return
+	}
+	a.requestDangerousAction(dangerousActionDeleteItem, id)
 }
 
 // flushPendingToast 展示由回调产生的提示（例如撤销删除后的确认），只在下一次
@@ -1162,18 +1193,17 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 					Children(func() {
 						deleteLabel := a.t(msgHistoryDelete)
 						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel)
+						deleteButton.Tooltip(shortcutHint(deleteLabel, "D"))
 						if deleteButton.Clicked() {
-							if a.suppressDeleteConfirmation {
-								a.deleteHistoryItem(c, item.ID)
-							} else {
-								a.requestDangerousAction(dangerousActionDeleteItem, item.ID)
-							}
+							a.requestDeleteItem(c, item.ID)
 						}
 
 						ui.Box(c).Width(1).Height(controlHeightSize(c, theme, 4.5)).Shrink(0).
 							Background(dividerColor(theme))
 
-						favoriteButton := actionButton(c, theme, "favorite", icons.star, a.favoriteLabel(item.Favorite), item.Favorite)
+						favoriteLabel := a.favoriteLabel(item.Favorite)
+						favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel, item.Favorite)
+						favoriteButton.Tooltip(shortcutHint(favoriteLabel, "F"))
 						if favoriteButton.Clicked() {
 							if message := a.toggleFavorite(item.ID); message != "" {
 								c.Toast(message)
@@ -1182,6 +1212,7 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 
 						copyLabel := a.t(msgHistoryCopy)
 						copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel)
+						copyButton.Tooltip(shortcutHint(copyLabel, "C"))
 						if copyButton.Clicked() {
 							a.copyToClipboard(c, item.ID)
 						}
@@ -1208,6 +1239,11 @@ func (a *application) copyToClipboard(c *ui.Context, id string) {
 		return
 	}
 	c.Toast(a.t(msgToastCopied))
+}
+
+// shortcutHint 在按钮提示里附带单键快捷键，例如“复制 (C)”，让快捷键可被发现。
+func shortcutHint(label, key string) string {
+	return label + " (" + key + ")"
 }
 
 func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, active bool) ui.Element {
