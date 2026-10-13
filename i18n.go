@@ -103,6 +103,8 @@ const (
 	msgToastFavoriteRemoved            messageKey = "toast.favoriteRemoved"
 	msgToastHistoryCleared             messageKey = "toast.historyCleared"
 	msgToastDeleted                    messageKey = "toast.deleted"
+	msgToastUndo                       messageKey = "toast.undo"
+	msgToastRestored                   messageKey = "toast.restored"
 	msgToastUnpaired                   messageKey = "toast.unpaired"
 	msgToastLaunchAtLoginUnsupported   messageKey = "toast.launchAtLoginUnsupported"
 	msgToastLaunchAtLoginOn            messageKey = "toast.launchAtLoginOn"
@@ -338,6 +340,8 @@ var simplifiedChineseCatalog = catalog{
 	msgToastFavoriteRemoved:            "已取消收藏",
 	msgToastHistoryCleared:             "历史记录已清空",
 	msgToastDeleted:                    "已删除",
+	msgToastUndo:                       "撤销",
+	msgToastRestored:                   "已恢复",
 	msgToastUnpaired:                   "已取消配对",
 	msgToastLaunchAtLoginUnsupported:   "当前运行环境暂不支持开机自启",
 	msgToastLaunchAtLoginOn:            "已开启开机自启",
@@ -561,6 +565,8 @@ var englishCatalog = catalog{
 	msgToastFavoriteRemoved:            "Removed from favorites",
 	msgToastHistoryCleared:             "History cleared",
 	msgToastDeleted:                    "Deleted",
+	msgToastUndo:                       "Undo",
+	msgToastRestored:                   "Restored",
 	msgToastUnpaired:                   "Unpaired",
 	msgToastLaunchAtLoginUnsupported:   "Launch at login isn't supported here",
 	msgToastLaunchAtLoginOn:            "Launch at login turned on",

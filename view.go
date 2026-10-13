@@ -58,6 +58,17 @@ func (a *application) view(c *ui.Context) {
 		})
 	})
 	a.dangerousConfirmation(c, theme)
+	a.flushPendingToast(c)
+}
+
+// flushPendingToast 展示由回调产生的提示（例如撤销删除后的确认），只在下一次
+// 构建帧时消费一次。
+func (a *application) flushPendingToast(c *ui.Context) {
+	if a.pendingToast == "" {
+		return
+	}
+	c.Toast(a.pendingToast)
+	a.pendingToast = ""
 }
 
 // chromeHeight 返回窗口标题栏（macOS 红绿灯、Windows/Linux 窗口按钮）占用的高度。
@@ -109,11 +120,16 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 	}
 
 	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel, dontAskLabel, &a.dangerDontAskAgain) {
-		if action == dangerousActionDeleteItem && a.dangerDontAskAgain {
-			a.suppressDeleteConfirmation = true
-		}
-		if message := a.executeDangerousAction(action, a.pendingDangerousTargetID); message != "" {
-			c.Toast(message)
+		switch action {
+		case dangerousActionDeleteItem:
+			if a.dangerDontAskAgain {
+				a.suppressDeleteConfirmation = true
+			}
+			a.deleteHistoryItem(c, a.pendingDangerousTargetID)
+		default:
+			if message := a.executeDangerousAction(action, a.pendingDangerousTargetID); message != "" {
+				c.Toast(message)
+			}
 		}
 	}
 	if !a.confirmDangerousAction {
@@ -1147,8 +1163,10 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 						deleteLabel := a.t(msgHistoryDelete)
 						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel)
 						if deleteButton.Clicked() {
-							if message := a.requestDangerousAction(dangerousActionDeleteItem, item.ID); message != "" {
-								c.Toast(message)
+							if a.suppressDeleteConfirmation {
+								a.deleteHistoryItem(c, item.ID)
+							} else {
+								a.requestDangerousAction(dangerousActionDeleteItem, item.ID)
 							}
 						}
 

@@ -4,10 +4,12 @@ import (
 	"runtime"
 	"sort"
 	"strings"
+	"time"
 
 	"gopaste/internal/history"
 
 	"github.com/egoist/mygo"
+	"github.com/egoist/mygo/ui"
 )
 
 func newApplication() *application {
@@ -153,17 +155,11 @@ func (a *application) clearHistory() {
 	a.historyBitmaps = nil
 }
 
-// requestDangerousAction 记录待确认的高影响操作并打开确认弹窗。删除操作在用户
-// 勾选“不再询问”后不再弹窗，而是直接执行并返回提示文案，供调用方展示。
-func (a *application) requestDangerousAction(action dangerousAction, targetID string) string {
-	if action == dangerousActionDeleteItem && a.suppressDeleteConfirmation {
-		return a.executeDangerousAction(action, targetID)
-	}
+func (a *application) requestDangerousAction(action dangerousAction, targetID string) {
 	a.pendingDangerousAction = action
 	a.pendingDangerousTargetID = targetID
 	a.dangerDontAskAgain = false
 	a.confirmDangerousAction = true
-	return ""
 }
 
 func (a *application) pairedDeviceByID(id string) (*pairedDevice, bool) {
@@ -180,12 +176,6 @@ func (a *application) executeDangerousAction(action dangerousAction, targetID st
 	case dangerousActionClearHistory:
 		a.clearHistory()
 		return a.t(msgToastHistoryCleared)
-	case dangerousActionDeleteItem:
-		if err := a.history.Delete(targetID); err != nil {
-			return ""
-		}
-		delete(a.historyBitmaps, targetID)
-		return a.t(msgToastDeleted)
 	case dangerousActionUnpairDevice:
 		if !a.unpairDevice(targetID) {
 			return ""
@@ -193,6 +183,37 @@ func (a *application) executeDangerousAction(action dangerousAction, targetID st
 		return a.t(msgToastUnpaired)
 	}
 	return ""
+}
+
+// undoDeleteWindow 是删除后可撤销的时间窗口：提示在这么久之后关闭，撤销机会随之结束。
+const undoDeleteWindow = 5 * time.Second
+
+// deleteHistoryItem 删除一条记录，并弹出限时可撤销的提示。撤销会把记录放回原
+// 有顺序并重新选中；超过 undoDeleteWindow 未撤销，删除即成为最终结果。
+func (a *application) deleteHistoryItem(c *ui.Context, id string) {
+	item, ok := a.history.Item(id)
+	if !ok {
+		return
+	}
+	if err := a.history.Delete(id); err != nil {
+		return
+	}
+	delete(a.historyBitmaps, id)
+	// 每次删除使用独立的 toast ID，快速连续删除时各自的撤销互不覆盖。
+	c.AddToast(ui.Toast{
+		Title:    a.t(msgToastDeleted),
+		Timeout:  undoDeleteWindow,
+		Action:   a.t(msgToastUndo),
+		OnAction: func() { a.restoreHistoryItem(item) },
+	})
+}
+
+// restoreHistoryItem 把撤销窗口内删除的记录放回历史记录，并安排下一帧提示。
+func (a *application) restoreHistoryItem(item history.Item) {
+	if err := a.history.Restore(item); err != nil {
+		return
+	}
+	a.pendingToast = a.t(msgToastRestored)
 }
 
 func (a *application) toggleFavorite(id string) string {

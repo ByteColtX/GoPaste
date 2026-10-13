@@ -289,6 +289,17 @@ func (s *Store) Delete(id string) error {
 	return ErrItemNotFound
 }
 
+// Restore puts a deleted item back in newest-first order and selects it, so
+// the preview returns to the record the user just restored. It backs the undo
+// offered for a short while after Delete; the ID is free again by then.
+func (s *Store) Restore(item Item) error {
+	if err := s.Append(item); err != nil {
+		return err
+	}
+	s.selectedID = item.ID
+	return nil
+}
+
 // Copy writes the exact stored payload to the supplied clipboard adapter.
 func (s *Store) Copy(id string, writer ClipboardWriter) error {
 	if writer == nil {
