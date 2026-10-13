@@ -171,7 +171,7 @@ type application struct {
 
 	onResendItem func(itemID, deviceID string)
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：
-	// 浮层由点击状态标记展开，点击别处或按 Esc 收起，指针滑过不会触发。
+	// 浮层由指针悬停状态标记展开，指针移开标记与浮层后收起。
 	syncPopoverItem          string
 	syncPopoverOpen          bool
 	deviceName               string

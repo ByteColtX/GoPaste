@@ -772,8 +772,7 @@ const (
 
 // syncIndicator renders the item's sync state as a compact chip in the preview
 // meta row. The per-device detail and resend actions live in a popover the chip
-// opens on click, so the section costs no space while it is idle and never
-// springs open as the pointer travels past it.
+// opens on hover, so the section costs no space while it is idle.
 func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history.Item) {
 	// Only items captured on this machine are delivered to peers, so only
 	// they carry a sync status. A peer item already arrived here.
@@ -784,7 +783,8 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	chip := ui.Row(c.Key("sync-chip-"+item.ID)).Shrink(0).AlignItems(ui.Center).
 		Gap(space(theme, 1.25)).Padding(space(theme, 0.5), space(theme, 1)).
 		Radius(radius(theme, controlRadius))
-	if chip.Hovered() {
+	hovered := chip.Hovered()
+	if hovered {
 		chip.Background(hoverFill(theme))
 	}
 	chip.Children(func() {
@@ -793,17 +793,18 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 			TextColor(primaryText(theme)).SingleLine()
 	})
 
-	// 浮层由点击展开，点击别处或按 Esc 收起。标记正好落在复制/收藏按钮的上方，
-	// 若改成指针悬停展开，鼠标移向按钮时会从它上面划过而误弹；展开状态按条目
-	// 记忆，切换条目即收起。
+	// 浮层由指针悬停展开：指针停在状态标记或其浮层上时保持展开，移开两者后收起，
+	// 指针在标记与浮层之间移动时不会中途关闭，浮层里的重发按钮始终可点。展开状态
+	// 按条目记忆，切换条目即收起。
 	if a.syncPopoverItem != item.ID {
 		a.syncPopoverItem = item.ID
 		a.syncPopoverOpen = false
 	}
-	if chip.Clicked() {
-		a.syncPopoverOpen = !a.syncPopoverOpen
+	if hovered {
+		a.syncPopoverOpen = true
 	}
 	open := a.syncPopoverOpen
+	panelHovered := false
 	ui.PopoverBase(c, chip, &open, func(panel ui.Element) {
 		panel.MinWidth(space(theme, 60)).MaxWidth(space(theme, 96)).
 			Padding(space(theme, 2)).
@@ -817,8 +818,11 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 			}).
 			Margin(0)
 		a.syncPopoverContent(c, theme, item)
+		panelHovered = panel.Hovered()
 	})
-	a.syncPopoverOpen = open
+	if !hovered && !panelHovered {
+		a.syncPopoverOpen = false
+	}
 }
 
 // syncPopoverContent builds the popover: a header with the batch resend, then

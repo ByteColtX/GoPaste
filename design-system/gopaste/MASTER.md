@@ -139,9 +139,9 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Confirm deleting one record the same way as clearing all history, so no history action removes saved data in a single step.
 - Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.
 - Show sync state as a compact chip in the preview metadata row, set beside the source device so the record's origin and its delivery read as one group: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.
-- Open the sync chip's popover on click, not on hover: the chip sits above the floating preview action bar, so a hover-opened popover misfires when the pointer crosses it on the way to the buttons.
+- Open the sync chip's popover on hover: resting the pointer on the chip, or on the popover itself, keeps the delivery detail open so the pointer can move between them, and it closes once the pointer leaves both.
 - Keep the preview metadata row at one fixed height. An item captured here shows a sync chip and one that arrived over the LAN does not, so the row must not change height or the content below it jumps when the selection changes.
-- Reveal delivery detail in a popover opened by clicking the chip: a batch resend, then each paired device's outcome with a per-device resend while the item is still waiting. A replaced item, never delivered to any device, adds one line of explanation and the same per-device resend list.
+- Reveal delivery detail in a popover opened by hovering the chip: a batch resend, then each paired device's outcome with a per-device resend while the item is still waiting. A replaced item, never delivered to any device, adds one line of explanation and the same per-device resend list.
 - Distinguish first-use empty, search empty, filter empty, and unavailable preview.
 
 ### Devices and settings
