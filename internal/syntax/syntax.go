@@ -117,10 +117,13 @@ func regexpMatcher(pattern string) func(string) bool {
 var (
 	tomlTableRe  = regexp.MustCompile(`^\s*\[\[?[A-Za-z0-9_.\-]+\]\]?\s*$`)
 	tomlAssignRe = regexp.MustCompile(`^\s*[A-Za-z0-9_.\-]+\s*=\s*\S`)
-	yamlKeyRe    = regexp.MustCompile(`^\s*[A-Za-z0-9_.\-]+\s*:`)
-	yamlItemRe   = regexp.MustCompile(`^\s*-\s`)
-	cssRuleRe    = regexp.MustCompile(`(?m)^\s*[.#]?[A-Za-z][\w-]*\s*(?:,[^{}]*)?\{`)
-	cssDeclRe    = regexp.MustCompile(`\b[a-z-]+\s*:\s*[^;{}]+;`)
+	// A YAML block mapping needs whitespace or end-of-line after the colon
+	// (key: value or key:). Requiring that keeps C++ scope operators (std::)
+	// and Go short assignments (x := 1) from looking like mappings.
+	yamlKeyRe  = regexp.MustCompile(`^\s*[A-Za-z0-9_.\-]+\s*:(?:\s|$)`)
+	yamlItemRe = regexp.MustCompile(`^\s*-\s`)
+	cssRuleRe  = regexp.MustCompile(`(?m)^\s*[.#]?[A-Za-z][\w-]*\s*(?:,[^{}]*)?\{`)
+	cssDeclRe  = regexp.MustCompile(`\b[a-z-]+\s*:\s*[^;{}]+;`)
 )
 
 // looksLikeJSON reports whether text is a JSON object or array.
