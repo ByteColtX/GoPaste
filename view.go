@@ -535,7 +535,7 @@ func (a *application) autoTagRow(c *ui.Context, theme *ui.Theme, item history.It
 // autoTag 渲染内容子类型的自动标签（链接、代码），没有标签时不占空间。
 // 预览标题把它放在操作行左端，与操作按钮同处第二行，避免标签单独占一行。
 func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item) {
-	tag := a.l10n().smartTag(item.Kind)
+	tag := a.codeTag(item)
 	if tag == "" {
 		return
 	}
@@ -627,9 +627,7 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 			Gap(space(theme, 3)).Children(func() {
 			switch item.Kind {
 			case kindCode:
-				ui.Text(c, item.Text).Font("monospace").FontSize(font(theme, fontCode)).
-					TextColor(primaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
-					Background(panelFill(theme)).Border(1, borderColor(theme)).Wrap().Selectable()
+				a.codePreview(c, theme, item)
 			case kindLink:
 				ui.Row(c).Gap(space(theme, 2)).AlignItems(ui.Center).Padding(space(theme, 4)).
 					Radius(radius(theme, cardRadius)).Background(panelFill(theme)).
