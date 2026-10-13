@@ -573,6 +573,7 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view histor
 			a.previewHeader(c, theme, item)
 			a.previewContent(c, theme, item)
 		})
+		a.previewActions(c, theme, item)
 	})
 }
 
@@ -603,8 +604,11 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
 		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3), space(theme, spacePageSide)).
 		Gap(space(theme, 1.75)).Children(func() {
-		// 本机条目带同步状态标记，局域网条目没有。给元信息行预留固定高度，
-		// 标记就不会撑高这一行，切换条目时下方的正文卡片也不再上下抖动。
+		// 本机条目带同步状态标记，局域网条目没有。标记并进来源「本机」一组，
+		// 让「本机 已同步」读作这条记录的来源与去向；它带弹出浮层，且正好落在
+		// 复制/收藏按钮上方，所以改成点击展开，指针滑过不会再误触发（见
+		// syncIndicator）。元信息行预留固定高度，标记就不会撑高这一行，切换
+		// 条目时下方的正文卡片也不再上下抖动。
 		ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			baseKind := item.Kind.BaseKind()
 			kindColor := colorForKind(theme, baseKind)
@@ -619,18 +623,24 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 					TextColor(secondaryText(theme)).SingleLine()
 			}
 			ui.Spacer(c)
-			a.historySource(c, theme, item)
+			// 来源与同步标记收进同一子行并收紧间距，让「本机 已同步」读作一组：
+			// 先交代记录从哪来，再交代同步到了哪。
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
+				a.historySource(c, theme, item)
+				a.syncIndicator(c, theme, item)
+			})
 			ui.Text(c, "·").FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme))
 			ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).SingleLine()
-			a.syncIndicator(c, theme, item)
 		})
-		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
-			a.autoTag(c, theme, item)
-			ui.Spacer(c)
-			a.actionBar(c, theme, item)
-		})
+		// 自动内容标签（链接、代码）留在标题区第二行。复制与收藏已移到预览区
+		// 底部的悬浮操作条，这里不再占位。
+		if a.l10n().smartTag(item.Kind) != "" {
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Children(func() {
+				a.autoTag(c, theme, item)
+			})
+		}
 	})
 }
 
@@ -638,7 +648,7 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 	content := ui.Scroll(c).Grow(1).MinHeight(0)
 	content.Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
-			Padding(0, space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
+			Padding(0, space(theme, spacePageSide), previewActionsClearance(c, theme)+space(theme, 2), space(theme, spacePageSide)).
 			Gap(space(theme, 3)).Children(func() {
 			switch item.Kind {
 			case kindCode:
@@ -703,9 +713,9 @@ const (
 )
 
 // syncIndicator renders the item's sync state as a compact chip in the preview
-// meta row. The per-device detail and resend actions live in a popover that
-// opens while the pointer rests on the chip, so the section costs no space
-// while it is idle.
+// meta row. The per-device detail and resend actions live in a popover the chip
+// opens on click, so the section costs no space while it is idle and never
+// springs open as the pointer travels past it.
 func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history.Item) {
 	// Only items captured on this machine are delivered to peers, so only
 	// they carry a sync status. A peer item already arrived here.
@@ -716,8 +726,7 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	chip := ui.Row(c.Key("sync-chip-"+item.ID)).Shrink(0).AlignItems(ui.Center).
 		Gap(space(theme, 1.25)).Padding(space(theme, 0.5), space(theme, 1)).
 		Radius(radius(theme, controlRadius))
-	hovered := chip.Hovered()
-	if hovered {
+	if chip.Hovered() {
 		chip.Background(hoverFill(theme))
 	}
 	chip.Children(func() {
@@ -726,18 +735,17 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 			TextColor(primaryText(theme)).SingleLine()
 	})
 
-	// The popover stays open while the pointer rests on the chip or on the
-	// panel itself, so the pointer can cross between them and a resend inside
-	// it stays reachable; it closes once the pointer has left both.
+	// 浮层由点击展开，点击别处或按 Esc 收起。标记正好落在复制/收藏按钮的上方，
+	// 若改成指针悬停展开，鼠标移向按钮时会从它上面划过而误弹；展开状态按条目
+	// 记忆，切换条目即收起。
 	if a.syncPopoverItem != item.ID {
 		a.syncPopoverItem = item.ID
 		a.syncPopoverOpen = false
 	}
-	if hovered {
-		a.syncPopoverOpen = true
+	if chip.Clicked() {
+		a.syncPopoverOpen = !a.syncPopoverOpen
 	}
 	open := a.syncPopoverOpen
-	panelHovered := false
 	ui.PopoverBase(c, chip, &open, func(panel ui.Element) {
 		panel.MinWidth(space(theme, 60)).MaxWidth(space(theme, 96)).
 			Padding(space(theme, 2)).
@@ -751,11 +759,8 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 			}).
 			Margin(0)
 		a.syncPopoverContent(c, theme, item)
-		panelHovered = panel.Hovered()
 	})
-	if !hovered && !panelHovered {
-		a.syncPopoverOpen = false
-	}
+	a.syncPopoverOpen = open
 }
 
 // syncPopoverContent builds the popover: a header with the batch resend, then
@@ -1102,21 +1107,50 @@ func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
 	return bitmap
 }
 
-func (a *application) actionBar(c *ui.Context, theme *ui.Theme, item history.Item) {
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-		copyLabel := a.t(msgHistoryCopy)
-		copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel)
-		if copyButton.Clicked() {
-			a.copyToClipboard(c, item.ID)
-		}
+// 预览区底部悬浮操作条的几何（单位与其它间距一致，×4 DIP）。
+const (
+	previewBarPadding     float32 = 1
+	previewBarBottomInset float32 = 3
+)
 
-		favoriteButton := actionButton(c, theme, "favorite", icons.star, a.favoriteLabel(item.Favorite), item.Favorite)
-		if favoriteButton.Clicked() {
-			if message := a.toggleFavorite(item.ID); message != "" {
-				c.Toast(message)
-			}
-		}
+// previewActions 把复制与收藏放进预览区底部的悬浮操作条：操作条固定在面板
+// 底部、与正文列同宽居中，所以按钮右缘与上方内容卡片对齐；正文滚动到它下方，
+// 它始终浮在内容之上。收藏在左、复制（主操作）在右，符合主按钮靠右的习惯。
+func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item history.Item) {
+	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Shrink(0).
+		Justify(ui.Center).Children(func() {
+		ui.Row(c).FillWidth().MaxWidth(pageDetailMaxWidth).Justify(ui.End).
+			Padding(0, space(theme, spacePageSide), space(theme, previewBarBottomInset), space(theme, spacePageSide)).
+			Children(func() {
+				ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).
+					Padding(space(theme, previewBarPadding)).
+					Radius(radius(theme, largeRadius)).
+					Background(theme.Background).Border(1, borderColor(theme)).
+					Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
+					Children(func() {
+						favoriteButton := actionButton(c, theme, "favorite", icons.star, a.favoriteLabel(item.Favorite), item.Favorite)
+						if favoriteButton.Clicked() {
+							if message := a.toggleFavorite(item.ID); message != "" {
+								c.Toast(message)
+							}
+						}
+
+						copyLabel := a.t(msgHistoryCopy)
+						copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel)
+						if copyButton.Clicked() {
+							a.copyToClipboard(c, item.ID)
+						}
+					})
+			})
 	})
+}
+
+// previewActionsClearance 是悬浮操作条占用的高度（药丸加底边距，含边框），
+// 预览正文在底部预留同样多的空白，让最后一行内容能滚到操作条上方而不被遮挡。
+func previewActionsClearance(c *ui.Context, theme *ui.Theme) float32 {
+	return space(theme, previewBarBottomInset) +
+		space(theme, previewBarPadding)*2 +
+		controlHeightSize(c, theme, compactHeight) + 2
 }
 
 func (a *application) copyToClipboard(c *ui.Context, id string) {
