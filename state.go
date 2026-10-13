@@ -154,6 +154,7 @@ func (a *application) updateLaunchAtLogin() string {
 func (a *application) clearHistory() {
 	a.history.Clear()
 	a.historyBitmaps = nil
+	a.codeHighlights = nil
 }
 
 func (a *application) requestDangerousAction(action dangerousAction, targetID string) {
