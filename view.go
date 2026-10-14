@@ -608,16 +608,16 @@ func (a *application) constrainHistoryPaneWidth(c *ui.Context, theme *ui.Theme) 
 	a.historyPaneWidth = min(max(a.historyPaneWidth, float32(minHistoryPaneWidth)), maxWidth)
 }
 
-// historyPaneTop 给列表和预览留出标题栏高度，只在筛选栏收起时才有高度。
-// 筛选栏展开时窗口控制按钮位于筛选栏上方，列表和预览可以直接顶到窗口顶边；
-// 收起后控制按钮会落到列表上方，所以这里补一条透明拖动条，避免内容被按钮
-// 压住。高度用与筛选栏同一个弹簧，收起时内容会跟着往下让位。
-func (a *application) historyPaneTop(c *ui.Context) {
+// pageTop 给页面内容留出标题栏高度，只在筛选栏收起时才有高度。筛选栏展开时
+// 窗口控制按钮位于筛选栏上方，各页内容都可以直接顶到窗口顶边；收起后控制
+// 按钮会落到内容上方，所以这里补一条透明拖动条，避免内容被按钮压住。高度用
+// 与筛选栏同一个弹簧，收起时内容会跟着往下让位。
+func (a *application) pageTop(c *ui.Context) {
 	height := float32(0)
 	if !a.filterRailOpen {
 		height = chromeHeight(c)
 	}
-	ui.Row(c).Key("history-pane-top").Height(height).FillWidth().Shrink(0).
+	ui.Row(c).Key("page-top").Height(height).FillWidth().Shrink(0).
 		DragWindow().Transition(motionLayout)
 }
 
@@ -628,7 +628,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 		Padding(0, 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
-		a.historyPaneTop(c)
+		a.pageTop(c)
 		// 列表上方没有窗口控件时不再留标题栏高度的空白：标题行直接顶到
 		// 窗口顶边，由标题行本身承担拖动窗口的职责。
 		a.historyHeader(c, theme, view)
@@ -944,7 +944,7 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view histor
 	pane := ui.Column(c).Grow(1).FillHeight().
 		MinWidth(minPreviewPaneWidth).Background(theme.Background)
 	pane.Children(func() {
-		a.historyPaneTop(c)
+		a.pageTop(c)
 		// 与列表一致：筛选栏展开时预览区直接顶到窗口顶边，
 		// 元信息行同时作为拖动窗口的区域。
 		item, ok := selectedHistoryItem(view)

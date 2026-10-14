@@ -77,7 +77,7 @@ The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tok
 - Inline: 8 DIP
 - Control group: 8–12 DIP
 - Section: 24 DIP
-- Page top: 12 DIP below the title-bar strip
+- Page top: 12 DIP below the title-bar strip. Every page keeps this same first-line inset, whether the title-bar strip is the reserved band or nothing at all.
 - Page side: 24 DIP on standard windows, 16–20 DIP in compact mode
 - Page bottom: 28 DIP
 - Control height: 36 DIP
@@ -144,7 +144,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 - The filter rail groups filters top to bottom: All and Favorites, then Type (text, rich text, image, file), Tag (link, code, image), Source (all sources, then each paired device), and Time (all time, today, yesterday, last 7 days, last 30 days).
 - Filter section labels sit 16 DIP below the previous group and 8 DIP above their own rows, so a label reads as part of the group it names. The values follow Apple's 8 pt baseline grid, where 8 DIP is the standard label-to-control gap and section separation is the larger step.
-- The history list and preview have no window controls above them, so their content starts at the window's top edge and their header rows double as the drag region. Only the filter rail reserves the title-bar band, because the window controls sit over it. When the rail is collapsed the controls move over the list, so the list and preview reserve the band again.
+- Every page's content starts at the window's top edge and its header rows double as the drag region: the history list and preview, and the devices and settings sidebars and details. Only the filter rail reserves the title-bar band, because the window controls sit over it. When the rail is collapsed the controls move over the content, so every page reserves the band again, with the same spring.
 - Type filters by payload format, so Text includes links and code; Tag narrows to a detected subtype. Choosing the selected facet again clears it, and All clears every facet.
 - A list row is two lines: a rounded, kind-tinted icon tile, then the content title with its favorite star, then a metadata line of type and time. The tile icon and color follow the item's own kind, so text, link, code, image, and file rows are told apart by icon before the label is read.
 - Show type and favorite state in the list metadata row; show type, size, source device, sync state, and time in the preview metadata row, with the source device and its sync chip sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.

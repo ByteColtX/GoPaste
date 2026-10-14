@@ -27,7 +27,7 @@ func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		paneTop(c)
+		a.pageTop(c)
 		secondarySidebarTitle(c, theme, a.t(msgNavSettings))
 
 		ui.Column(c).Gap(space(theme, 0.5)).Children(func() {
@@ -81,7 +81,7 @@ func (a *application) settingsDetail(c *ui.Context, theme *ui.Theme) {
 	// 外层列显式拉伸高度，避免滚动容器按内容高度参与行布局而被居中。
 	ui.Column(c).Grow(1).FillHeight().AlignSelf(ui.Stretch).
 		MinWidth(0).MinHeight(0).Children(func() {
-		paneTop(c)
+		a.pageTop(c)
 		ui.Scroll(c).Fill().MinWidth(0).MinHeight(0).
 			ScrollbarInsets(0, space(theme, 1), 0, 0).Children(func() {
 			ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).

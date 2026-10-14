@@ -224,9 +224,10 @@ func (a *application) compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
 }
 
 // pageHeader keeps page title and description aligned across settings and
-// device detail panes.
+// device detail panes. The header doubles as the drag region for the pane,
+// which no longer keeps a title-bar band of its own.
 func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
-	ui.Column(c).Shrink(0).Gap(space(theme, 1)).Children(func() {
+	ui.Column(c).Shrink(0).Gap(space(theme, 1)).DragWindow().Children(func() {
 		ui.Text(c, title).FontSize(font(theme, fontPageTitle)).FontWeight(600).
 			Role(ui.RoleHeading).SingleLine()
 		ui.Text(c, description).FontSize(font(theme, fontBody)).TextColor(secondaryText(theme)).Wrap()
@@ -234,10 +235,11 @@ func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
 }
 
 // secondarySidebarTitle 是设备页与设置页侧栏顶部的首个标题。两栏共用同一份
-// 定义，保证字号、字重、颜色和左边距一致，不会再各自漂移。
+// 定义，保证字号、字重、颜色和左边距一致，不会再各自漂移。侧栏不再保留标题栏
+// 留白，因此标题行同时承担拖动窗口的职责。
 func secondarySidebarTitle(c *ui.Context, theme *ui.Theme, label string) ui.Element {
 	return ui.Text(c, label).FontSize(font(theme, fontPaneTitle)).FontWeight(600).
-		Padding(space(theme, 0.5), 0, space(theme, 0.5), 0).SingleLine()
+		Padding(space(theme, 0.5), 0, space(theme, 0.5), 0).SingleLine().DragWindow()
 }
 
 func standardCard(c *ui.Context, theme *ui.Theme, key string, body func()) {

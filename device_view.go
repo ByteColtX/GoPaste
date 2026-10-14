@@ -27,7 +27,7 @@ func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
 		Padding(space(theme, columnTopInset), 0, space(theme, 5), space(theme, 4)).
 		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		paneTop(c)
+		a.pageTop(c)
 		secondarySidebarTitle(c, theme, a.t(msgDevicesTitle))
 		a.localDeviceEntry(c, theme)
 
@@ -214,7 +214,7 @@ func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 func (a *application) deviceDetail(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Grow(1).FillHeight().MinWidth(0).Background(theme.Background).
 		Children(func() {
-			paneTop(c)
+			a.pageTop(c)
 			ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 1), 0, 0).
 				Children(func() {
 					ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
@@ -265,7 +265,7 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 		syncEnabled = device.syncEnabled
 	}
 
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 4.5)).Children(func() {
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 4.5)).DragWindow().Children(func() {
 		deviceIconLarge(c, theme, platform, paired && !online)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 2)).Children(func() {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
