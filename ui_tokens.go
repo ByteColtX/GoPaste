@@ -26,9 +26,11 @@ const (
 	controlHeight float32 = 9
 	compactHeight float32 = 8
 	rowHeight     float32 = 14
+	// 全应用只用两级圆角：控件、行、导航项和标签用 controlRadius；卡片、浮层、
+	// 对话框和媒体容器用 cardRadius。不再有临时值，嵌套圆角按「外层半径 − 内边距」
+	// 推导，因此下拉面板（cardRadius）里的选项正好是 controlRadius。
 	cardRadius    float32 = 3
 	controlRadius float32 = 2
-	largeRadius   float32 = 3.5
 )
 
 const (
@@ -250,7 +252,7 @@ func dangerConfirmDialog(
 	ui.Modal(c, open, func() {
 		ui.Column(c).Width(440).Shrink(0).
 			Padding(space(theme, 5), space(theme, 5)).Gap(space(theme, 3)).
-			Radius(radius(theme, largeRadius)).Background(theme.Background).
+			Radius(radius(theme, cardRadius)).Background(theme.Background).
 			Border(1, borderColor(theme)).Role(ui.RoleAlertDialog).Label(title).Children(func() {
 			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).
 				Role(ui.RoleHeading).SingleLine()
@@ -332,7 +334,7 @@ func selectField[T comparable](
 			Shrink(0).TextColor(secondaryText(theme))
 	})
 	sel.Popup(func(panel ui.Element) {
-		panel.Padding(space(theme, 1)).Radius(radius(theme, controlRadius+2)).
+		panel.Padding(space(theme, 1)).Radius(radius(theme, cardRadius)).
 			Background(theme.Background).Border(1, borderColor(theme)).
 			Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, 0.18))
 		for _, opt := range options {

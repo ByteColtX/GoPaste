@@ -82,9 +82,10 @@ The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tok
 - Page bottom: 28 DIP
 - Control height: 36 DIP
 - Compact control height: 32 DIP
-- Card radius: 12 DIP
 - Control radius: 8 DIP
-- Dialog radius: 14 DIP
+- Card radius: 12 DIP
+
+Two radii cover the whole app: `controlRadius` for controls, rows, navigation and filter items, tags, and chips; `cardRadius` for cards, popovers, dialogs, floating bars, large tiles, and media containers. No page adds a third value. A nested surface derives its radius from its parent (outer radius minus the inset), so a dropdown panel at `cardRadius` holds options at `controlRadius`.
 
 Responsive widths:
 
@@ -127,6 +128,7 @@ At compact widths, controls stack before they clip. The filter rail scrolls vert
 ### Cards and dividers
 
 - Cards use `standardCard`, a 1px semantic border, and an opaque surface.
+- Cards, popovers, dialogs, and large media containers share the card radius; controls, rows, and navigation items share the control radius.
 - Dividers use `standardDivider` and separate sibling rows.
 - Selection is one shared style everywhere: a light accent wash with no visible outline. The outline stays transparent unless high contrast asks for one, and it always keeps its 1px slot so content does not jump between states.
 - Every selectable row, filter, navigation item, dropdown option, and segmented segment uses `selectedFill` and `selectionBorder`, so no control introduces a brighter highlight of its own.

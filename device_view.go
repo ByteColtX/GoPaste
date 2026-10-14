@@ -176,7 +176,7 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 		AlignSelf(ui.Stretch).
 		Margin(0, space(theme, sidebarTrailingInset), 0, 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
-		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
+		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
 		TextColor(primaryText(theme)).Label(a.t(msgDevicesSelect)).
 		Role(ui.RoleToggleButton).Selected(selected)
 	if selected {
@@ -554,7 +554,7 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 	ui.Modal(c, &a.addDeviceDialog, func() {
 		ui.Column(c).Width(440).Shrink(0).
 			Padding(space(theme, 6), space(theme, 6)).Gap(space(theme, 2)).
-			Radius(radius(theme, largeRadius)).Background(theme.Background).
+			Radius(radius(theme, cardRadius)).Background(theme.Background).
 			Border(1, borderColor(theme)).Role(ui.RoleDialog).Label(a.t(msgDevicesAdd)).Children(func() {
 			ui.Text(c, a.t(msgDevicesAdd)).FontSize(font(theme, fontSection)).FontWeight(600).
 				Role(ui.RoleHeading).SingleLine()
@@ -650,7 +650,7 @@ func deviceIconLarge(c *ui.Context, theme *ui.Theme, platform string, muted bool
 	if muted {
 		color = theme.TextMuted
 	}
-	ui.Box(c).Size(space(theme, 16.5), space(theme, 16.5)).Shrink(0).Radius(radius(theme, largeRadius)).
+	ui.Box(c).Size(space(theme, 16.5), space(theme, 16.5)).Shrink(0).Radius(radius(theme, cardRadius)).
 		Background(subtleFill(theme)).Border(1, borderColor(theme)).Center().Children(func() {
 		ui.Icon(c, iconForPlatform(platform)).Size(space(theme, 8), space(theme, 8)).TextColor(color)
 	})

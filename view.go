@@ -666,7 +666,7 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 			return
 		}
 		clearButton := ui.ButtonBase(c.Key("clear-history-search")).
-			Size(space(theme, 5), space(theme, 5)).Shrink(0).Radius(radius(theme, 2.5)).Center().
+			Size(space(theme, 5), space(theme, 5)).Shrink(0).Radius(radius(theme, controlRadius)).Center().
 			TextColor(secondaryText(theme)).
 			Label(a.t(msgHistoryClearSearch)).Tooltip(a.t(msgHistoryClearSearch)).Role(ui.RoleButton)
 		if clearButton.Hovered() {
@@ -716,7 +716,7 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 	}
 	ui.Box(c).Grow(1).Center().Children(func() {
 		ui.Column(c).FillWidth().MaxWidth(320).Shrink(0).Center().Gap(space(theme, 2)).Children(func() {
-			ui.Box(c).Size(space(theme, 12), space(theme, 12)).Shrink(0).Radius(radius(theme, largeRadius)).
+			ui.Box(c).Size(space(theme, 12), space(theme, 12)).Shrink(0).Radius(radius(theme, cardRadius)).
 				Background(subtleFill(theme)).Center().Children(func() {
 				ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5)).TextColor(secondaryText(theme))
 			})
@@ -949,7 +949,7 @@ func selectedHistoryItem(view history.View) (history.Item, bool) {
 func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 	ui.Box(c).Grow(1).Center().Children(func() {
 		ui.Column(c).Center().Gap(space(theme, 2)).Children(func() {
-			ui.Box(c).Size(space(theme, 12), space(theme, 12)).Shrink(0).Radius(radius(theme, largeRadius)).
+			ui.Box(c).Size(space(theme, 12), space(theme, 12)).Shrink(0).Radius(radius(theme, cardRadius)).
 				Background(subtleFill(theme)).Center().Children(func() {
 				ui.Icon(c, icons.history).Size(space(theme, 5), space(theme, 5)).TextColor(secondaryText(theme))
 			})
@@ -1025,7 +1025,7 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 						Background(panelFill(theme)).Border(1, borderColor(theme))
 					return
 				}
-				ui.Box(c).MaxWidth(pageDetailMaxWidth).Center().Padding(space(theme, 3)).Radius(radius(theme, largeRadius)).
+				ui.Box(c).MaxWidth(pageDetailMaxWidth).Center().Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
 					Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
 					if bitmap := a.historyBitmap(item); bitmap != nil {
 						ui.Image(c, bitmap).MaxWidth(pageDetailMaxWidth - space(theme, 6)).MaxHeight(520).
@@ -1104,7 +1104,7 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	ui.PopoverBase(c, chip, &open, func(panel ui.Element) {
 		panel.MinWidth(space(theme, 60)).MaxWidth(space(theme, 96)).
 			Padding(space(theme, 2)).
-			Radius(radius(theme, largeRadius)).
+			Radius(radius(theme, cardRadius)).
 			Background(theme.Background).Border(1, borderColor(theme)).
 			Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
 			Transition(ui.ElementTransition{
@@ -1483,7 +1483,7 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 			Children(func() {
 				ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).
 					Padding(space(theme, previewBarPadding)).
-					Radius(radius(theme, largeRadius)).
+					Radius(radius(theme, cardRadius)).
 					Background(theme.Background).Border(1, borderColor(theme)).
 					Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
 					Children(func() {
