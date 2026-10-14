@@ -77,7 +77,7 @@ The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tok
 - Inline: 8 DIP
 - Control group: 8–12 DIP
 - Section: 24 DIP
-- Page top: 6 DIP, so every page's first line is vertically centred on the title-bar band's midline and therefore shares one line with the window controls and the sidebar toggle. This follows Apple's unified toolbar, where the window controls, the inline title, and the toolbar items share one row and are centred together. Every pane keeps this same first-line inset, so the panes stay aligned with each other.
+- Page top: 12 DIP below the title-bar band. Every pane — the sidebar, the history list, the preview, and the device and settings details — reserves the band and then starts its first line at this one inset, so all columns share a single first-line baseline in both sidebar states.
 - Page side: 24 DIP on standard windows, 16–20 DIP in compact mode
 - Page bottom: 28 DIP
 - Control height: 36 DIP
@@ -110,7 +110,7 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - The device list's refresh and add-device actions sit in the list header row, beside the list they act on; the sidebar's bottom holds only the informational online count.
 - The sidebar collapses by animating its width to zero behind a fixed-width, clipped content column, so its content slides out of view instead of squeezing. The detail panes slide in step with the same spring, and their height never changes: only the leftmost pane's first row shifts right to clear the window controls.
 - The appearance toggle shows the mode it switches to: a moon in light mode, a sun in dark mode. A system appearance resolves to the mode it currently shows.
-- A collapse/expand button sits in the title bar, just right of the platform window controls. Collapsing hides the sidebar entirely; the button stays, so it can return.
+- A collapse/expand button sits in the title bar, right of the platform window controls and 12 DIP clear of them. HIG › Accessibility asks for enough padding between controls to reduce wrong-control clicks: about 12 DIP around a bezelled control, about 24 DIP around an unbezelled one. Collapsing hides the sidebar entirely; the button stays, so it can return.
 - Filter rows are left-aligned: the icon sits at the sidebar's content edge, the label follows it, and section labels share that same left edge.
 - Current destination and current filter both use `Selected(true)`, `selectedFill(theme)`, and primary text.
 - Navigation and filter controls have stable keys, labels, tooltips, and visible focus rings.
@@ -148,8 +148,9 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 - The sidebar groups history filters top to bottom: All and Favorites, then Type (text, rich text, image, file), Tag (link, code), Source (all sources, then each paired device), and Time (all time, today, yesterday, last 7 days, last 30 days). The Tag group holds only the detected subtypes, so it never repeats a Type: an image item is reached through Type, not through a second Image row.
 - Filter section labels sit 16 DIP below the previous group and 8 DIP above their own rows, so a label reads as part of the group it names. The values follow Apple's 8 pt baseline grid, where 8 DIP is the standard label-to-control gap and section separation is the larger step.
-- No pane reserves a vertical title-bar band. Every page's content starts at the window's top edge and its header rows double as the drag region: the history list and preview, and the devices and settings details.
-- Collapsing the sidebar must never cost vertical room. The window controls then sit over the leftmost pane, so the history header slides right, to just after the window controls and the sidebar toggle, on the sidebar's own spring. The move is horizontal only: the header's first line, its total height, and the rows below it keep exactly the same vertical geometry in both states, so nothing jumps when the sidebar opens or closes. The first line already shares the controls' midline, so the collapsed header reads as the window's inline title. The rows keep the full width, since they start below the controls. Centered, max-width detail panes are already clear of the controls at the 1000 DIP minimum, so they need nothing.
+- Every pane reserves the title-bar band, so its content keeps a clear margin from the window's top edge and never sits under the window controls. The band holds the window controls and the sidebar toggle, centred on one midline, and each pane's header row doubles as the drag region.
+- Because the content starts below the band, collapsing the sidebar needs no horizontal or vertical dodge: the columns simply change width, and every first line, header height, and row position stays put.
+- Collapsing the sidebar must never move content vertically: the band and the first-line inset are the same in both states, so nothing jumps and no pane loses room. The band and the inset follow Apple's unified toolbar, where the controls and the inline title share the toolbar row, and the HIG-derived content margin of 12–14 DIP below the toolbar before the first control.
 - Type filters by payload format, so Text includes links and code; Tag narrows to a detected subtype. Choosing the selected facet again clears it, and All clears every facet.
 - A list row is two lines: a rounded, kind-tinted icon tile, then the content title with its favorite star, then a metadata line of type and time. The tile icon and color follow the item's own kind, so text, link, code, image, and file rows are told apart by icon before the label is read.
 - Show type and favorite state in the list metadata row; show type, size, source device, sync state, and time in the preview metadata row, with the source device and its sync chip sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.

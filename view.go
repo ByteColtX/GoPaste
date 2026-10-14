@@ -174,15 +174,12 @@ func titleBarButtonHeight(c *ui.Context, theme *ui.Theme) float32 {
 	return controlHeightSize(c, theme, 7)
 }
 
-// trafficLightInset 是侧栏收起时，最左侧面板首行需要让出的水平留白：窗口控制
-// 按钮（macOS 红绿灯）此时落在内容上方。除了按钮本身，还要让开标题栏里的
-// 展开/收起按钮——不留出它的宽度，标题会紧贴按钮。侧栏展开时按钮在侧栏上方，
-// 这里为 0；其他平台的控制按钮在右侧，TitleBar().Left 为 0，自然也不需要留白。
-func (a *application) trafficLightInset(c *ui.Context, theme *ui.Theme) float32 {
-	if a.filterRailOpen {
-		return 0
-	}
-	return c.TitleBar().Left + titleBarButtonHeight(c, theme) + space(theme, 3)
+// titleBarToggleLeft 是展开/收起按钮距窗口左边缘的位置：紧跟在窗口控制按钮之后，
+// 中间留 12 DIP。这个距离取自 HIG › Accessibility › Mobility：「控件之间的间距与
+// 尺寸同等重要……带边框的控件四周留约 12 点内边距，可以降低点错控件的概率」。
+// 原来是 4 DIP，与红绿灯（尤其缩放按钮）挤在一起，容易误触。
+func titleBarToggleLeft(c *ui.Context, theme *ui.Theme) float32 {
+	return c.TitleBar().Left + space(theme, 3)
 }
 
 func (a *application) globalShortcuts(c *ui.Context) {
@@ -293,7 +290,8 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 			paneTop(c)
 			// 搜索属于历史筛选，只在历史分区出现。
 			if a.page == pageHistory {
-				ui.Box(c).FillWidth().Shrink(0).Padding(0, space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
+				ui.Box(c).FillWidth().Shrink(0).
+					Padding(space(theme, columnTopInset), space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
 					a.searchField(c, theme)
 				})
 			}
@@ -631,13 +629,12 @@ func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme)
 // 它跟随平台报出的控制按钮宽度，因此 macOS 的红绿灯、Windows/Linux 的窗口
 // 按钮都不会遮住它。
 func (a *application) titleBarToggle(c *ui.Context, theme *ui.Theme) {
-	bar := c.TitleBar()
 	buttonHeight := titleBarButtonHeight(c, theme)
 	top := (chromeHeight(c) - buttonHeight) / 2
 	if top < 0 {
 		top = 0
 	}
-	ui.Row(c).Absolute().Top(top).Left(bar.Left + space(theme, 1)).Children(func() {
+	ui.Row(c).Absolute().Top(top).Left(titleBarToggleLeft(c, theme)).Children(func() {
 		label := a.t(msgFilterRailCollapse)
 		icon := icons.railCollapse
 		if !a.filterRailOpen {
@@ -714,7 +711,8 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 		Padding(0, 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
-		// 列表始终顶到窗口顶边，标题行本身承担拖动窗口的职责。
+		// 顶部保留标题栏带，列表内容从带子下方统一的第一行开始。
+		paneTop(c)
 		a.historyHeader(c, theme, view)
 
 		if len(view.Items) == 0 {
@@ -728,16 +726,10 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 
 func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history.View) {
 	countLabel := a.l10n().recordCount(len(view.Items), view.Total, a.query != "" || a.historyFiltered())
-	header := ui.Row(c).Key("history-header").Shrink(0).FillWidth().AlignItems(ui.Start).DragWindow()
-
-	// 侧栏展开时标题在左，与筛选项同一列；收起时窗口控制按钮落到列表上方，
-	// 标题横向让到它们右侧，读作工具栏标题。
-	//
-	// 只做横向位移，纵向一动不动：标题的首行高度、标题块总高、下面列表行的
-	// 位置在展开与收起两种状态下完全一致，切换时不会有任何纵向跳动。位移用
-	// 与侧栏同一个弹簧插值，所以是滑过去而不是跳过去。
-	left := header.AnimateTo("header-left", a.trafficLightInset(c, theme), motionLayoutSpringAnimation)
-	header.Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), left).
+	// 标题在标题栏带下方起一行，与侧栏、预览、详情列共用同一条首行基线，
+	// 因此侧栏收起时不需要任何横向或纵向位移。
+	ui.Row(c).Key("history-header").Shrink(0).FillWidth().AlignItems(ui.Start).DragWindow().
+		Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), 0).
 		Children(func() {
 			ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
 				ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
@@ -1037,7 +1029,8 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view histor
 	pane := ui.Column(c).Grow(1).FillHeight().
 		MinWidth(minPreviewPaneWidth).Background(theme.Background)
 	pane.Children(func() {
-		// 与列表一致：预览区始终顶到窗口顶边，元信息行同时作为拖动窗口的区域。
+		// 与列表一致：预览区同样让出标题栏带，元信息行落在同一条首行基线上。
+		paneTop(c)
 		item, ok := selectedHistoryItem(view)
 		if !ok {
 			a.emptyPreview(c, theme)
