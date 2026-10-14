@@ -277,14 +277,14 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 	//
 	// 这一列不留右内边距，滚动条才能贴到右侧分割线；搜索框、筛选项和底栏
 	// 各自留出右留白。
-	rail := ui.Column(c).Key("filter-rail").
+	rail := ui.Column(c.Key("filter-rail")).
 		Width(a.filterRailSize(c, theme)).FillHeight().Shrink(0).ClipX().
 		Background(sidebarFill(theme)).Border(1, dividerColor(theme)).
 		Transition(motionLayout)
 	rail.Children(func() {
 		// 内容保持固定宽度，由外层裁掉：收起读起来是「滑走」而不是「挤扁」。
 		// 宽度取外层内容盒的宽度，滚动条因此仍贴在外层右缘。
-		ui.Column(c).Key("filter-rail-content").
+		ui.Column(c.Key("filter-rail-content")).
 			Width(filterRailContentWidth(theme)).FillHeight().Shrink(0).
 			// 左右都用同一个留白，选中项的高亮框才在侧栏里居中；右留白同时要让开
 			// 滚动条（滚动条占右侧 3–9 DIP），所以不能为了居中把它调小。滚动容器
@@ -336,7 +336,7 @@ func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
 		a.filterRailNavButton(c, theme, "sidebar-devices", pageDevices, icons.devices, a.t(msgNavDevices))
 		// 第 5 个图标位暂时留空：占住一个按钮位，落地时布局不会跳动。
 		size := controlHeightSize(c, theme, compactHeight)
-		ui.Box(c).Key("sidebar-reserved-slot").Size(size, size).Shrink(0)
+		ui.Box(c.Key("sidebar-reserved-slot")).Size(size, size).Shrink(0)
 		a.filterRailAppearanceButton(c, theme)
 	})
 }
@@ -344,7 +344,7 @@ func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
 // sidebarBody 是侧栏的滚动区，按当前分区渲染历史筛选、设备列表或设置分栏。
 // 每个分区用独立的 key，滚动位置不会跨分区串台。
 func (a *application) sidebarBody(c *ui.Context, theme *ui.Theme) {
-	ui.Scroll(c).Key(a.page).Grow(1).MinHeight(0).FillWidth().
+	ui.Scroll(c.Key(a.page)).Grow(1).MinHeight(0).FillWidth().
 		ScrollbarInsets(0, 0, 0, 0).Children(func() {
 		ui.Column(c).FillWidth().Gap(space(theme, 0.5)).
 			Padding(0, spaceDIP(theme, paneSideInset), 0, 0).Children(func() {
@@ -680,7 +680,7 @@ func (a *application) titleBarToggle(c *ui.Context, theme *ui.Theme) {
 // pageContent 渲染当前页面。容器按页面取 key，切页时旧页面淡出、新页面淡入，
 // 内容不会硬切。
 func (a *application) pageContent(c *ui.Context, theme *ui.Theme) {
-	ui.Box(c).Key(a.page).Fill().Transition(motionPage).Children(func() {
+	ui.Box(c.Key(a.page)).Fill().Transition(motionPage).Children(func() {
 		switch a.page {
 		case pageDevices:
 			a.devicesPage(c, theme)
@@ -746,7 +746,7 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 	countLabel := a.l10n().recordCount(len(view.Items), view.Total, a.query != "" || a.historyFiltered())
 	// 标题在标题栏带下方起一行，与侧栏、预览、详情列共用同一条首行基线，
 	// 因此侧栏收起时不需要任何横向或纵向位移。
-	ui.Row(c).Key("history-header").Shrink(0).FillWidth().AlignItems(ui.Start).DragWindow().
+	ui.Row(c.Key("history-header")).Shrink(0).FillWidth().AlignItems(ui.Start).DragWindow().
 		Padding(space(theme, columnTopInset), spaceDIP(theme, paneSideInset), space(theme, 1.5), 0).
 		Children(func() {
 			ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
