@@ -535,8 +535,8 @@ var englishCatalog = catalog{
 	msgFilterFavorites: "Favorites",
 
 	msgFilterSectionType:      "Type",
-	msgFilterSectionTag:       "标签",
-	msgFilterSectionSource:    "来源",
+	msgFilterSectionTag:       "Tag",
+	msgFilterSectionSource:    "Source",
 	msgFilterSectionTime:      "Time",
 	msgFilterSourceAll:        "All sources",
 	msgFilterTimeAll:          "All time",
