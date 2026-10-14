@@ -10,7 +10,9 @@ import (
 const (
 	defaultWindowWidth  = 1120
 	defaultWindowHeight = 720
-	minimumWindowWidth  = 900
+	// 历史页现在由「筛选栏 + 历史列表 + 预览」三栏组成，最小宽度必须容下
+	// 208 的筛选栏、300 的列表和 460 的预览。
+	minimumWindowWidth  = 1000
 	minimumWindowHeight = 560
 )
 

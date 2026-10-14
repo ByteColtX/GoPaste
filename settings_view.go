@@ -116,7 +116,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 				Background(theme.Background).Border(1, borderColor(theme)).
 				Label(a.t(msgSettingsDeviceName)).Placeholder(a.t(msgSettingsDeviceNamePlaceholder))
-			if compactDetailLayout(c, theme) {
+			if a.compactDetailLayout(c, theme) {
 				input.FillWidth()
 			} else {
 				input.Width(220)
@@ -133,7 +133,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsLanguage), a.t(msgSettingsLanguageDesc), func() {
 			languageControl := selectField(c, theme, "settings-language", &a.language, a.t(msgSettingsLanguage), languageChoices)
-			if compactDetailLayout(c, theme) {
+			if a.compactDetailLayout(c, theme) {
 				languageControl.FillWidth()
 			} else {
 				languageControl.Width(180)
@@ -157,7 +157,7 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 				a.t(msgSettingsThemeLight),
 				a.t(msgSettingsThemeDark),
 			).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label(a.t(msgSettingsAppearance))
-			if compactDetailLayout(c, theme) {
+			if a.compactDetailLayout(c, theme) {
 				control.FillWidth()
 			} else {
 				control.Width(260)
@@ -259,7 +259,7 @@ func settingsRule(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) settingsRow(c *ui.Context, theme *ui.Theme, title, description string, control func()) {
-	if compactDetailLayout(c, theme) {
+	if a.compactDetailLayout(c, theme) {
 		ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2)).
 			Padding(space(theme, 3), space(theme, 4)).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(space(theme, 0.75)).Children(func() {

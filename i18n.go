@@ -41,19 +41,26 @@ type messageKey string
 
 const (
 	// Navigation.
-	msgNavHistory  messageKey = "nav.history"
 	msgNavDevices  messageKey = "nav.devices"
 	msgNavSettings messageKey = "nav.settings"
 
 	// History filters.
 	msgFilterAll       messageKey = "filter.all"
-	msgFilterText      messageKey = "filter.text"
-	msgFilterLinks     messageKey = "filter.links"
-	msgFilterCode      messageKey = "filter.code"
-	msgFilterImages    messageKey = "filter.images"
-	msgFilterFiles     messageKey = "filter.files"
 	msgFilterFavorites messageKey = "filter.favorites"
-	msgFilterCurrent   messageKey = "filter.current"
+
+	// Filter rail sections and their facet choices.
+	msgFilterSectionType   messageKey = "filter.section.type"
+	msgFilterSectionTag    messageKey = "filter.section.tag"
+	msgFilterSectionSource messageKey = "filter.section.source"
+	msgFilterSectionTime   messageKey = "filter.section.time"
+	msgFilterSourceAll     messageKey = "filter.source.all"
+	msgFilterTimeAll       messageKey = "filter.time.all"
+	msgFilterTimeToday     messageKey = "filter.time.today"
+	msgFilterTimeYesterday messageKey = "filter.time.yesterday"
+	msgFilterTimeLast7     messageKey = "filter.time.last7"
+	msgFilterTimeLast30    messageKey = "filter.time.last30"
+	msgFilterRailCollapse  messageKey = "filter.rail.collapse"
+	msgFilterRailExpand    messageKey = "filter.rail.expand"
 
 	// History list, search, empty states, and preview.
 	msgHistoryRecent             messageKey = "history.recent"
@@ -283,18 +290,24 @@ type catalog map[messageKey]string
 func (c catalog) text(key messageKey) string { return c[key] }
 
 var simplifiedChineseCatalog = catalog{
-	msgNavHistory:  "历史记录",
 	msgNavDevices:  "设备",
 	msgNavSettings: "设置",
 
-	msgFilterAll:       "全部",
-	msgFilterText:      "文本",
-	msgFilterLinks:     "链接",
-	msgFilterCode:      "代码",
-	msgFilterImages:    "图片",
-	msgFilterFiles:     "文件",
+	msgFilterAll:       "所有",
 	msgFilterFavorites: "收藏",
-	msgFilterCurrent:   "当前",
+
+	msgFilterSectionType:   "类型",
+	msgFilterSectionTag:    "标签",
+	msgFilterSectionSource: "来源",
+	msgFilterSectionTime:   "时间",
+	msgFilterSourceAll:     "所有来源",
+	msgFilterTimeAll:       "所有时间",
+	msgFilterTimeToday:     "今天",
+	msgFilterTimeYesterday: "昨天",
+	msgFilterTimeLast7:     "近 7 天",
+	msgFilterTimeLast30:    "近 30 天",
+	msgFilterRailCollapse:  "收起筛选栏",
+	msgFilterRailExpand:    "展开筛选栏",
 
 	msgHistoryRecent:             "最近复制",
 	msgHistoryCount:              "%d 条记录",
@@ -508,18 +521,24 @@ var simplifiedChineseCatalog = catalog{
 }
 
 var englishCatalog = catalog{
-	msgNavHistory:  "History",
 	msgNavDevices:  "Devices",
 	msgNavSettings: "Settings",
 
 	msgFilterAll:       "All",
-	msgFilterText:      "Text",
-	msgFilterLinks:     "Links",
-	msgFilterCode:      "Code",
-	msgFilterImages:    "Images",
-	msgFilterFiles:     "Files",
 	msgFilterFavorites: "Favorites",
-	msgFilterCurrent:   "Current",
+
+	msgFilterSectionType:   "Type",
+	msgFilterSectionTag:    "Tag",
+	msgFilterSectionSource: "Source",
+	msgFilterSectionTime:   "Time",
+	msgFilterSourceAll:     "All sources",
+	msgFilterTimeAll:       "All time",
+	msgFilterTimeToday:     "Today",
+	msgFilterTimeYesterday: "Yesterday",
+	msgFilterTimeLast7:     "Last 7 days",
+	msgFilterTimeLast30:    "Last 30 days",
+	msgFilterRailCollapse:  "Collapse sidebar",
+	msgFilterRailExpand:    "Expand sidebar",
 
 	msgHistoryRecent:             "Recent copies",
 	msgHistoryCount:              "%d records",
@@ -836,6 +855,8 @@ func (l localizer) kindLabel(kind contentKind) string {
 		return l.text(msgKindImage)
 	case kindFile:
 		return l.text(msgKindFile)
+	case kindRichText:
+		return l.text(msgKindRichText)
 	default:
 		return l.text(msgKindText)
 	}

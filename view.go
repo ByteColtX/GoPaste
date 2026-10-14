@@ -10,40 +10,78 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-type historyFilterOption struct {
-	kind historyFilter
-	key  string
+// filterFacet 是一个筛选项：稳定的 key、图标、当前语言的标签、是否选中，
+// 以及点击后如何更新筛选状态。筛选栏由若干这样的项按分区分组渲染。
+type filterFacet struct {
+	key      string
+	icon     *ui.SVG
+	label    string
+	selected bool
+	onSelect func()
 }
 
-var historyFilterOptions = [...]historyFilterOption{
-	{kind: filterAll, key: "all"},
-	{kind: filterText, key: "text"},
-	{kind: filterLinks, key: "links"},
-	{kind: filterCode, key: "code"},
-	{kind: filterImages, key: "images"},
-	{kind: filterFiles, key: "files"},
-	{kind: filterFavorites, key: "favorites"},
-}
-
-// filterLabel 返回筛选条件在当前界面语言下的名称。
-func (a *application) filterLabel(filter historyFilter) string {
-	switch filter {
-	case filterText:
-		return a.t(msgFilterText)
-	case filterLinks:
-		return a.t(msgFilterLinks)
-	case filterCode:
-		return a.t(msgFilterCode)
-	case filterImages:
-		return a.t(msgFilterImages)
-	case filterFiles:
-		return a.t(msgFilterFiles)
-	case filterFavorites:
+// activeFilterLabel 返回当前生效的筛选条件名称，供空状态说明使用。它按
+// “类型 → 标签 → 来源 → 时间 → 收藏”的顺序取第一个生效项。
+func (a *application) activeFilterLabel() string {
+	switch {
+	case a.filterKind != kindFilterAny:
+		return a.kindFilterLabel(a.filterKind)
+	case a.filterTag != tagFilterAny:
+		return a.tagFilterLabel(a.filterTag)
+	case a.filterSource != "":
+		if device, ok := a.pairedDeviceByID(a.filterSource); ok {
+			return device.name
+		}
+		return a.t(msgHistorySourceLanDevice)
+	case a.filterPeriod != periodFilterAny:
+		return a.periodFilterLabel(a.filterPeriod)
+	case a.filterFavorite:
 		return a.t(msgFilterFavorites)
-	case filterAll:
-		return a.t(msgFilterAll)
 	default:
-		return a.t(msgFilterCurrent)
+		return a.t(msgFilterAll)
+	}
+}
+
+func (a *application) kindFilterLabel(filter historyKindFilter) string {
+	switch filter {
+	case kindFilterText:
+		return a.t(msgKindText)
+	case kindFilterRichText:
+		return a.t(msgKindRichText)
+	case kindFilterImage:
+		return a.t(msgKindImage)
+	case kindFilterFile:
+		return a.t(msgKindFile)
+	default:
+		return a.t(msgFilterAll)
+	}
+}
+
+func (a *application) tagFilterLabel(filter historyTagFilter) string {
+	switch filter {
+	case tagFilterLink:
+		return a.t(msgKindLink)
+	case tagFilterCode:
+		return a.t(msgKindCode)
+	case tagFilterImage:
+		return a.t(msgKindImage)
+	default:
+		return a.t(msgFilterAll)
+	}
+}
+
+func (a *application) periodFilterLabel(filter historyPeriodFilter) string {
+	switch filter {
+	case periodFilterToday:
+		return a.t(msgFilterTimeToday)
+	case periodFilterYesterday:
+		return a.t(msgFilterTimeYesterday)
+	case periodFilterLast7Days:
+		return a.t(msgFilterTimeLast7)
+	case periodFilterLast30Days:
+		return a.t(msgFilterTimeLast30)
+	default:
+		return a.t(msgFilterTimeAll)
 	}
 }
 
@@ -52,11 +90,17 @@ func (a *application) view(c *ui.Context) {
 	a.globalShortcuts(c)
 	a.previewShortcuts(c)
 
-	ui.Row(c).Fill().Background(theme.Background).Children(func() {
-		a.navigationRail(c, theme)
-		ui.Box(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
-			a.pageContent(c, theme)
+	ui.Column(c).Fill().Background(theme.Background).Children(func() {
+		ui.Row(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
+			// 筛选栏是应用的常驻主轴：它既收窄历史列表，也是从设备/设置页
+			// 回到历史页的入口（点任意筛选项都会切回历史页）。它收起后
+			// 不占宽度，由标题栏的展开/收起按钮重新打开。
+			a.filterRail(c, theme)
+			ui.Box(c).Grow(1).MinWidth(0).FillHeight().Children(func() {
+				a.pageContent(c, theme)
+			})
 		})
+		a.titleBarToggle(c, theme)
 	})
 	a.dangerousConfirmation(c, theme)
 	a.flushPendingToast(c)
@@ -105,14 +149,28 @@ func (a *application) flushPendingToast(c *ui.Context) {
 // chromeHeight 返回窗口标题栏（macOS 红绿灯、Windows/Linux 窗口按钮）占用的高度。
 // 各内容列用它作为顶部留白，让面板表面一直延伸到窗口顶边。高度完全交给
 // 平台：Windows/Linux 取系统原生标题栏高度，macOS 由红绿灯位置决定。
+//
+// 标题栏左侧常驻展开/收起按钮，因此这里给它留出最低高度：全屏时
+// 平台报 0，面板的 paneTop 也不会缩到按钮下面。
 func chromeHeight(c *ui.Context) float32 {
-	return c.TitleBar().Height
+	height := c.TitleBar().Height
+	if theme := c.Theme(); theme != nil {
+		if needed := titleBarButtonHeight(c, theme) + space(theme, 1); needed > height {
+			height = needed
+		}
+	}
+	return height
 }
 
 // paneTop 是每个内容面板顶部的透明拖拽条：高度与标题栏一致，
 // 让面板背景延伸到窗口顶边，同时提供整条的窗口拖动区。
 func paneTop(c *ui.Context) {
 	ui.Row(c).Height(chromeHeight(c)).FillWidth().Shrink(0).DragWindow()
+}
+
+// titleBarButtonHeight 是标题栏图标按钮的边长：用紧凑尺寸，刚好落在原生标题栏内。
+func titleBarButtonHeight(c *ui.Context, theme *ui.Theme) float32 {
+	return controlHeightSize(c, theme, 7)
 }
 
 func (a *application) globalShortcuts(c *ui.Context) {
@@ -124,9 +182,13 @@ func (a *application) globalShortcuts(c *ui.Context) {
 }
 
 // focusHistorySearch 在窗口级别响应搜索快捷键，使焦点位于预览区或其他区域时也能聚焦搜索框。
+// 搜索框在筛选栏顶部：栏已收起时先展开，从其他页面触发时先回到历史页。
 func (a *application) focusHistorySearch(c *ui.Context) {
-	if a.page != pageHistory {
-		return
+	changed := !a.filterRailOpen || a.page != pageHistory
+	a.filterRailOpen = true
+	a.setPage(pageHistory)
+	if changed {
+		c.Invalidate()
 	}
 	a.historySearch.Focus(c)
 }
@@ -193,37 +255,216 @@ func (a *application) dangerousActionDetails(action dangerousAction, targetID st
 	}
 }
 
-// navigationRail 是窗口左侧的固定导航轨道：整列延伸到窗口顶边，顶部为标题栏留白，
-// 因此它同时承担拖动窗口的职责。窄窗口只显示图标，宽窗口显示图标与文字。
-func (a *application) navigationRail(c *ui.Context, theme *ui.Theme) {
-	railWidth := navigationRailSize(c, theme)
-	// 是否展开由窗口宽度决定，不能再用轨道宽度判断：紧凑轨道会为避开
-	// 窗口控制按钮而加宽，那样会被误判成展开态而显示文字标签。
-	expanded := contentWidth(c) >= responsiveExpandedWidth
-	rail := ui.Column(c).Width(railWidth).FillHeight().Shrink(0).
-		Padding(chromeHeight(c)+space(theme, 1.5), space(theme, 2), space(theme, 2.5), space(theme, 2)).
-		Gap(space(theme, 1)).Background(sidebarFill(theme)).
-		Border(1, dividerColor(theme)).
-		DragWindow()
-	rail.Children(func() {
-		a.navigationButton(c, theme, "nav-history", pageHistory, icons.history, a.t(msgNavHistory), expanded)
-		a.navigationButton(c, theme, "nav-devices", pageDevices, icons.devices, a.t(msgNavDevices), expanded)
-		a.navigationButton(c, theme, "nav-settings", pageSettings, icons.settings, a.t(msgNavSettings), expanded)
+// filterRail 是窗口左侧的筛选栏：搜索框在最上方，中间是按“快捷 / 类型 / 标签 /
+// 来源 / 时间”分组收窄历史列表的筛选项，最下方是设置（左）与设备（右）。
+// 它整列延伸到窗口顶边，顶部保留标题栏拖拽条，因此也承担拖动窗口的职责。
+// 收起后整列不占宽度，由标题栏的展开/收起按钮重新打开。
+func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
+	if !a.filterRailOpen {
+		return
+	}
+	ui.Column(c).Width(a.filterRailSize(c, theme)).FillHeight().Shrink(0).
+		Padding(0, space(theme, 2), space(theme, 2), space(theme, 2)).
+		Background(sidebarFill(theme)).Border(1, dividerColor(theme)).Children(func() {
+		paneTop(c)
+		// 搜索框是筛选栏的第一项，固定在列表上方。
+		ui.Box(c).FillWidth().Shrink(0).Padding(0, 0, space(theme, 1.5), 0).Children(func() {
+			a.searchField(c, theme)
+		})
+
+		ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().
+			ScrollbarInsets(0, space(theme, 0.5), 0, 0).Children(func() {
+			ui.Column(c).FillWidth().Gap(space(theme, 0.5)).Children(func() {
+				// 快捷：所有（清空所有筛选）与收藏。
+				a.filterItemButton(c, theme, filterFacet{
+					key:      "filter-all",
+					icon:     icons.history,
+					label:    a.t(msgFilterAll),
+					selected: !a.historyFiltered(),
+					onSelect: a.resetHistoryFilters,
+				})
+				a.filterItemButton(c, theme, filterFacet{
+					key:      "filter-favorites",
+					icon:     icons.star,
+					label:    a.t(msgFilterFavorites),
+					selected: a.filterFavorite,
+					onSelect: func() { a.filterFavorite = !a.filterFavorite },
+				})
+
+				a.filterSection(c, theme, a.t(msgFilterSectionType), func() {
+					a.filterItemButton(c, theme, a.kindFacet("filter-kind-text", icons.text, msgKindText, kindFilterText))
+					a.filterItemButton(c, theme, a.kindFacet("filter-kind-rich-text", icons.richText, msgKindRichText, kindFilterRichText))
+					a.filterItemButton(c, theme, a.kindFacet("filter-kind-image", icons.image, msgKindImage, kindFilterImage))
+					a.filterItemButton(c, theme, a.kindFacet("filter-kind-file", icons.file, msgKindFile, kindFilterFile))
+				})
+
+				a.filterSection(c, theme, a.t(msgFilterSectionTag), func() {
+					a.filterItemButton(c, theme, a.tagFacet("filter-tag-link", icons.link, msgKindLink, tagFilterLink))
+					a.filterItemButton(c, theme, a.tagFacet("filter-tag-code", icons.code, msgKindCode, tagFilterCode))
+					a.filterItemButton(c, theme, a.tagFacet("filter-tag-image", icons.image, msgKindImage, tagFilterImage))
+				})
+
+				a.filterSection(c, theme, a.t(msgFilterSectionSource), func() {
+					a.filterItemButton(c, theme, filterFacet{
+						key:      "filter-source-all",
+						icon:     icons.lan,
+						label:    a.t(msgFilterSourceAll),
+						selected: a.filterSource == "",
+						onSelect: func() { a.filterSource = "" },
+					})
+					for index := range a.pairedDevices {
+						a.filterSourceItem(c, theme, index)
+					}
+				})
+
+				a.filterSection(c, theme, a.t(msgFilterSectionTime), func() {
+					a.filterItemButton(c, theme, a.periodFacet("filter-time-all", msgFilterTimeAll, periodFilterAny))
+					a.filterItemButton(c, theme, a.periodFacet("filter-time-today", msgFilterTimeToday, periodFilterToday))
+					a.filterItemButton(c, theme, a.periodFacet("filter-time-yesterday", msgFilterTimeYesterday, periodFilterYesterday))
+					a.filterItemButton(c, theme, a.periodFacet("filter-time-last7", msgFilterTimeLast7, periodFilterLast7Days))
+					a.filterItemButton(c, theme, a.periodFacet("filter-time-last30", msgFilterTimeLast30, periodFilterLast30Days))
+				})
+			})
+		})
+
+		// 导航固定在筛选栏最下方：设置靠左、设备靠右。
+		ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), 0, 0, 0).Children(func() {
+			standardDivider(c, theme)
+		})
+		ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), 0, 0, 0).
+			Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
+			a.filterRailNavButton(c, theme, "filter-rail-settings", pageSettings, icons.settings, a.t(msgNavSettings))
+			ui.Spacer(c)
+			a.filterRailNavButton(c, theme, "filter-rail-devices", pageDevices, icons.devices, a.t(msgNavDevices))
+		})
 	})
 }
 
-func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, key string, target page, icon *ui.SVG, label string, expanded bool) {
-	selected := a.page == target
-	button := ui.ButtonBase(c.Key(key)).
-		Height(controlHeightSize(c, theme, 10)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, 2.5)).
-		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).
+// kindFacet 构造一个类型筛选项：再次点击已选中的项会取消该筛选。
+func (a *application) kindFacet(key string, icon *ui.SVG, label messageKey, filter historyKindFilter) filterFacet {
+	return filterFacet{
+		key:      key,
+		icon:     icon,
+		label:    a.t(label),
+		selected: a.filterKind == filter,
+		onSelect: func() {
+			if a.filterKind == filter {
+				a.filterKind = kindFilterAny
+				return
+			}
+			a.filterKind = filter
+		},
+	}
+}
+
+// tagFacet 构造一个标签筛选项：再次点击已选中的项会取消该筛选。
+func (a *application) tagFacet(key string, icon *ui.SVG, label messageKey, filter historyTagFilter) filterFacet {
+	return filterFacet{
+		key:      key,
+		icon:     icon,
+		label:    a.t(label),
+		selected: a.filterTag == filter,
+		onSelect: func() {
+			if a.filterTag == filter {
+				a.filterTag = tagFilterAny
+				return
+			}
+			a.filterTag = filter
+		},
+	}
+}
+
+// periodFacet 构造一个时间筛选项。
+func (a *application) periodFacet(key string, label messageKey, filter historyPeriodFilter) filterFacet {
+	return filterFacet{
+		key:      key,
+		icon:     icons.clock,
+		label:    a.t(label),
+		selected: a.filterPeriod == filter,
+		onSelect: func() { a.filterPeriod = filter },
+	}
+}
+
+// filterSourceItem 是一台已配对设备的来源筛选项。它按设备 ID 过滤，
+// 因此设备改名后筛选仍然有效。
+func (a *application) filterSourceItem(c *ui.Context, theme *ui.Theme, index int) {
+	device := a.pairedDevices[index]
+	a.filterItemButton(c, theme, filterFacet{
+		key:      "filter-source-" + device.id,
+		icon:     iconForPlatform(device.platform),
+		label:    device.name,
+		selected: a.filterSource == device.id,
+		onSelect: func() {
+			if a.filterSource == device.id {
+				a.filterSource = ""
+				return
+			}
+			a.filterSource = device.id
+		},
+	})
+}
+
+// filterSection 渲染筛选栏的一个分区：小号分区标题加分区内的筛选项。
+// 标题的左内边距与筛选项一致，两者左边缘对齐。
+func (a *application) filterSection(c *ui.Context, theme *ui.Theme, title string, body func()) {
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 0.5)).
+		Padding(space(theme, 2), 0, space(theme, 0.5), 0).Children(func() {
+		ui.Text(c, title).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(secondaryText(theme)).Padding(0, space(theme, 2)).SingleLine()
+		body()
+	})
+}
+
+// filterItemButton 渲染筛选栏中的一行。图标与文字靠左对齐，选中态用强调色淡
+// 填充与主文字色，与列表选中行保持一致；图标在选中时也转为强调色。
+func (a *application) filterItemButton(c *ui.Context, theme *ui.Theme, facet filterFacet) {
+	item := ui.ButtonBase(c.Key(facet.key)).
+		Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
+		Padding(space(theme, 1.5), space(theme, 2)).Gap(space(theme, 2)).
+		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Justify(ui.Start).
 		Border(1, ui.Transparent).
-		TextColor(secondaryText(theme)).
-		Label(label).Tooltip(label).Role(ui.RoleToggleButton).Selected(selected)
+		TextColor(secondaryText(theme)).Label(facet.label).Tooltip(facet.label).
+		Role(ui.RoleToggleButton).Selected(facet.selected)
+	switch {
+	case facet.selected:
+		item.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
+	case item.Hovered():
+		item.Background(hoverFill(theme))
+	default:
+		item.Background(ui.Transparent)
+	}
+	iconColor := secondaryText(theme)
+	if facet.selected {
+		iconColor = accentColor(theme)
+	}
+	item.Children(func() {
+		if facet.icon != nil {
+			ui.Icon(c, facet.icon).Size(space(theme, 4.25), space(theme, 4.25)).Shrink(0).TextColor(iconColor)
+		}
+		ui.Text(c, facet.label).FontSize(font(theme, fontControl)).SingleLine()
+	})
+	if item.Clicked() {
+		facet.onSelect()
+		// 筛选项属于历史页：从设备或设置页点任意筛选都会切回历史页，
+		// 因此不需要单独的历史导航入口。
+		a.setPage(pageHistory)
+	}
+}
+
+// filterRailNavButton 是筛选栏底部的导航按钮：只有图标，文字放在提示与辅助
+// 技术标签里。设置在左、设备在右。历史记录是默认页面，由筛选栏本身直接呈现，
+// 因此不再需要单独的历史入口。
+func (a *application) filterRailNavButton(c *ui.Context, theme *ui.Theme, key string, target page, icon *ui.SVG, label string) {
+	selected := a.page == target
+	size := controlHeightSize(c, theme, compactHeight)
+	button := ui.ButtonBase(c.Key(key)).
+		Size(size, size).Shrink(0).Center().
+		Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
+		TextColor(secondaryText(theme)).Label(label).Tooltip(label).
+		Role(ui.RoleToggleButton).Selected(selected)
 	switch {
 	case selected:
-		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
+		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
 	case button.Hovered():
 		button.Background(hoverFill(theme))
 	default:
@@ -234,18 +475,46 @@ func (a *application) navigationButton(c *ui.Context, theme *ui.Theme, key strin
 		iconColor = accentColor(theme)
 	}
 	button.Children(func() {
-		if expanded {
-			ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
-				ui.Icon(c, icon).Size(space(theme, 4.75), space(theme, 4.75)).Shrink(0).TextColor(iconColor)
-				ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
-			})
-			return
-		}
-		ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5)).TextColor(iconColor)
+		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(iconColor)
 	})
 	if button.Clicked() {
-		a.page = target
+		a.setPage(target)
 	}
+}
+
+// titleBarToggle 把筛选栏的展开/收起按钮放在标题栏左侧、窗口控制按钮的右边。
+// 它跟随平台报出的控制按钮宽度，因此 macOS 的红绿灯、Windows/Linux 的窗口
+// 按钮都不会遮住它。
+func (a *application) titleBarToggle(c *ui.Context, theme *ui.Theme) {
+	bar := c.TitleBar()
+	buttonHeight := titleBarButtonHeight(c, theme)
+	top := (chromeHeight(c) - buttonHeight) / 2
+	if top < 0 {
+		top = 0
+	}
+	ui.Row(c).Absolute().Top(top).Left(bar.Left + space(theme, 1)).Children(func() {
+		label := a.t(msgFilterRailCollapse)
+		icon := icons.railCollapse
+		if !a.filterRailOpen {
+			label = a.t(msgFilterRailExpand)
+			icon = icons.railExpand
+		}
+		button := ui.ButtonBase(c.Key("filter-rail-toggle")).
+			Size(buttonHeight, buttonHeight).Shrink(0).Center().
+			Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
+			Label(label).Tooltip(label).Role(ui.RoleButton)
+		if button.Hovered() {
+			button.Background(hoverFill(theme))
+		} else {
+			button.Background(ui.Transparent)
+		}
+		button.Children(func() {
+			ui.Icon(c, icon).Size(space(theme, 4.25), space(theme, 4.25)).TextColor(secondaryText(theme))
+		})
+		if button.Clicked() {
+			a.filterRailOpen = !a.filterRailOpen
+		}
+	})
 }
 
 func (a *application) pageContent(c *ui.Context, theme *ui.Theme) {
@@ -284,24 +553,32 @@ func (a *application) constrainHistoryPaneWidth(c *ui.Context, theme *ui.Theme) 
 	}
 
 	windowWidth, _ := c.Size()
-	maxWidth := windowWidth - navigationRailSize(c, theme) - minPreviewPaneWidth - splitDividerWidth
+	maxWidth := windowWidth - a.filterRailSize(c, theme) - minPreviewPaneWidth - splitDividerWidth
 	maxWidth = max(maxWidth, float32(minHistoryPaneWidth))
 	a.historyPaneWidth = min(max(a.historyPaneWidth, float32(minHistoryPaneWidth)), maxWidth)
+}
+
+// historyPaneTop 只在筛选栏收起时给列表和预览补回标题栏高度。筛选栏展开时，
+// 窗口控制按钮位于筛选栏上方，列表和预览可以直接顶到窗口顶边；收起后控制
+// 按钮会落到列表上方，所以这里补一条透明拖动条，避免内容被按钮压住。
+func (a *application) historyPaneTop(c *ui.Context) {
+	if a.filterRailOpen {
+		return
+	}
+	paneTop(c)
 }
 
 func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.View) {
 	panel := ui.Column(c).Fill().
 		MinWidth(minHistoryPaneWidth).
-		Background(sidebarFill(theme)).
+		Background(theme.Background).
 		Padding(0, 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
-		paneTop(c)
+		a.historyPaneTop(c)
+		// 列表上方没有窗口控件时不再留标题栏高度的空白：标题行直接顶到
+		// 窗口顶边，由标题行本身承担拖动窗口的职责。
 		a.historyHeader(c, theme, view)
-		ui.Box(c).Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
-			a.searchField(c, theme)
-		})
-		a.filterBar(c, theme)
 
 		if len(view.Items) == 0 {
 			a.emptyHistory(c, theme, view)
@@ -313,8 +590,8 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 }
 
 func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history.View) {
-	countLabel := a.l10n().recordCount(len(view.Items), view.Total, a.query != "" || a.filter != filterAll)
-	ui.Row(c).Shrink(0).AlignItems(ui.Start).
+	countLabel := a.l10n().recordCount(len(view.Items), view.Total, a.query != "" || a.historyFiltered())
+	ui.Row(c).Shrink(0).AlignItems(ui.Start).DragWindow().
 		Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), 0).Children(func() {
 		ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
 			ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
@@ -324,9 +601,11 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 	})
 }
 
+// searchField 渲染筛选栏顶部的搜索框。它仍然是历史搜索：在设备/设置页输入时
+// 会先回到历史页，让结果立刻可见。
 func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 	focused := c.Focused(a.historySearch)
-	field := ui.Row(c.Key("history-search")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
+	field := ui.Row(c.Key("history-search")).Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
 		AlignItems(ui.Center).Gap(space(theme, 1.5)).Padding(0, space(theme, 2.5)).
 		Radius(radius(theme, controlRadius)).Background(theme.Background).
 		Border(1, borderColor(theme)).
@@ -343,7 +622,10 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 			Background(ui.Transparent).Border(0, ui.Transparent).
 			Label(a.t(msgHistorySearchLabel)).Placeholder(a.t(msgHistorySearchPlaceholder)).Bind(&a.historySearch).
 			FocusRing(focused)
-		input.Changed()
+		if input.Changed() && a.page != pageHistory {
+			a.setPage(pageHistory)
+			c.Invalidate()
+		}
 
 		if a.query == "" {
 			if !focused {
@@ -368,66 +650,36 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 }
 
 // searchShortcutHint 在搜索框空且未聚焦时提示聚焦搜索的快捷键，
-// 快捷键本身在 historyPage 中注册（Cmd+K / Cmd+F）。
+// 快捷键本身在 globalShortcuts 中注册（Cmd+K / Cmd+F）。
 func searchShortcutHint(c *ui.Context, theme *ui.Theme) {
 	ui.Text(c, searchShortcutLabel()).FontSize(font(theme, fontCaption)).FontWeight(500).
 		TextColor(secondaryText(theme)).Padding(space(theme, 0.5), space(theme, 1)).
 		Radius(radius(theme, controlRadius)).Background(subtleFill(theme)).SingleLine()
 }
 
-func (a *application) filterBar(c *ui.Context, theme *ui.Theme) {
-	ui.ScrollHorizontal(c).Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
-		Margin(space(theme, historyControlGap), space(theme, sidebarTrailingInset), 0, 0).
-		ScrollbarInsets(0, 0, 0, 0).Children(func() {
-		ui.Row(c).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).AlignItems(ui.Center).
-			Gap(space(theme, 0.5)).Children(func() {
-			for _, option := range historyFilterOptions {
-				a.filterButton(c, theme, option.kind, option.key, a.filterLabel(option.kind))
-			}
-		})
-	})
-}
-
-func (a *application) filterButton(c *ui.Context, theme *ui.Theme, filter historyFilter, key, label string) {
-	selected := a.filter == filter
-	button := ui.ButtonBase(c.Key("history-filter-"+key)).
-		Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
-		Padding(space(theme, 1), space(theme, 2)).Radius(radius(theme, controlRadius)).
-		Border(1, ui.Transparent).
-		TextColor(secondaryText(theme)).Label(label).
-		Role(ui.RoleToggleButton).Selected(selected)
-	if selected {
-		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
-	} else if button.Hovered() {
-		button.Background(hoverFill(theme))
-	} else {
-		button.Background(ui.Transparent)
-	}
-	button.Children(func() {
-		ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(500).SingleLine()
-	})
-	if button.Clicked() {
-		a.filter = filter
-	}
-}
-
 func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.View) {
-	firstUse := view.Total == 0 && a.query == "" && a.filter == filterAll
+	firstUse := view.Total == 0 && a.query == "" && !a.historyFiltered()
 	searchEmpty := a.query != ""
+	filterEmpty := a.historyFiltered()
 	title := a.t(msgHistoryEmptyTitle)
 	message := a.t(msgHistoryEmptyMessage)
 	icon := icons.filter
-	if firstUse {
+	switch {
+	case firstUse:
 		title = a.t(msgHistoryEmptyFirstTitle)
 		message = a.t(msgHistoryEmptyFirstMessage)
 		icon = icons.history
-	} else if searchEmpty {
+	case searchEmpty && filterEmpty:
+		title = a.t(msgHistoryEmptySearchTitle)
+		message = a.tf(msgHistoryEmptyFilterMessage, a.activeFilterLabel())
+		icon = icons.search
+	case searchEmpty:
 		title = a.t(msgHistoryEmptySearchTitle)
 		message = a.tf(msgHistoryEmptySearchMessage, truncateSingleLine(a.query, 24))
 		icon = icons.search
-	} else if a.filter != filterAll {
+	case filterEmpty:
 		title = a.t(msgHistoryEmptyFilterTitle)
-		message = a.tf(msgHistoryEmptyFilterMessage, a.filterLabel(a.filter))
+		message = a.tf(msgHistoryEmptyFilterMessage, a.activeFilterLabel())
 		icon = icons.filter
 	}
 	ui.Box(c).Grow(1).Center().Children(func() {
@@ -444,9 +696,9 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 				return
 			}
 			resetLabel := a.t(msgHistoryResetSearchAndFilt)
-			if searchEmpty && a.filter == filterAll {
+			if searchEmpty && !filterEmpty {
 				resetLabel = a.t(msgHistoryResetSearch)
-			} else if !searchEmpty && a.filter != filterAll {
+			} else if !searchEmpty && filterEmpty {
 				resetLabel = a.t(msgHistoryShowAll)
 			}
 			reset := neutralButton(c, theme, "history-empty-reset", resetLabel)
@@ -455,7 +707,7 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 			})
 			if reset.Clicked() {
 				a.query = ""
-				a.filter = filterAll
+				a.resetHistoryFilters()
 			}
 		})
 	})
@@ -465,10 +717,14 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 // 让搜索在任意界面语言下都能匹配内容类型。
 func (a *application) historyQuery() history.Query {
 	return history.Query{
-		Text:       a.query,
-		Filter:     a.filter,
-		KindTerms:  a.kindSearchTerms,
-		SourceName: a.sourceDeviceName,
+		Text:           a.query,
+		Kind:           a.filterKind,
+		Tag:            a.filterTag,
+		FavoriteOnly:   a.filterFavorite,
+		SourceDeviceID: a.filterSource,
+		Period:         a.filterPeriod,
+		KindTerms:      a.kindSearchTerms,
+		SourceName:     a.sourceDeviceName,
 	}
 }
 
@@ -634,7 +890,9 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view histor
 	pane := ui.Column(c).Grow(1).FillHeight().
 		MinWidth(minPreviewPaneWidth).Background(theme.Background)
 	pane.Children(func() {
-		paneTop(c)
+		a.historyPaneTop(c)
+		// 与列表一致：筛选栏展开时预览区直接顶到窗口顶边，
+		// 元信息行同时作为拖动窗口的区域。
 		item, ok := selectedHistoryItem(view)
 		if !ok {
 			a.emptyPreview(c, theme)
@@ -673,7 +931,7 @@ func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history.Item) {
 	// 与设备、设置详情一致：先限制最大宽度并居中，再应用左右内边距，
 	// 让标题、操作按钮和正文卡片的左右边缘对齐。
-	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).DragWindow().
 		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3), space(theme, spacePageSide)).
 		Gap(space(theme, 1.75)).Children(func() {
 		// 本机条目带同步状态标记，局域网条目没有。标记并进来源「本机」一组，
@@ -1311,6 +1569,8 @@ func colorForKind(theme *ui.Theme, kind contentKind) ui.Color {
 		return theme.Success
 	case kindFile:
 		return theme.Warning
+	case kindRichText:
+		return theme.Accent.Mix(theme.Success, 0.45)
 	default:
 		return theme.TextMuted
 	}

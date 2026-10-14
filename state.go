@@ -17,6 +17,7 @@ func newApplication() *application {
 	items, devices := previewData()
 	app := &application{
 		page:              pageHistory,
+		filterRailOpen:    true,
 		historyPaneWidth:  defaultHistoryPaneWidth,
 		history:           history.New(items),
 		deviceName:        newLocalizer(languageSimplifiedChinese).text(msgDevicesBadgeLocal),
@@ -77,6 +78,22 @@ func truncateSingleLine(value string, limit int) string {
 // setPage 统一切换当前页面，避免窗口控制代码直接修改业务状态字段。
 func (a *application) setPage(next page) {
 	a.page = next
+}
+
+// historyFiltered 报告筛选栏当前是否收窄了历史列表（不含搜索词）。
+func (a *application) historyFiltered() bool {
+	return a.filterKind != kindFilterAny || a.filterTag != tagFilterAny ||
+		a.filterFavorite || a.filterSource != "" || a.filterPeriod != periodFilterAny
+}
+
+// resetHistoryFilters 清空筛选栏的每一个维度，回到“所有”。搜索词由调用方
+// 决定是否一起清除，因此这里不动 a.query。
+func (a *application) resetHistoryFilters() {
+	a.filterKind = kindFilterAny
+	a.filterTag = tagFilterAny
+	a.filterFavorite = false
+	a.filterSource = ""
+	a.filterPeriod = periodFilterAny
 }
 
 // setSyncEnabled 同步更新本机、文件和所有已配对设备的同步开关。
@@ -239,6 +256,11 @@ func (a *application) removePairedDevice(id string) (int, pairedDevice, bool) {
 		a.pairedDevices = append(a.pairedDevices[:index], a.pairedDevices[index+1:]...)
 		a.selectedDeviceID = ""
 		a.deviceInfoExpanded = false
+		// 筛选栏可能正按这台设备过滤：设备没了就回到“所有来源”，
+		// 避免历史列表卡在一个永远匹配不到的筛选上。
+		if a.filterSource == id {
+			a.filterSource = ""
+		}
 		return index, device, true
 	}
 	return 0, pairedDevice{}, false

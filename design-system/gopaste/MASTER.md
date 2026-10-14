@@ -88,26 +88,32 @@ The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tok
 
 Responsive widths:
 
-- Window minimum: 900 × 560 DIP.
-- Compact navigation rail: 60 DIP.
-- Expanded navigation rail: 176 DIP at 1200 DIP or wider.
-- The compact rail widens to hold the window controls and center them: it is as wide as the controls' left inset plus their right edge, so the macOS traffic lights (or a left-aligned window button row) sit centered with equal margins, and the rail's trailing divider never crosses them. The platform reports no inset on Windows and Linux, so the rail stays at its base width there.
-- Secondary sidebar: 208 DIP in compact mode, 236 DIP otherwise.
+- Window minimum: 1000 × 560 DIP.
+- History filter rail: 208 DIP when expanded, collapsible to 0 DIP.
+- Secondary sidebar (devices, settings): 208 DIP in compact mode, 236 DIP otherwise.
 - History list minimum: 300 DIP.
 - History preview minimum: 460 DIP while split.
 - Detail content maximum: 720 DIP.
 
-At compact widths, controls stack before they clip. The history filter row may scroll horizontally; page text and actions do not.
+At compact widths, controls stack before they clip. The filter rail scrolls vertically; page text and actions do not.
 
 ## Component rules
 
 ### Navigation
 
-- Keep History, Devices, and Settings in the same order on every platform.
-- Keep the three destinations grouped together at the top of the rail; never anchor one to the bottom, so the current location always sits in the same region.
-- Wide windows show icon and text. Compact windows keep a labeled, tooltip-enabled icon rail.
-- Current location uses `Selected(true)`, `selectedFill(theme)`, and primary text.
-- Navigation controls have stable keys, labels, tooltips, and visible focus rings.
+- The left rail is the history filter rail, not a destination list. It stays visible on every page, so History is always one click away and no separate History icon is needed.
+- The rail's bottom row holds icon-only Settings at the left and icon-only Devices at the right; their labels live in tooltips and accessible names.
+- A collapse/expand button sits in the title bar, just right of the platform window controls. Collapsing hides the rail entirely; the button stays, so the rail can return.
+- Filter rows are left-aligned: the icon sits at the rail's content edge, the label follows it, and section labels share that same left edge.
+- Current destination and current filter both use `Selected(true)`, `selectedFill(theme)`, and primary text.
+- Navigation and filter controls have stable keys, labels, tooltips, and visible focus rings.
+- Choosing any filter returns to History with that filter applied.
+
+### Search
+
+- The history search field is the first item in the filter rail, above the filter list.
+- Typing in the search from another page returns to History, so the result is visible immediately.
+- The search shortcut (Cmd+K, Cmd+F) expands the rail before focusing the field.
 
 ### Buttons and controls
 
@@ -131,6 +137,9 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### History
 
+- The filter rail groups filters top to bottom: All and Favorites, then Type (text, rich text, image, file), Tag (link, code, image), Source (all sources, then each paired device), and Time (all time, today, yesterday, last 7 days, last 30 days).
+- The history list and preview have no window controls above them, so their content starts at the window's top edge and their header rows double as the drag region. Only the filter rail reserves the title-bar band, because the window controls sit over it. When the rail is collapsed the controls move over the list, so the list and preview reserve the band again.
+- Type filters by payload format, so Text includes links and code; Tag narrows to a detected subtype. Choosing the selected facet again clears it, and All clears every facet.
 - A list row is two lines: a rounded, kind-tinted icon tile, then the content title with its favorite star, then a metadata line of type and time. The tile icon and color follow the item's own kind, so text, link, code, image, and file rows are told apart by icon before the label is read.
 - Show type and favorite state in the list metadata row; show type, size, source device, sync state, and time in the preview metadata row, with the source device and its sync chip sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
 - Name the detected language after the type in the list metadata row for code items (代码 · Go), so the list tells code apart by language without a separate tag; omit it when the language is not recognised, leaving the type alone.
@@ -182,7 +191,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 ## Implementation map
 
 - `ui_tokens.go` owns shared metrics, semantic colors, and primitives.
-- `view.go` owns the shell, navigation, history list, preview, and history actions.
+- `view.go` owns the shell, filter rail, footer navigation, header search, history list, preview, and history actions.
 - `device_view.go` owns device navigation, sync controls, pairing, and connection details.
 - `settings_view.go` owns settings navigation and preference groups.
 - `icons.go` and `resources/icons/` own the embedded icon family.
@@ -194,7 +203,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - [ ] No page code contains raw color literals.
 - [ ] Light, dark, and high-contrast themes preserve text, border, status, and focus contrast.
 - [ ] Focus is visible on navigation, lists, fields, selects, switches, and modal actions.
-- [ ] History filters remain usable at the 300 DIP list minimum.
+- [ ] The filter rail stays usable at the 300 DIP list minimum and the 1000 DIP window minimum, and collapses to 0 without clipping the content.
 - [ ] Empty, loading, success, warning, error, offline, and unavailable states have recovery copy where applicable.
 - [ ] Chinese, English, and enlarged system text do not clip controls.
 - [ ] No clipboard content enters ordinary logs, telemetry, cloud services, or relays.

@@ -397,7 +397,7 @@ func (a *application) syncDirectionRow(
 	disabled := !device.syncEnabled || !device.online
 	description := a.syncDirectionDescription(device, setting.label)
 	selectLabel := a.tf(msgSyncDirectionLabel, setting.label)
-	if compactDetailLayout(c, theme) {
+	if a.compactDetailLayout(c, theme) {
 		ui.Column(c.Key(device.id+"-sync-content-"+setting.key)).FillWidth().Shrink(0).
 			Padding(space(theme, 3), space(theme, 4)).Gap(space(theme, 1.5)).Children(func() {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
@@ -523,7 +523,7 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 		}
 		labelWidth := float32(120)
 		rowGap := float32(4.5)
-		if compactDetailLayout(c, theme) {
+		if a.compactDetailLayout(c, theme) {
 			labelWidth = 96
 			rowGap = 2.5
 		}

@@ -28,7 +28,11 @@ type iconSet struct {
 	clear        *ui.SVG
 	refresh      *ui.SVG
 	filter       *ui.SVG
+	clock        *ui.SVG
+	railCollapse *ui.SVG
+	railExpand   *ui.SVG
 	text         *ui.SVG
+	richText     *ui.SVG
 	link         *ui.SVG
 	unlink       *ui.SVG
 	code         *ui.SVG
@@ -61,7 +65,11 @@ func mustLoadIconSet() iconSet {
 		clear:        mustLoadIcon("x.svg"),
 		refresh:      mustLoadIcon("refresh.svg"),
 		filter:       mustLoadIcon("adjustments-horizontal.svg"),
+		clock:        mustLoadIcon("clock.svg"),
+		railCollapse: mustLoadIcon("layout-sidebar-left-collapse.svg"),
+		railExpand:   mustLoadIcon("layout-sidebar-left-expand.svg"),
 		text:         mustLoadIcon("file-text.svg"),
+		richText:     mustLoadIcon("typography.svg"),
 		link:         mustLoadIcon("external-link.svg"),
 		unlink:       mustLoadIcon("unlink.svg"),
 		code:         mustLoadIcon("code.svg"),
@@ -97,6 +105,8 @@ func iconForKind(kind contentKind) *ui.SVG {
 		return icons.image
 	case kindFile:
 		return icons.file
+	case kindRichText:
+		return icons.richText
 	default:
 		return icons.text
 	}

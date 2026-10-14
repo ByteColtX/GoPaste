@@ -36,17 +36,16 @@ const (
 	// detail panes begin at the same x position.
 	secondarySidebarWidth        = 236
 	secondarySidebarCompactWidth = 208
-	navigationRailCompactWidth   = 60
-	navigationRailExpandedWidth  = 176
-	responsiveCompactWidth       = 1024
-	responsiveExpandedWidth      = 1200
-	pageDetailMaxWidth           = 720
+	// filterRailWidth is the history filter rail's width in DIPs. It has to
+	// hold "all sources" and long paired-device names.
+	filterRailWidth        = 208
+	responsiveCompactWidth = 1024
+	pageDetailMaxWidth     = 720
 	// sidebarTrailingInset 是历史、设备侧栏右侧的统一留白：既对齐各页内容，
 	// 也为滚动条预留出空间，避免滚动条遮挡选中卡片的边框。
 	sidebarTrailingInset float32 = 4
-	historyControlGap    float32 = 1
 
-	// columnTopInset 统一导航栏与历史、设备、设置三页内容列的首行起始内边距，
+	// columnTopInset 统一筛选栏与历史、设备、设置三页内容列的首行起始内边距，
 	// 让各页栏位从同一高度开始。
 	columnTopInset float32 = 3
 )
@@ -150,24 +149,17 @@ func secondarySidebarSize(c *ui.Context, theme *ui.Theme) float32 {
 	return secondarySidebarWidth
 }
 
-func navigationRailSize(c *ui.Context, theme *ui.Theme) float32 {
-	if contentWidth(c) >= responsiveExpandedWidth {
-		return space(theme, navigationRailExpandedWidth/4)
+// filterRailSize 返回筛选栏当前占用的宽度：收起时为 0，内容区因此占满窗口。
+func (a *application) filterRailSize(c *ui.Context, theme *ui.Theme) float32 {
+	if !a.filterRailOpen {
+		return 0
 	}
-	// 紧凑轨道必须容纳窗口控制按钮（macOS 红绿灯位于左上角），并让它们在
-	// 轨道内水平居中：轨道宽度取「左留白 + 按钮组右边缘」，两侧留白相等，
-	// 分割线也不会再穿过按钮。非 macOS 平台标题栏为 0，轨道保持原始宽度。
-	compact := float32(navigationRailCompactWidth)
-	if left := c.TitleBar().Left; left > 0 {
-		if centered := float32(windowControlsInset) + left; centered > compact {
-			compact = centered
-		}
-	}
-	return compact
+	return space(theme, filterRailWidth/4)
 }
 
-func compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
-	available := contentWidth(c) - navigationRailSize(c, theme) - secondarySidebarSize(c, theme) - 1
+func (a *application) compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
+	// 筛选栏常驻在窗口左侧（收起时为 0），设备页与设置页的详情宽度要把它一起扣掉。
+	available := contentWidth(c) - a.filterRailSize(c, theme) - secondarySidebarSize(c, theme) - 1
 	return available < 680*textScale(c)
 }
 
