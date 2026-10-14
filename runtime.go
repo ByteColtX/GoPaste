@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -10,17 +11,22 @@ import (
 const (
 	defaultWindowWidth  = 1120
 	defaultWindowHeight = 720
-	minimumWindowWidth  = 900
+	// 历史页现在由「筛选栏 + 历史列表 + 预览」三栏组成，最小宽度必须容下
+	// 208 的筛选栏、300 的列表和 460 的预览。
+	minimumWindowWidth  = 1000
 	minimumWindowHeight = 560
 )
 
 // applicationRuntime 负责把应用状态和 MyGo 的窗口生命周期连接起来。
 // 托盘菜单的具体实现放在 systemTray 中，这里只提供窗口和业务回调。
 type applicationRuntime struct {
-	app      *application
-	window   *mygo.Window
-	tray     *systemTray
-	quitting bool
+	app    *application
+	window *mygo.Window
+	// appMenuSettings 是 macOS 应用菜单里的「设置…」项。语言变化时只更新它的
+	// 标签，不必重建整个菜单。
+	appMenuSettings *mygo.MenuItem
+	tray            *systemTray
+	quitting        bool
 }
 
 // mygoClipboardWriter is the production adapter for history.Store's local
@@ -76,6 +82,7 @@ func (r *applicationRuntime) ready() {
 		r.showMainWindow()
 	})
 	r.app.loadSystemSettings()
+	r.installAppMenu()
 
 	mygo.App.OnBeforeQuit(func(*mygo.QuitEvent) {
 		r.quitting = true
@@ -104,6 +111,40 @@ func (r *applicationRuntime) ready() {
 	r.tray = tray
 }
 
+// installAppMenu 安装应用菜单，并在其中加入 HIG › Settings 约定的「设置…」项
+// （标准快捷键 Cmd+,）。只在 macOS 安装：其他平台的设置入口是托盘菜单和窗口内
+// 的 Ctrl+, 快捷键，而安装菜单会给每个窗口多出一条菜单栏。
+func (r *applicationRuntime) installAppMenu() {
+	if runtime.GOOS != "darwin" {
+		return
+	}
+	r.appMenuSettings = &mygo.MenuItem{
+		ID:          "app-settings",
+		Label:       r.app.t(msgAppMenuSettings),
+		Accelerator: "Cmd+,",
+		Click:       func(*mygo.MenuItem, *mygo.Window) { r.showSettings() },
+	}
+	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
+		{Role: mygo.RoleAppMenu, Submenu: []*mygo.MenuItem{
+			{Role: mygo.RoleAbout},
+			mygo.Separator(),
+			r.appMenuSettings,
+			mygo.Separator(),
+			{Role: mygo.RoleServices},
+			mygo.Separator(),
+			{Role: mygo.RoleHide},
+			{Role: mygo.RoleHideOthers},
+			{Role: mygo.RoleUnhide},
+			mygo.Separator(),
+			{Role: mygo.RoleQuit},
+		}},
+		{Role: mygo.RoleFileMenu},
+		{Role: mygo.RoleEditMenu},
+		{Role: mygo.RoleViewMenu},
+		{Role: mygo.RoleWindowMenu},
+	}))
+}
+
 // syncStateChanged 让托盘文案和窗口在同步开关变化后同时刷新。
 func (r *applicationRuntime) syncStateChanged() {
 	if r.tray != nil {
@@ -118,6 +159,9 @@ func (r *applicationRuntime) syncStateChanged() {
 func (r *applicationRuntime) languageChanged() {
 	if r.tray != nil {
 		r.tray.refreshLabels()
+	}
+	if r.appMenuSettings != nil {
+		r.appMenuSettings.SetLabel(r.app.t(msgAppMenuSettings))
 	}
 	if r.window != nil {
 		r.window.Invalidate()

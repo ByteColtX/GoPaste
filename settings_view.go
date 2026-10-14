@@ -13,33 +13,9 @@ type settingsNavItem struct {
 	title string
 }
 
-// settingsPage 使用参考图中的二级导航布局：左侧定位设置主题，右侧展示当前内容。
+// settingsPage 只渲染详情。设置分栏是侧栏的一部分，见 filterRail 的 sidebarSettings。
 func (a *application) settingsPage(c *ui.Context, theme *ui.Theme) {
-	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
-		a.settingsSidebar(c, theme)
-		ui.Box(c).Width(1).FillHeight().Shrink(0).
-			Background(dividerColor(theme))
-		a.settingsDetail(c, theme)
-	})
-}
-
-func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
-	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
-		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
-		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		paneTop(c)
-		secondarySidebarTitle(c, theme, a.t(msgNavSettings))
-
-		ui.Column(c).Gap(space(theme, 0.5)).Children(func() {
-			for _, item := range a.settingsNavigationItems() {
-				a.settingsNavButton(c, theme, item)
-			}
-		})
-
-		ui.Spacer(c)
-		ui.Textf(c, "GoPaste %s", settingsVersion).FontSize(font(theme, fontCaption)).
-			TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2)).SingleLine()
-	})
+	a.settingsDetail(c, theme)
 }
 
 func (a *application) settingsNavigationItems() []settingsNavItem {
@@ -51,29 +27,11 @@ func (a *application) settingsNavigationItems() []settingsNavItem {
 	}
 }
 
+// settingsNavButton 渲染设置分栏的一个入口：单行条目的规格由 sidebarItemButton
+// 统一提供，与历史筛选项逐项一致（高度、内边距、图标、间距、选中态）。
 func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item settingsNavItem) {
-	button := ui.ButtonBase(c.Key("settings-nav-"+item.key)).
-		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.25), space(theme, 2)).Radius(radius(theme, controlRadius)).
-		Border(1, ui.Transparent).
-		TextColor(secondaryText(theme)).Label(item.title).Tooltip(item.title).
-		Role(ui.RoleToggleButton).Selected(a.settingsArea == item.area)
-	if a.settingsArea == item.area {
-		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
-	} else if button.Hovered() {
-		button.Background(hoverFill(theme))
-	} else {
-		button.Background(ui.Transparent)
-	}
-	button.Children(func() {
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
-			ui.Icon(c, item.icon).Size(space(theme, 4), space(theme, 4)).Shrink(0)
-			ui.Text(c, item.title).FontSize(font(theme, fontControl)).SingleLine()
-		})
-	})
-	if button.Clicked() {
-		a.settingsArea = item.area
-	}
+	sidebarItemButton(c, theme, "settings-nav-"+item.key, item.icon, item.title,
+		a.settingsArea == item.area, func() { a.settingsArea = item.area })
 }
 
 func (a *application) settingsDetail(c *ui.Context, theme *ui.Theme) {
@@ -116,7 +74,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 				Background(theme.Background).Border(1, borderColor(theme)).
 				Label(a.t(msgSettingsDeviceName)).Placeholder(a.t(msgSettingsDeviceNamePlaceholder))
-			if compactDetailLayout(c, theme) {
+			if a.compactDetailLayout(c, theme) {
 				input.FillWidth()
 			} else {
 				input.Width(220)
@@ -133,7 +91,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsLanguage), a.t(msgSettingsLanguageDesc), func() {
 			languageControl := selectField(c, theme, "settings-language", &a.language, a.t(msgSettingsLanguage), languageChoices)
-			if compactDetailLayout(c, theme) {
+			if a.compactDetailLayout(c, theme) {
 				languageControl.FillWidth()
 			} else {
 				languageControl.Width(180)
@@ -150,14 +108,12 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsSubheading(c, a.t(msgSettingsVisualStyle), theme)
 	settingsGroup(c, theme, "settings-appearance-group", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsMode), a.t(msgSettingsModeDesc), func() {
-			control := ui.Segmented(
-				c.Key("settings-appearance"),
-				&a.appearance,
+			control := segmentedField(c, theme, "settings-appearance", &a.appearance, a.t(msgSettingsAppearance), []string{
 				a.t(msgSettingsThemeSystem),
 				a.t(msgSettingsThemeLight),
 				a.t(msgSettingsThemeDark),
-			).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label(a.t(msgSettingsAppearance))
-			if compactDetailLayout(c, theme) {
+			}).Height(controlHeightSize(c, theme, controlHeight))
+			if a.compactDetailLayout(c, theme) {
 				control.FillWidth()
 			} else {
 				control.Width(260)
@@ -259,7 +215,7 @@ func settingsRule(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) settingsRow(c *ui.Context, theme *ui.Theme, title, description string, control func()) {
-	if compactDetailLayout(c, theme) {
+	if a.compactDetailLayout(c, theme) {
 		ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2)).
 			Padding(space(theme, 3), space(theme, 4)).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(space(theme, 0.75)).Children(func() {

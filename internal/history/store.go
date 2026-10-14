@@ -18,10 +18,13 @@ const (
 	KindCode
 	KindImage
 	KindFile
+	KindRichText
 )
 
 // BaseKind returns the broad category a subtype belongs to, such as the
-// preview's primary type label for a link or code item.
+// preview's primary type label for a link or code item. Links and code are
+// text payloads with a detected subtype, so their base kind is text; rich
+// text keeps its own format.
 func (kind Kind) BaseKind() Kind {
 	switch kind {
 	case KindLink, KindCode:
@@ -31,17 +34,38 @@ func (kind Kind) BaseKind() Kind {
 	}
 }
 
-// Filter selects a subset of history items.
-type Filter uint8
+// KindFilter selects a payload format for the history list. The text filter
+// covers every text payload, including links and code, which the tag filter
+// narrows further.
+type KindFilter uint8
 
 const (
-	FilterAll Filter = iota
-	FilterText
-	FilterLinks
-	FilterCode
-	FilterImages
-	FilterFiles
-	FilterFavorites
+	KindFilterAny KindFilter = iota
+	KindFilterText
+	KindFilterRichText
+	KindFilterImage
+	KindFilterFile
+)
+
+// TagFilter selects an automatically detected content tag.
+type TagFilter uint8
+
+const (
+	TagFilterAny TagFilter = iota
+	TagFilterLink
+	TagFilterCode
+	TagFilterImage
+)
+
+// PeriodFilter selects a window of time relative to now.
+type PeriodFilter uint8
+
+const (
+	PeriodFilterAny PeriodFilter = iota
+	PeriodFilterToday
+	PeriodFilterYesterday
+	PeriodFilterLast7Days
+	PeriodFilterLast30Days
 )
 
 // Image stores the portable image payload needed by history and clipboard
@@ -84,10 +108,24 @@ type Item struct {
 // item received from a peer already arrived here.
 func (i Item) IsLocal() bool { return i.SourceDeviceID == "" }
 
-// Query describes the current history view requested by the UI.
+// Query describes the current history view requested by the UI. Each facet is
+// independent: the zero value of every field shows the whole history, so a
+// caller sets only the filters it wants.
 type Query struct {
-	Text   string
-	Filter Filter
+	Text string
+	// Kind limits the payload format; KindFilterAny shows every format.
+	Kind KindFilter
+	// Tag limits the detected content tag; TagFilterAny shows every tag.
+	Tag TagFilter
+	// FavoriteOnly keeps only favorited items.
+	FavoriteOnly bool
+	// SourceDeviceID limits items to one source, which is a paired device
+	// ID or empty for items captured on this machine. It is empty when the
+	// source facet is not set, so every source shows.
+	SourceDeviceID string
+	// Period limits items to a window of time; PeriodFilterAny shows every
+	// record regardless of age.
+	Period PeriodFilter
 	// KindTerms returns extra searchable names for a kind, such as the
 	// localized labels the UI shows. The history module owns no display
 	// vocabulary of its own, so callers supply it. It may be nil.
@@ -96,6 +134,12 @@ type Query struct {
 	// name. The history module holds no device table, so callers supply it;
 	// it returns "" for an unknown device. It may be nil.
 	SourceName func(deviceID string) string
+}
+
+// Filtered reports whether any facet narrows the list beyond the search text.
+func (q Query) Filtered() bool {
+	return q.Kind != KindFilterAny || q.Tag != TagFilterAny || q.FavoriteOnly ||
+		q.SourceDeviceID != "" || q.Period != PeriodFilterAny
 }
 
 // View is a stable snapshot used by both the list and preview panes.
@@ -151,8 +195,9 @@ func New(items []Item) *Store {
 // an in-memory state correction and performs no I/O.
 func (s *Store) Snapshot(query Query) View {
 	visible := make([]Item, 0, len(s.items))
+	now := time.Now()
 	for _, item := range s.items {
-		if !matchesFilter(item, query.Filter) || !matchesQuery(item, query) {
+		if !matchesQuery(item, query) || !matchesFacets(item, query, now) {
 			continue
 		}
 		visible = append(visible, item)
@@ -327,20 +372,69 @@ func (s *Store) Clear() {
 	s.selectedID = ""
 }
 
-func matchesFilter(item Item, filter Filter) bool {
+// matchesFacets applies every facet of the query to one item. A facet left at
+// its zero value matches every item.
+func matchesFacets(item Item, query Query, now time.Time) bool {
+	return matchesKind(item, query.Kind) &&
+		matchesTag(item, query.Tag) &&
+		matchesPeriod(item, query.Period, now) &&
+		matchesSource(item, query) &&
+		(!query.FavoriteOnly || item.Favorite)
+}
+
+// matchesKind applies the payload-format facet. Text matches links and code
+// too, because their payload is text; the tag facet narrows them.
+func matchesKind(item Item, filter KindFilter) bool {
 	switch filter {
-	case FilterText:
-		return item.Kind == KindText
-	case FilterLinks:
-		return item.Kind == KindLink
-	case FilterCode:
-		return item.Kind == KindCode
-	case FilterImages:
+	case KindFilterText:
+		return item.Kind.BaseKind() == KindText
+	case KindFilterRichText:
+		return item.Kind == KindRichText
+	case KindFilterImage:
 		return item.Kind == KindImage
-	case FilterFiles:
+	case KindFilterFile:
 		return item.Kind == KindFile
-	case FilterFavorites:
-		return item.Favorite
+	default:
+		return true
+	}
+}
+
+// matchesTag applies the detected-tag facet.
+func matchesTag(item Item, filter TagFilter) bool {
+	switch filter {
+	case TagFilterLink:
+		return item.Kind == KindLink
+	case TagFilterCode:
+		return item.Kind == KindCode
+	case TagFilterImage:
+		return item.Kind == KindImage
+	default:
+		return true
+	}
+}
+
+// matchesSource applies the source facet. An unset source, which is the empty
+// device ID, matches every item, including the ones captured here.
+func matchesSource(item Item, query Query) bool {
+	return query.SourceDeviceID == "" || item.SourceDeviceID == query.SourceDeviceID
+}
+
+// matchesPeriod applies the time-window facet against now.
+func matchesPeriod(item Item, filter PeriodFilter, now time.Time) bool {
+	if filter == PeriodFilterAny {
+		return true
+	}
+	startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	switch filter {
+	case PeriodFilterToday:
+		return !item.CreatedAt.Before(startOfToday)
+	case PeriodFilterYesterday:
+		start := startOfToday.AddDate(0, 0, -1)
+		return !item.CreatedAt.Before(start) && item.CreatedAt.Before(startOfToday)
+	case PeriodFilterLast7Days:
+		return !item.CreatedAt.Before(startOfToday.AddDate(0, 0, -6))
+	case PeriodFilterLast30Days:
+		return !item.CreatedAt.Before(startOfToday.AddDate(0, 0, -29))
 	default:
 		return true
 	}

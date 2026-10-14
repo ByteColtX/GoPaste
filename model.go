@@ -11,13 +11,11 @@ import (
 
 const (
 	// 窗口和分栏的最小尺寸，保证窄窗口下内容仍然可读。
-	navigationRailWidth = navigationRailCompactWidth
 	minHistoryPaneWidth = 300
 	minPreviewPaneWidth = 460
 	splitDividerWidth   = 1
 	// windowControlsInset 是隐藏标题栏窗口左上角窗口控制按钮（macOS 红绿灯）
 	// 距窗口左边缘的水平间距，与 runtime 里的 TrafficLightPosition.X 一致。
-	// 紧凑轨道用它把按钮组在轨道内居中。
 	windowControlsInset = 18
 	// windowControlsTopInset 是红绿灯距窗口顶边的垂直间距。macOS 用它和
 	// 红绿灯直径（14）算出标题栏高度：14 + 2×9 = 32，与系统原生高度一致。
@@ -79,26 +77,42 @@ const (
 	pageSettings
 )
 
-type historyFilter = history.Filter
+type historyKindFilter = history.KindFilter
+type historyTagFilter = history.TagFilter
+type historyPeriodFilter = history.PeriodFilter
 
 const (
-	filterAll       = history.FilterAll
-	filterText      = history.FilterText
-	filterLinks     = history.FilterLinks
-	filterCode      = history.FilterCode
-	filterImages    = history.FilterImages
-	filterFiles     = history.FilterFiles
-	filterFavorites = history.FilterFavorites
+	kindFilterAny      = history.KindFilterAny
+	kindFilterText     = history.KindFilterText
+	kindFilterRichText = history.KindFilterRichText
+	kindFilterImage    = history.KindFilterImage
+	kindFilterFile     = history.KindFilterFile
+)
+
+const (
+	tagFilterAny   = history.TagFilterAny
+	tagFilterLink  = history.TagFilterLink
+	tagFilterCode  = history.TagFilterCode
+	tagFilterImage = history.TagFilterImage
+)
+
+const (
+	periodFilterAny        = history.PeriodFilterAny
+	periodFilterToday      = history.PeriodFilterToday
+	periodFilterYesterday  = history.PeriodFilterYesterday
+	periodFilterLast7Days  = history.PeriodFilterLast7Days
+	periodFilterLast30Days = history.PeriodFilterLast30Days
 )
 
 type contentKind = history.Kind
 
 const (
-	kindText  = history.KindText
-	kindLink  = history.KindLink
-	kindCode  = history.KindCode
-	kindImage = history.KindImage
-	kindFile  = history.KindFile
+	kindText     = history.KindText
+	kindLink     = history.KindLink
+	kindCode     = history.KindCode
+	kindImage    = history.KindImage
+	kindFile     = history.KindFile
+	kindRichText = history.KindRichText
 )
 
 type syncState = history.SyncState
@@ -161,14 +175,23 @@ type application struct {
 	onLanguageChanged  func()
 
 	historyPaneWidth float32
-	filter           historyFilter
-	query            string
-	history          *history.Store
-	historyBitmaps   map[string]*ui.Bitmap
-	codeHighlights   codeHighlightCache
-	clipboard        history.ClipboardWriter
-	historySearch    ui.Handle
-	listState        ui.ListState
+	// filterRailOpen 记录筛选栏是否展开：标题栏的展开/收起按钮切换它。
+	// 收起时筛选栏不占宽度，内容区占满窗口。
+	filterRailOpen bool
+	// The history filter rail keeps one field per facet. Their zero values
+	// mean "no filter", so the whole history shows until the user picks one.
+	filterKind     historyKindFilter
+	filterTag      historyTagFilter
+	filterFavorite bool
+	filterSource   string
+	filterPeriod   historyPeriodFilter
+	query          string
+	history        *history.Store
+	historyBitmaps map[string]*ui.Bitmap
+	codeHighlights codeHighlightCache
+	clipboard      history.ClipboardWriter
+	historySearch  ui.Handle
+	listState      ui.ListState
 
 	onResendItem func(itemID, deviceID string)
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：

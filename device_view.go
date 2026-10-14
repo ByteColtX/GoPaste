@@ -4,81 +4,10 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// devicesPage 使用侧栏选择设备，右侧展示当前 Peer 的同步设置。
+// devicesPage 只渲染详情。设备列表是侧栏的一部分，见 filterRail 的 sidebarDevices。
 func (a *application) devicesPage(c *ui.Context, theme *ui.Theme) {
-	ui.Row(c).Fill().MinWidth(0).Children(func() {
-		a.deviceSidebar(c, theme)
-		ui.Box(c).Width(1).FillHeight().Shrink(0).
-			Background(dividerColor(theme))
-		a.deviceDetail(c, theme)
-	})
-
+	a.deviceDetail(c, theme)
 	a.addDeviceDialogView(c, theme)
-}
-
-// deviceSidebar 是设备页的主从导航。侧栏保持固定宽度，避免设备名称变化时右侧内容跳动。
-func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
-	onlineCount := a.onlineDeviceCount()
-	onlineColor := secondaryText(theme)
-	if onlineCount > 0 {
-		onlineColor = theme.Success
-	}
-
-	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
-		Padding(space(theme, columnTopInset), 0, space(theme, 5), space(theme, 4)).
-		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		paneTop(c)
-		secondarySidebarTitle(c, theme, a.t(msgDevicesTitle))
-		a.localDeviceEntry(c, theme)
-
-		ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
-			Margin(0, space(theme, sidebarTrailingInset), 0, 0).
-			Padding(space(theme, 3), 0, 0, 0).Children(func() {
-			ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
-				TextColor(secondaryText(theme)).SingleLine()
-			ui.Spacer(c)
-			refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
-				Size(controlHeightSize(c, theme, controlHeight), controlHeightSize(c, theme, controlHeight)).Shrink(0).Center().
-				Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
-				Label(a.t(msgDevicesRefresh)).Tooltip(a.t(msgDevicesRefresh))
-			if refresh.Hovered() {
-				refresh.Background(hoverFill(theme))
-			}
-			refresh.Children(func() {
-				ui.Icon(c, icons.refresh).Size(space(theme, 4), space(theme, 4))
-			})
-			if refresh.Clicked() {
-				a.refreshDevices(c)
-			}
-		})
-
-		ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 0.5), 0, 0).
-			Children(func() {
-				ui.Column(c).FillWidth().Gap(space(theme, 1)).Children(func() {
-					switch a.deviceDiscovery {
-					case deviceDiscoveryLoading:
-						a.deviceLoadingState(c, theme)
-					case deviceDiscoveryError:
-						a.deviceErrorState(c, theme)
-					default:
-						if len(a.pairedDevices) == 0 {
-							a.deviceEmptyState(c, theme)
-						}
-						for index := range a.pairedDevices {
-							a.pairedDeviceEntry(c, theme, index)
-						}
-					}
-				})
-			})
-
-		ui.Column(c).Shrink(0).Gap(space(theme, 2)).
-			Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
-			a.inviteDeviceButton(c, theme)
-			ui.Row(c).Shrink(0).Padding(space(theme, 1), space(theme, 2.5)).Children(func() {
-				deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
-			})
-		})
-	})
 }
 
 func (a *application) deviceEmptyState(c *ui.Context, theme *ui.Theme) {
@@ -138,14 +67,12 @@ func (a *application) refreshDevices(c *ui.Context) {
 
 func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 	selected := a.selectedDeviceID == ""
-	entry := a.deviceEntryButton(c, theme, "local-device", selected)
-	entry.Children(func() {
-		deviceIcon(c, theme, iconForPlatform(a.devicePlatform), selected)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
-			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+	entry := listRow(c, theme, "local-device", a.deviceName, selected,
+		func() { deviceRowTile(c, theme, iconForPlatform(a.devicePlatform), selected) },
+		func() {
+			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			deviceSyncStatus(c, theme, a.deviceSyncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
 		})
-	})
 	if entry.Clicked() {
 		a.selectedDeviceID = ""
 		a.deviceInfoExpanded = false
@@ -155,58 +82,43 @@ func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index int) {
 	device := &a.pairedDevices[index]
 	selected := a.selectedDeviceID == device.id
-	entry := a.deviceEntryButton(c, theme, "paired-device-"+device.id, selected)
-	entry.Children(func() {
-		deviceIcon(c, theme, iconForPlatform(device.platform), selected)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
-			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+	entry := listRow(c, theme, "paired-device-"+device.id, device.name, selected,
+		func() { deviceRowTile(c, theme, iconForPlatform(device.platform), selected) },
+		func() {
+			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 				deviceStatus(c, theme, a.connectionLabel(device.online), connectionColor(theme, device.online))
 			})
 		})
-	})
 	if entry.Clicked() {
 		a.selectedDeviceID = device.id
 		a.deviceInfoExpanded = true
 	}
 }
 
-func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key string, selected bool) ui.Element {
-	entry := ui.ButtonBase(c.Key(key)).MinHeight(controlHeightSize(c, theme, 16)).Shrink(0).
-		AlignSelf(ui.Stretch).
-		Margin(0, space(theme, sidebarTrailingInset), 0, 0).
-		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
-		Radius(radius(theme, cardRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
-		TextColor(primaryText(theme)).Label(a.t(msgDevicesSelect)).
-		Role(ui.RoleToggleButton).Selected(selected)
-	if selected {
-		entry.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
-	} else if entry.Hovered() {
-		entry.Background(hoverFill(theme))
-	} else {
-		entry.Background(ui.Transparent)
-	}
-	return entry
+// openAddDeviceDialog 打开配对对话框，并清掉上一次尝试留下的状态。设备列表头
+// 部的「+」与托盘入口共用这条路径。
+func (a *application) openAddDeviceDialog() {
+	a.addDeviceDialog = true
+	a.pairingPending = false
+	a.pairingError = ""
 }
 
-func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
-	button := ui.ButtonBase(c.Key("invite-device")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, spaceInline)).
-		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
-		TextColor(primaryText(theme)).Label(a.t(msgDevicesAdd))
+// sidebarIconAction 是侧栏里的小图标动作按钮（刷新、新增设备）：与分区切换器
+// 同一套尺寸、圆角与悬停反馈，但没有选中态。文字放在提示与辅助技术标签里。
+func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, onClick func()) {
+	size := controlHeightSize(c, theme, controlHeight)
+	button := ui.ButtonBase(c.Key(key)).Size(size, size).Shrink(0).Center().
+		Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
+		Label(label).Tooltip(label).Transition(motionColors)
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
-	} else {
-		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
-		ui.Icon(c, icons.deviceAdd).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0)
-		ui.Text(c, a.t(msgDevicesAdd)).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		ui.Icon(c, icon).Size(space(theme, 4), space(theme, 4))
 	})
 	if button.Clicked() {
-		a.addDeviceDialog = true
-		a.pairingPending = false
-		a.pairingError = ""
+		onClick()
 	}
 }
 
@@ -265,7 +177,7 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 		syncEnabled = device.syncEnabled
 	}
 
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 4.5)).Children(func() {
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 4.5)).DragWindow().Children(func() {
 		deviceIconLarge(c, theme, platform, paired && !online)
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 2)).Children(func() {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2.5)).Children(func() {
@@ -397,7 +309,7 @@ func (a *application) syncDirectionRow(
 	disabled := !device.syncEnabled || !device.online
 	description := a.syncDirectionDescription(device, setting.label)
 	selectLabel := a.tf(msgSyncDirectionLabel, setting.label)
-	if compactDetailLayout(c, theme) {
+	if a.compactDetailLayout(c, theme) {
 		ui.Column(c.Key(device.id+"-sync-content-"+setting.key)).FillWidth().Shrink(0).
 			Padding(space(theme, 3), space(theme, 4)).Gap(space(theme, 1.5)).Children(func() {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
@@ -523,7 +435,7 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 		}
 		labelWidth := float32(120)
 		rowGap := float32(4.5)
-		if compactDetailLayout(c, theme) {
+		if a.compactDetailLayout(c, theme) {
 			labelWidth = 96
 			rowGap = 2.5
 		}
@@ -554,7 +466,7 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 	ui.Modal(c, &a.addDeviceDialog, func() {
 		ui.Column(c).Width(440).Shrink(0).
 			Padding(space(theme, 6), space(theme, 6)).Gap(space(theme, 2)).
-			Radius(radius(theme, largeRadius)).Background(theme.Background).
+			Radius(radius(theme, cardRadius)).Background(theme.Background).
 			Border(1, borderColor(theme)).Role(ui.RoleDialog).Label(a.t(msgDevicesAdd)).Children(func() {
 			ui.Text(c, a.t(msgDevicesAdd)).FontSize(font(theme, fontSection)).FontWeight(600).
 				Role(ui.RoleHeading).SingleLine()
@@ -632,15 +544,16 @@ type deviceInfo struct {
 	value string
 }
 
-func deviceIcon(c *ui.Context, theme *ui.Theme, icon *ui.SVG, selected bool) {
+// deviceRowTile 渲染设备条目左侧的图标块：外框尺寸取自 listRowTile，与历史记录
+// 行的图标块同一大小。
+func deviceRowTile(c *ui.Context, theme *ui.Theme, icon *ui.SVG, selected bool) {
 	color := secondaryText(theme)
 	background := subtleFill(theme)
 	if selected {
 		color = primaryText(theme)
 		background = hoverFill(theme)
 	}
-	ui.Box(c).Size(space(theme, 9), space(theme, 9)).Shrink(0).Radius(radius(theme, controlRadius)).
-		Background(background).Center().Children(func() {
+	listRowTile(c, theme, background, func() {
 		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(color)
 	})
 }
@@ -650,7 +563,7 @@ func deviceIconLarge(c *ui.Context, theme *ui.Theme, platform string, muted bool
 	if muted {
 		color = theme.TextMuted
 	}
-	ui.Box(c).Size(space(theme, 16.5), space(theme, 16.5)).Shrink(0).Radius(radius(theme, largeRadius)).
+	ui.Box(c).Size(space(theme, 16.5), space(theme, 16.5)).Shrink(0).Radius(radius(theme, cardRadius)).
 		Background(subtleFill(theme)).Border(1, borderColor(theme)).Center().Children(func() {
 		ui.Icon(c, iconForPlatform(platform)).Size(space(theme, 8), space(theme, 8)).TextColor(color)
 	})

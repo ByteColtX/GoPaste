@@ -40,20 +40,32 @@ func languageFromLocale(locale string) language {
 type messageKey string
 
 const (
-	// Navigation.
+	// Navigation. These also title the contextual sidebar for each section.
 	msgNavHistory  messageKey = "nav.history"
 	msgNavDevices  messageKey = "nav.devices"
 	msgNavSettings messageKey = "nav.settings"
 
 	// History filters.
 	msgFilterAll       messageKey = "filter.all"
-	msgFilterText      messageKey = "filter.text"
-	msgFilterLinks     messageKey = "filter.links"
-	msgFilterCode      messageKey = "filter.code"
-	msgFilterImages    messageKey = "filter.images"
-	msgFilterFiles     messageKey = "filter.files"
 	msgFilterFavorites messageKey = "filter.favorites"
-	msgFilterCurrent   messageKey = "filter.current"
+
+	// Filter rail sections and their facet choices.
+	msgFilterSectionType      messageKey = "filter.section.type"
+	msgFilterSectionTag       messageKey = "filter.section.tag"
+	msgFilterSectionSource    messageKey = "filter.section.source"
+	msgFilterSectionTime      messageKey = "filter.section.time"
+	msgFilterSourceAll        messageKey = "filter.source.all"
+	msgFilterTimeAll          messageKey = "filter.time.all"
+	msgFilterTimeToday        messageKey = "filter.time.today"
+	msgFilterTimeYesterday    messageKey = "filter.time.yesterday"
+	msgFilterTimeLast7        messageKey = "filter.time.last7"
+	msgFilterTimeLast30       messageKey = "filter.time.last30"
+	msgFilterRailCollapse     messageKey = "filter.rail.collapse"
+	msgFilterRailExpand       messageKey = "filter.rail.expand"
+	msgAppearanceSwitchDark   messageKey = "appearance.switchDark"
+	msgAppMenuSettings        messageKey = "app.menu.settings"
+	msgAppearanceSwitchSystem messageKey = "appearance.switchSystem"
+	msgAppearanceSwitchLight  messageKey = "appearance.switchLight"
 
 	// History list, search, empty states, and preview.
 	msgHistoryRecent             messageKey = "history.recent"
@@ -112,7 +124,6 @@ const (
 	msgToastDeviceDiscoveryUnavailable messageKey = "toast.deviceDiscoveryUnavailable"
 
 	// Devices.
-	msgDevicesTitle            messageKey = "devices.title"
 	msgDevicesPaired           messageKey = "devices.paired"
 	msgDevicesRefresh          messageKey = "devices.refresh"
 	msgDevicesOnlineCount      messageKey = "devices.onlineCount"
@@ -123,7 +134,6 @@ const (
 	msgDevicesErrorTitle       messageKey = "devices.error.title"
 	msgDevicesErrorMessage     messageKey = "devices.error.message"
 	msgDevicesRetry            messageKey = "devices.retry"
-	msgDevicesSelect           messageKey = "devices.select"
 	msgDevicesAdd              messageKey = "devices.add"
 	msgDevicesOfflineTitle     messageKey = "devices.offline.title"
 	msgDevicesOfflineMessage   messageKey = "devices.offline.message"
@@ -287,16 +297,27 @@ var simplifiedChineseCatalog = catalog{
 	msgNavDevices:  "设备",
 	msgNavSettings: "设置",
 
-	msgFilterAll:       "全部",
-	msgFilterText:      "文本",
-	msgFilterLinks:     "链接",
-	msgFilterCode:      "代码",
-	msgFilterImages:    "图片",
-	msgFilterFiles:     "文件",
+	msgFilterAll:       "所有",
 	msgFilterFavorites: "收藏",
-	msgFilterCurrent:   "当前",
 
-	msgHistoryRecent:             "最近复制",
+	msgFilterSectionType:      "类型",
+	msgFilterSectionTag:       "标签",
+	msgFilterSectionSource:    "来源",
+	msgFilterSectionTime:      "时间",
+	msgFilterSourceAll:        "所有来源",
+	msgFilterTimeAll:          "所有时间",
+	msgFilterTimeToday:        "今天",
+	msgFilterTimeYesterday:    "昨天",
+	msgFilterTimeLast7:        "近 7 天",
+	msgFilterTimeLast30:       "近 30 天",
+	msgFilterRailCollapse:     "收起侧栏",
+	msgFilterRailExpand:       "展开侧栏",
+	msgAppearanceSwitchDark:   "切换到深色外观",
+	msgAppMenuSettings:        "设置…",
+	msgAppearanceSwitchSystem: "切换到跟随系统",
+	msgAppearanceSwitchLight:  "切换到浅色外观",
+
+	msgHistoryRecent:             "历史记录",
 	msgHistoryCount:              "%d 条记录",
 	msgHistoryCountOne:           "%d 条记录",
 	msgHistoryCountFiltered:      "%d / %d 条记录",
@@ -348,7 +369,6 @@ var simplifiedChineseCatalog = catalog{
 	msgToastLaunchAtLoginOff:           "已关闭开机自启",
 	msgToastDeviceDiscoveryUnavailable: "设备发现服务尚未接入",
 
-	msgDevicesTitle:            "本设备",
 	msgDevicesPaired:           "已配对设备",
 	msgDevicesRefresh:          "刷新设备列表",
 	msgDevicesOnlineCount:      "%d 台在线",
@@ -359,7 +379,6 @@ var simplifiedChineseCatalog = catalog{
 	msgDevicesErrorTitle:       "设备列表加载失败",
 	msgDevicesErrorMessage:     "暂时无法读取已配对设备。",
 	msgDevicesRetry:            "重试",
-	msgDevicesSelect:           "选择设备",
 	msgDevicesAdd:              "新增设备",
 	msgDevicesOfflineTitle:     "设备已离线",
 	msgDevicesOfflineMessage:   "该设备当前不在线，重新连接后自动恢复同步。",
@@ -513,15 +532,26 @@ var englishCatalog = catalog{
 	msgNavSettings: "Settings",
 
 	msgFilterAll:       "All",
-	msgFilterText:      "Text",
-	msgFilterLinks:     "Links",
-	msgFilterCode:      "Code",
-	msgFilterImages:    "Images",
-	msgFilterFiles:     "Files",
 	msgFilterFavorites: "Favorites",
-	msgFilterCurrent:   "Current",
 
-	msgHistoryRecent:             "Recent copies",
+	msgFilterSectionType:      "Type",
+	msgFilterSectionTag:       "标签",
+	msgFilterSectionSource:    "来源",
+	msgFilterSectionTime:      "Time",
+	msgFilterSourceAll:        "All sources",
+	msgFilterTimeAll:          "All time",
+	msgFilterTimeToday:        "Today",
+	msgFilterTimeYesterday:    "Yesterday",
+	msgFilterTimeLast7:        "Last 7 days",
+	msgFilterTimeLast30:       "Last 30 days",
+	msgFilterRailCollapse:     "Collapse sidebar",
+	msgFilterRailExpand:       "Expand sidebar",
+	msgAppearanceSwitchDark:   "Switch to dark appearance",
+	msgAppMenuSettings:        "Settings…",
+	msgAppearanceSwitchSystem: "Switch to follow system",
+	msgAppearanceSwitchLight:  "Switch to light appearance",
+
+	msgHistoryRecent:             "History",
 	msgHistoryCount:              "%d records",
 	msgHistoryCountOne:           "%d record",
 	msgHistoryCountFiltered:      "%d / %d records",
@@ -573,7 +603,6 @@ var englishCatalog = catalog{
 	msgToastLaunchAtLoginOff:           "Launch at login turned off",
 	msgToastDeviceDiscoveryUnavailable: "Device discovery isn't available yet",
 
-	msgDevicesTitle:            "This device",
 	msgDevicesPaired:           "Paired devices",
 	msgDevicesRefresh:          "Refresh device list",
 	msgDevicesOnlineCount:      "%d online",
@@ -584,7 +613,6 @@ var englishCatalog = catalog{
 	msgDevicesErrorTitle:       "Couldn't load devices",
 	msgDevicesErrorMessage:     "Paired devices are temporarily unavailable.",
 	msgDevicesRetry:            "Retry",
-	msgDevicesSelect:           "Select device",
 	msgDevicesAdd:              "Add device",
 	msgDevicesOfflineTitle:     "Device offline",
 	msgDevicesOfflineMessage:   "This device is offline. Sync resumes when it reconnects.",
@@ -836,6 +864,8 @@ func (l localizer) kindLabel(kind contentKind) string {
 		return l.text(msgKindImage)
 	case kindFile:
 		return l.text(msgKindFile)
+	case kindRichText:
+		return l.text(msgKindRichText)
 	default:
 		return l.text(msgKindText)
 	}

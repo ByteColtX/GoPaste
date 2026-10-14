@@ -39,7 +39,7 @@ All runtime colors come from `ui.Theme`, so system accent, high contrast, and li
 | Surface | `theme.Surface` | Sidebars, controls, inputs |
 | Elevated surface | `theme.Surface` | Cards, preview content, dialogs |
 | Hover | `theme.SurfaceHover` | Hover and pressed state layers |
-| Selected | `theme.Accent` (tinted) | Selected rows, filters, navigation; use `selectedFill` and `selectionBorder` |
+| Selected | `theme.Accent` (tinted) | Selected rows, filters, navigation, dropdown items, and the chosen segment; use `selectedFill` and `selectionBorder` |
 | Border | `theme.Border` | Cards, controls, separators |
 | Primary text | `theme.Text` | Headings and content |
 | Secondary text | `theme.TextMuted` | Metadata, helper copy, timestamps |
@@ -72,42 +72,55 @@ User-facing text stays at or above the caption token. Long content wraps; trunca
 
 ## Layout and spacing
 
-The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tokens in `ui_tokens.go`:
+The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tokens in `ui_tokens.go`. Widths and insets that are stated in DIP go through `spaceDIP(theme, dip)`, never `theme.Space(dip/4)`: `14/4` is an untyped-integer division and yields `3`, silently shrinking a 14 DIP inset to 12.
 
 - Inline: 8 DIP
 - Control group: 8–12 DIP
 - Section: 24 DIP
-- Page top: 12 DIP below the title-bar strip
+- Page top: 12 DIP below the title-bar band. Every pane — the sidebar, the history list, the preview, and the device and settings details — reserves the band and then starts its first line at this one inset, so all columns share a single first-line baseline in both sidebar states.
 - Page side: 24 DIP on standard windows, 16–20 DIP in compact mode
 - Page bottom: 28 DIP
 - Control height: 36 DIP
 - Compact control height: 32 DIP
-- Card radius: 12 DIP
 - Control radius: 8 DIP
-- Dialog radius: 14 DIP
+- Card radius: 12 DIP
+
+Two radii cover the whole app: `controlRadius` for controls, rows, navigation and filter items, tags, and chips; `cardRadius` for cards, popovers, dialogs, floating bars, large tiles, and media containers. No page adds a third value. A nested surface derives its radius from its parent (outer radius minus the inset), so a dropdown panel at `cardRadius` holds options at `controlRadius`.
 
 Responsive widths:
 
-- Window minimum: 900 × 560 DIP.
-- Compact navigation rail: 60 DIP.
-- Expanded navigation rail: 176 DIP at 1200 DIP or wider.
-- The compact rail widens to hold the window controls and center them: it is as wide as the controls' left inset plus their right edge, so the macOS traffic lights (or a left-aligned window button row) sit centered with equal margins, and the rail's trailing divider never crosses them. The platform reports no inset on Windows and Linux, so the rail stays at its base width there.
-- Secondary sidebar: 208 DIP in compact mode, 236 DIP otherwise.
+- Window minimum: 1000 × 560 DIP.
+- Sidebar: 218 DIP when expanded, collapsible to 0 DIP. It is the only sidebar in the window. The width is set by the bottom navigation row: four 32 DIP icon slots (the fourth reserved for a future icon) plus the appearance toggle, separated by four whole-DIP gaps, exactly fill 218 − 30 DIP. Whole-DIP gaps in every state are the reason the width is 218 rather than 208.
 - History list minimum: 300 DIP.
 - History preview minimum: 460 DIP while split.
 - Detail content maximum: 720 DIP.
 
-At compact widths, controls stack before they clip. The history filter row may scroll horizontally; page text and actions do not.
+At compact widths, controls stack before they clip. The sidebar scrolls vertically; page text and actions do not.
 
 ## Component rules
 
 ### Navigation
 
-- Keep History, Devices, and Settings in the same order on every platform.
-- Keep the three destinations grouped together at the top of the rail; never anchor one to the bottom, so the current location always sits in the same region.
-- Wide windows show icon and text. Compact windows keep a labeled, tooltip-enabled icon rail.
-- Current location uses `Selected(true)`, `selectedFill(theme)`, and primary text.
-- Navigation controls have stable keys, labels, tooltips, and visible focus rings.
+- One sidebar serves the whole window, and its content follows the current section: History shows the filter groups, Devices shows the device list, Settings shows the settings panes. A page never adds a second sidebar of its own, so the leading column never shows one section's controls while another section is displayed.
+- The sidebar carries no title line of its own: the switcher's selected item names the section. The history search field is its first item and appears only on History.
+- Each section's sidebar body carries its own key, so scroll position never carries across sections.
+- The section switcher sits at the bottom of the sidebar: icon-only History, Settings, and Devices at the left, the light/dark appearance toggle at the right, with labels in tooltips and accessible names. History must be present, because the contextual sidebar shows no filters on the other sections, so it is the only pointer route back. The left group reserves a fourth icon slot that is deliberately empty for now, so a future icon lands without moving the appearance toggle; the group stays left-aligned and the toggle stays at the trailing inset.
+- Known trade-off: HIG › Sidebars advises against critical actions at a sidebar's bottom edge, because a relocated window can hide it. The switcher stays there by product decision.
+- The history list header reads 历史记录, and the sidebar has no second title beside it.
+- The device list's refresh and add-device actions sit in the list header row, beside the list they act on; the sidebar's bottom holds only the informational online count.
+- The sidebar collapses by animating its width to zero behind a fixed-width, clipped content column, so its content slides out of view instead of squeezing. The detail panes slide in step with the same spring, and their height never changes: only the leftmost pane's first row shifts right to clear the window controls.
+- The appearance toggle cycles the three modes in the settings pane's order — follow system, light, dark — and shows the mode a click lands on: a half-filled circle for follow-system, a sun for light, a moon for dark. The settings pane's segmented control stays the way to pick one explicitly.
+- A collapse/expand button sits in the title bar, right of the platform window controls and 12 DIP clear of them. HIG › Accessibility asks for enough padding between controls to reduce wrong-control clicks: about 12 DIP around a bezelled control, about 24 DIP around an unbezelled one. Collapsing hides the sidebar entirely; the button stays, so it can return.
+- Filter rows are left-aligned: the icon sits at the sidebar's content edge, the label follows it, and section labels share that same left edge.
+- Current destination and current filter both use `Selected(true)`, `selectedFill(theme)`, and primary text.
+- Navigation and filter controls have stable keys, labels, tooltips, and visible focus rings.
+- Choosing any filter returns to History with that filter applied.
+
+### Search
+
+- The history search field sits below the section switcher, above the filter list.
+- Typing in the search from another page returns to History, so the result is visible immediately.
+- The search shortcut (Cmd+K, Cmd+F) expands the sidebar before focusing the field.
 
 ### Buttons and controls
 
@@ -117,11 +130,23 @@ At compact widths, controls stack before they clip. The history filter row may s
 - Secondary actions stay quiet. Destructive actions use `theme.Danger` and confirmation.
 - Preserve the default MyGo focus ring or draw an equivalent ring without changing layout bounds.
 
+### Rows and items
+
+- One implementation owns each shape: `sidebarItemButton` for single-line sidebar items (history filters, settings panes), and `listRow` with `listRowTile` for two-line rows (history records, device entries). Both sidebars and both lists call them, so the metrics cannot drift apart again.
+- Single-line item: 32 DIP high, (6, 8) DIP padding, a 17 DIP icon, 8 DIP between icon and label, 2 DIP between items, control radius, and the shared selected style.
+- Two-line row: 64 DIP minimum height, a 36 DIP icon tile with an 18 DIP glyph, (8, 8) DIP padding, 12 DIP between tile and text, 4 DIP between rows, control radius, and the same selected style. The container supplies the 4 DIP row spacing, so the first row still lands on the pane's first-line baseline.
+- Inside one pane, section labels, single-line item icons, and two-line row tiles share one left edge.
+- MyGo's `Selected(true)` also paints an accent background and `AccentText`, so a selected row or item must re-assert both its fill and its text colour; overriding only the fill leaves the label in near-white on a pale highlight, which reads as invisible in the light appearance.
+- A `ui.Spacer` is a real child, so it consumes one `Gap` on each side: a row that pads its trailing action with a Spacer gets one extra gap and overflows by exactly that much. A bottom row that must keep its leading group left-aligned and its trailing action at the trailing inset therefore uses one fewer child and `Justify(ui.SpaceBetween)`, which lands the same gaps when the width was chosen for that count.
+- Each pane keeps its own content inset — 14 DIP in the sidebar and the history list, 24 in the preview and the detail panes — and a pane's inset is the same on both sides, so a selected item or row sits centred in its pane. Every inset and every gap is a whole DIP. The sidebar's and list's trailing inset also clears the overlay scrollbar (which occupies the 3–9 DIP nearest the pane's trailing edge), so a highlight is never covered by it.
+
 ### Cards and dividers
 
 - Cards use `standardCard`, a 1px semantic border, and an opaque surface.
+- Cards, popovers, dialogs, and large media containers share the card radius; controls, rows, and navigation items share the control radius.
 - Dividers use `standardDivider` and separate sibling rows.
-- Selection keeps a stable border so content does not jump between states.
+- Selection is one shared style everywhere: a light accent wash with no visible outline. The outline stays transparent unless high contrast asks for one, and it always keeps its 1px slot so content does not jump between states.
+- Every selectable row, filter, navigation item, dropdown option, and segmented segment uses `selectedFill` and `selectionBorder`, so no control introduces a brighter highlight of its own.
 
 ### States
 
@@ -131,6 +156,12 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### History
 
+- The sidebar groups history filters top to bottom: All and Favorites, then Type (text, rich text, image, file), Tag (link, code), Source (all sources, then each paired device), and Time (all time, today, yesterday, last 7 days, last 30 days). The Tag group holds only the detected subtypes, so it never repeats a Type: an image item is reached through Type, not through a second Image row.
+- Filter section labels sit 16 DIP below the previous group and 8 DIP above their own rows, so a label reads as part of the group it names. The values follow Apple's 8 pt baseline grid, where 8 DIP is the standard label-to-control gap and section separation is the larger step.
+- Every pane reserves the title-bar band, so its content keeps a clear margin from the window's top edge and never sits under the window controls. The band holds the window controls and the sidebar toggle, centred on one midline, and each pane's header row doubles as the drag region.
+- Because the content starts below the band, collapsing the sidebar needs no horizontal or vertical dodge: the columns simply change width, and every first line, header height, and row position stays put.
+- Collapsing the sidebar must never move content vertically: the band and the first-line inset are the same in both states, so nothing jumps and no pane loses room. The band holds the window controls and the sidebar toggle on one midline, as Apple's unified toolbar does, and the first line starts 12–14 DIP below the band, as the HIG-derived content margin asks.
+- Type filters by payload format, so Text includes links and code; Tag narrows to a detected subtype. Choosing the selected facet again clears it, and All clears every facet.
 - A list row is two lines: a rounded, kind-tinted icon tile, then the content title with its favorite star, then a metadata line of type and time. The tile icon and color follow the item's own kind, so text, link, code, image, and file rows are told apart by icon before the label is read.
 - Show type and favorite state in the list metadata row; show type, size, source device, sync state, and time in the preview metadata row, with the source device and its sync chip sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
 - Name the detected language after the type in the list metadata row for code items (代码 · Go), so the list tells code apart by language without a separate tag; omit it when the language is not recognised, leaving the type alone.
@@ -147,7 +178,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### Devices and settings
 
-- Use the shared secondary sidebar and detail width.
+- The device list and the settings panes live in the shared sidebar, not in a second column beside it; the detail pane takes the remaining width.
 - Pair status text with a status dot or icon; never use color alone.
 - Make the direct, peer-to-peer connection explicit in device details and pairing states, without naming a specific network type.
 - Use helper text for switches and direction controls so disabled states explain their scope.
@@ -166,11 +197,14 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ## Motion and feedback
 
-- Use MyGo `Animate` and `Loop`; no third-party animation package.
+- Use MyGo `ElementTransition`, `Animate*`, `AnimatePose` and `Loop`; no third-party animation package. The shared motion tokens live in `ui_tokens.go`.
+- Follow Apple's spring guidance (WWDC23, "Animate with springs"): move things with springs, so a change on the way keeps its velocity and a second click reverses smoothly instead of stopping dead. Use a zero-bounce spring for anything clipped while it moves, such as the sidebar, so overshoot cannot show as a gap.
+- Keep durations inside NN/g's 100–500 ms band and prefer the shortest that still reads: 120 ms for hover and selection color, 140 ms for a page cross-fade, 300 ms for layout springs.
+- Animate only what changed: `motionColors` for color feedback, `motionLayout` and `motionSlide` for layout springs, `motionAppear` for content entering, `motionPage` for a page change.
+- Fade when movement carries no meaning (HIG › Motion), as the page cross-fade does.
 - Pressed feedback is visible within 100–150 ms.
-- Disclosure and modal transitions are short and interruptible.
 - Skeletons and spinners run only for meaningful waits and stop when content is ready.
-- When `ReduceMotion` is enabled, render the final state immediately and avoid decorative loops.
+- MyGo goes straight to the target when `ReduceMotion` is on, so transitions need no extra branch.
 
 ## Privacy and platform invariants
 
@@ -182,7 +216,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 ## Implementation map
 
 - `ui_tokens.go` owns shared metrics, semantic colors, and primitives.
-- `view.go` owns the shell, navigation, history list, preview, and history actions.
+- `view.go` owns the shell, the contextual sidebar, its section switcher, the header search, the history list, the preview, and the history actions.
 - `device_view.go` owns device navigation, sync controls, pairing, and connection details.
 - `settings_view.go` owns settings navigation and preference groups.
 - `icons.go` and `resources/icons/` own the embedded icon family.
@@ -194,7 +228,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - [ ] No page code contains raw color literals.
 - [ ] Light, dark, and high-contrast themes preserve text, border, status, and focus contrast.
 - [ ] Focus is visible on navigation, lists, fields, selects, switches, and modal actions.
-- [ ] History filters remain usable at the 300 DIP list minimum.
+- [ ] The sidebar stays usable at the 300 DIP list minimum and the 1000 DIP window minimum, and collapses to 0 without clipping the content.
 - [ ] Empty, loading, success, warning, error, offline, and unavailable states have recovery copy where applicable.
 - [ ] Chinese, English, and enlarged system text do not clip controls.
 - [ ] No clipboard content enters ordinary logs, telemetry, cloud services, or relays.

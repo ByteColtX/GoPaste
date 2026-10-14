@@ -17,6 +17,7 @@ func newApplication() *application {
 	items, devices := previewData()
 	app := &application{
 		page:              pageHistory,
+		filterRailOpen:    true,
 		historyPaneWidth:  defaultHistoryPaneWidth,
 		history:           history.New(items),
 		deviceName:        newLocalizer(languageSimplifiedChinese).text(msgDevicesBadgeLocal),
@@ -79,6 +80,22 @@ func (a *application) setPage(next page) {
 	a.page = next
 }
 
+// historyFiltered 报告筛选栏当前是否收窄了历史列表（不含搜索词）。
+func (a *application) historyFiltered() bool {
+	return a.filterKind != kindFilterAny || a.filterTag != tagFilterAny ||
+		a.filterFavorite || a.filterSource != "" || a.filterPeriod != periodFilterAny
+}
+
+// resetHistoryFilters 清空筛选栏的每一个维度，回到“所有”。搜索词由调用方
+// 决定是否一起清除，因此这里不动 a.query。
+func (a *application) resetHistoryFilters() {
+	a.filterKind = kindFilterAny
+	a.filterTag = tagFilterAny
+	a.filterFavorite = false
+	a.filterSource = ""
+	a.filterPeriod = periodFilterAny
+}
+
 // setSyncEnabled 同步更新本机、文件和所有已配对设备的同步开关。
 func (a *application) setSyncEnabled(enabled bool) {
 	a.deviceSyncEnabled = enabled
@@ -138,6 +155,26 @@ func (a *application) applyAppearance() {
 	default:
 		mygo.Theme.SetSource(mygo.ThemeSystem)
 	}
+}
+
+// appearanceModes 是外观的循环顺序，与设置页「模式」分段控件的顺序一致。
+var appearanceModes = [...]int{appearanceSystem, appearanceLight, appearanceDark}
+
+// nextAppearance 返回循环中的下一个外观。
+func nextAppearance(current int) int {
+	for index, mode := range appearanceModes {
+		if mode == current {
+			return appearanceModes[(index+1)%len(appearanceModes)]
+		}
+	}
+	return appearanceSystem
+}
+
+// cycleAppearance 按「跟随系统 → 浅色 → 深色 → 跟随系统」循环并立即应用。
+// 侧栏按钮是快捷入口，设置页的模式分段控件仍是明确选择某一个的方式。
+func (a *application) cycleAppearance() {
+	a.appearance = nextAppearance(a.appearance)
+	a.applyAppearance()
 }
 
 func (a *application) updateLaunchAtLogin() string {
@@ -239,6 +276,11 @@ func (a *application) removePairedDevice(id string) (int, pairedDevice, bool) {
 		a.pairedDevices = append(a.pairedDevices[:index], a.pairedDevices[index+1:]...)
 		a.selectedDeviceID = ""
 		a.deviceInfoExpanded = false
+		// 筛选栏可能正按这台设备过滤：设备没了就回到“所有来源”，
+		// 避免历史列表卡在一个永远匹配不到的筛选上。
+		if a.filterSource == id {
+			a.filterSource = ""
+		}
 		return index, device, true
 	}
 	return 0, pairedDevice{}, false
