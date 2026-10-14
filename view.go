@@ -256,10 +256,11 @@ func (a *application) dangerousActionDetails(action dangerousAction, targetID st
 	}
 }
 
-// filterRail 是窗口左侧的筛选栏：搜索框在最上方，中间是按“快捷 / 类型 / 标签 /
-// 来源 / 时间”分组收窄历史列表的筛选项，最下方是设置（左）与设备（右）。
-// 它整列延伸到窗口顶边，顶部保留标题栏拖拽条，因此也承担拖动窗口的职责。
-// 收起时把宽度动画到 0 并裁剪内容，由标题栏的展开/收起按钮重新打开。
+// filterRail 是窗口左侧的侧栏，也是应用唯一的侧栏。它的内容随当前分区切换：
+// 历史页是筛选分组，设备页是设备列表，设置页是设置分栏。顶部是分区标题（历史页
+// 另有搜索框），底部是全局导航（设置 / 外观切换 / 设备）。它整列延伸到窗口顶边，
+// 顶部保留标题栏拖拽条，因此也承担拖动窗口的职责。收起时把宽度动画到 0 并裁剪
+// 内容，由标题栏的展开/收起按钮重新打开。
 func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 	// 收起不再让整列消失，而是动画宽度：弹簧从当前宽度继续走，中途再点一次
 	// 会平滑地折回，而不是硬停。ClipX 把内容裁在收缩的列里。
@@ -277,79 +278,185 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 			Width(filterRailContentWidth(theme)).FillHeight().Shrink(0).
 			Padding(0, 0, space(theme, 2), space(theme, 2)).Children(func() {
 			paneTop(c)
-			// 搜索框是筛选栏的第一项，固定在列表上方。
-			ui.Box(c).FillWidth().Shrink(0).Padding(0, space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
-				a.searchField(c, theme)
-			})
-
-			ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().
-				ScrollbarInsets(0, 0, 0, 0).Children(func() {
-				ui.Column(c).FillWidth().Gap(space(theme, 0.5)).
-					Padding(0, space(theme, 2.5), 0, 0).Children(func() {
-					// 快捷：所有（清空所有筛选）与收藏。
-					a.filterItemButton(c, theme, filterFacet{
-						key:      "filter-all",
-						icon:     icons.history,
-						label:    a.t(msgFilterAll),
-						selected: !a.historyFiltered(),
-						onSelect: a.resetHistoryFilters,
-					})
-					a.filterItemButton(c, theme, filterFacet{
-						key:      "filter-favorites",
-						icon:     icons.star,
-						label:    a.t(msgFilterFavorites),
-						selected: a.filterFavorite,
-						onSelect: func() { a.filterFavorite = !a.filterFavorite },
-					})
-
-					a.filterSection(c, theme, a.t(msgFilterSectionType), func() {
-						a.filterItemButton(c, theme, a.kindFacet("filter-kind-text", icons.text, msgKindText, kindFilterText))
-						a.filterItemButton(c, theme, a.kindFacet("filter-kind-rich-text", icons.richText, msgKindRichText, kindFilterRichText))
-						a.filterItemButton(c, theme, a.kindFacet("filter-kind-image", icons.image, msgKindImage, kindFilterImage))
-						a.filterItemButton(c, theme, a.kindFacet("filter-kind-file", icons.file, msgKindFile, kindFilterFile))
-					})
-
-					a.filterSection(c, theme, a.t(msgFilterSectionTag), func() {
-						a.filterItemButton(c, theme, a.tagFacet("filter-tag-link", icons.link, msgKindLink, tagFilterLink))
-						a.filterItemButton(c, theme, a.tagFacet("filter-tag-code", icons.code, msgKindCode, tagFilterCode))
-						a.filterItemButton(c, theme, a.tagFacet("filter-tag-image", icons.image, msgKindImage, tagFilterImage))
-					})
-
-					a.filterSection(c, theme, a.t(msgFilterSectionSource), func() {
-						a.filterItemButton(c, theme, filterFacet{
-							key:      "filter-source-all",
-							icon:     icons.lan,
-							label:    a.t(msgFilterSourceAll),
-							selected: a.filterSource == "",
-							onSelect: func() { a.filterSource = "" },
-						})
-						for index := range a.pairedDevices {
-							a.filterSourceItem(c, theme, index)
-						}
-					})
-
-					a.filterSection(c, theme, a.t(msgFilterSectionTime), func() {
-						a.filterItemButton(c, theme, a.periodFacet("filter-time-all", msgFilterTimeAll, periodFilterAny))
-						a.filterItemButton(c, theme, a.periodFacet("filter-time-today", msgFilterTimeToday, periodFilterToday))
-						a.filterItemButton(c, theme, a.periodFacet("filter-time-yesterday", msgFilterTimeYesterday, periodFilterYesterday))
-						a.filterItemButton(c, theme, a.periodFacet("filter-time-last7", msgFilterTimeLast7, periodFilterLast7Days))
-						a.filterItemButton(c, theme, a.periodFacet("filter-time-last30", msgFilterTimeLast30, periodFilterLast30Days))
-					})
+			a.sidebarTitle(c, theme)
+			// 搜索属于历史筛选，只在历史分区出现。
+			if a.page == pageHistory {
+				ui.Box(c).FillWidth().Shrink(0).Padding(0, space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
+					a.searchField(c, theme)
 				})
-			})
-
-			// 导航固定在筛选栏最下方：设置与外观切换靠左，设备靠右。
-			ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).Children(func() {
-				standardDivider(c, theme)
-			})
-			ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).
-				Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
-				a.filterRailNavButton(c, theme, "filter-rail-settings", pageSettings, icons.settings, a.t(msgNavSettings))
-				a.filterRailAppearanceButton(c, theme)
-				ui.Spacer(c)
-				a.filterRailNavButton(c, theme, "filter-rail-devices", pageDevices, icons.devices, a.t(msgNavDevices))
-			})
+			}
+			a.sidebarBody(c, theme)
+			a.sidebarFooter(c, theme)
+			a.sidebarNavigation(c, theme)
 		})
+	})
+}
+
+// sidebarTitle 是侧栏顶部的分区标题。侧栏内容随分区切换，标题让身份始终明确；
+// 它同时承担拖动窗口的职责。左内边距与筛选项一致，标题与它们左对齐。
+func (a *application) sidebarTitle(c *ui.Context, theme *ui.Theme) {
+	label := a.t(msgNavHistory)
+	switch a.page {
+	case pageDevices:
+		label = a.t(msgNavDevices)
+	case pageSettings:
+		label = a.t(msgNavSettings)
+	}
+	ui.Text(c, label).FontSize(font(theme, fontPaneTitle)).FontWeight(600).
+		Padding(space(theme, 1), space(theme, 2), space(theme, 1), space(theme, 2)).
+		SingleLine().DragWindow()
+}
+
+// sidebarBody 是侧栏的滚动区，按当前分区渲染历史筛选、设备列表或设置分栏。
+// 每个分区用独立的 key，滚动位置不会跨分区串台。
+func (a *application) sidebarBody(c *ui.Context, theme *ui.Theme) {
+	ui.Scroll(c).Key(a.page).Grow(1).MinHeight(0).FillWidth().
+		ScrollbarInsets(0, 0, 0, 0).Children(func() {
+		ui.Column(c).FillWidth().Gap(space(theme, 0.5)).
+			Padding(0, space(theme, 2.5), 0, 0).Children(func() {
+			switch a.page {
+			case pageDevices:
+				a.sidebarDevices(c, theme)
+			case pageSettings:
+				a.sidebarSettings(c, theme)
+			default:
+				a.sidebarHistoryFilters(c, theme)
+			}
+		})
+	})
+}
+
+// sidebarHistoryFilters 是历史分区的筛选分组。
+func (a *application) sidebarHistoryFilters(c *ui.Context, theme *ui.Theme) {
+	// 快捷：所有（清空所有筛选）与收藏。
+	a.filterItemButton(c, theme, filterFacet{
+		key:      "filter-all",
+		icon:     icons.history,
+		label:    a.t(msgFilterAll),
+		selected: !a.historyFiltered(),
+		onSelect: a.resetHistoryFilters,
+	})
+	a.filterItemButton(c, theme, filterFacet{
+		key:      "filter-favorites",
+		icon:     icons.star,
+		label:    a.t(msgFilterFavorites),
+		selected: a.filterFavorite,
+		onSelect: func() { a.filterFavorite = !a.filterFavorite },
+	})
+
+	a.filterSection(c, theme, a.t(msgFilterSectionType), func() {
+		a.filterItemButton(c, theme, a.kindFacet("filter-kind-text", icons.text, msgKindText, kindFilterText))
+		a.filterItemButton(c, theme, a.kindFacet("filter-kind-rich-text", icons.richText, msgKindRichText, kindFilterRichText))
+		a.filterItemButton(c, theme, a.kindFacet("filter-kind-image", icons.image, msgKindImage, kindFilterImage))
+		a.filterItemButton(c, theme, a.kindFacet("filter-kind-file", icons.file, msgKindFile, kindFilterFile))
+	})
+
+	a.filterSection(c, theme, a.t(msgFilterSectionTag), func() {
+		a.filterItemButton(c, theme, a.tagFacet("filter-tag-link", icons.link, msgKindLink, tagFilterLink))
+		a.filterItemButton(c, theme, a.tagFacet("filter-tag-code", icons.code, msgKindCode, tagFilterCode))
+		a.filterItemButton(c, theme, a.tagFacet("filter-tag-image", icons.image, msgKindImage, tagFilterImage))
+	})
+
+	a.filterSection(c, theme, a.t(msgFilterSectionSource), func() {
+		a.filterItemButton(c, theme, filterFacet{
+			key:      "filter-source-all",
+			icon:     icons.lan,
+			label:    a.t(msgFilterSourceAll),
+			selected: a.filterSource == "",
+			onSelect: func() { a.filterSource = "" },
+		})
+		for index := range a.pairedDevices {
+			a.filterSourceItem(c, theme, index)
+		}
+	})
+
+	a.filterSection(c, theme, a.t(msgFilterSectionTime), func() {
+		a.filterItemButton(c, theme, a.periodFacet("filter-time-all", msgFilterTimeAll, periodFilterAny))
+		a.filterItemButton(c, theme, a.periodFacet("filter-time-today", msgFilterTimeToday, periodFilterToday))
+		a.filterItemButton(c, theme, a.periodFacet("filter-time-yesterday", msgFilterTimeYesterday, periodFilterYesterday))
+		a.filterItemButton(c, theme, a.periodFacet("filter-time-last7", msgFilterTimeLast7, periodFilterLast7Days))
+		a.filterItemButton(c, theme, a.periodFacet("filter-time-last30", msgFilterTimeLast30, periodFilterLast30Days))
+	})
+}
+
+// sidebarDevices 是设备分区的列表：本机条目、已配对设备（含刷新）与发现状态。
+func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
+	a.localDeviceEntry(c, theme)
+
+	ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
+		Padding(space(theme, 3), 0, 0, 0).Children(func() {
+		ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
+			TextColor(secondaryText(theme)).SingleLine()
+		ui.Spacer(c)
+		refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
+			Size(controlHeightSize(c, theme, controlHeight), controlHeightSize(c, theme, controlHeight)).
+			Shrink(0).Center().Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
+			Label(a.t(msgDevicesRefresh)).Tooltip(a.t(msgDevicesRefresh)).Transition(motionColors)
+		if refresh.Hovered() {
+			refresh.Background(hoverFill(theme))
+		}
+		refresh.Children(func() {
+			ui.Icon(c, icons.refresh).Size(space(theme, 4), space(theme, 4))
+		})
+		if refresh.Clicked() {
+			a.refreshDevices(c)
+		}
+	})
+
+	switch a.deviceDiscovery {
+	case deviceDiscoveryLoading:
+		a.deviceLoadingState(c, theme)
+	case deviceDiscoveryError:
+		a.deviceErrorState(c, theme)
+	default:
+		if len(a.pairedDevices) == 0 {
+			a.deviceEmptyState(c, theme)
+		}
+		for index := range a.pairedDevices {
+			a.pairedDeviceEntry(c, theme, index)
+		}
+	}
+}
+
+// sidebarSettings 是设置分区的分栏入口。
+func (a *application) sidebarSettings(c *ui.Context, theme *ui.Theme) {
+	for _, item := range a.settingsNavigationItems() {
+		a.settingsNavButton(c, theme, item)
+	}
+}
+
+// sidebarFooter 是侧栏在滚动区下方的分区专属操作，目前只有设备分区有：新增设备
+// 与在线台数。它固定在底部，设备再多也不用滚到底才能配对。
+func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
+	if a.page != pageDevices {
+		return
+	}
+	onlineCount := a.onlineDeviceCount()
+	onlineColor := secondaryText(theme)
+	if onlineCount > 0 {
+		onlineColor = theme.Success
+	}
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2)).
+		Padding(space(theme, 2), space(theme, 2.5), 0, 0).Children(func() {
+		a.inviteDeviceButton(c, theme)
+		ui.Row(c).Shrink(0).Padding(space(theme, 1), space(theme, 2.5)).Children(func() {
+			deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
+		})
+	})
+}
+
+// sidebarNavigation 是侧栏最下方的全局导航：设置与外观切换靠左，设备靠右。
+// 它不属于任何分区，切换分区时保持不动。
+func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
+	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).Children(func() {
+		standardDivider(c, theme)
+	})
+	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).
+		Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
+		a.filterRailNavButton(c, theme, "filter-rail-settings", pageSettings, icons.settings, a.t(msgNavSettings))
+		a.filterRailAppearanceButton(c, theme)
+		ui.Spacer(c)
+		a.filterRailNavButton(c, theme, "filter-rail-devices", pageDevices, icons.devices, a.t(msgNavDevices))
 	})
 }
 

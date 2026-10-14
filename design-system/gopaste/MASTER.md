@@ -90,21 +90,22 @@ Two radii cover the whole app: `controlRadius` for controls, rows, navigation an
 Responsive widths:
 
 - Window minimum: 1000 × 560 DIP.
-- History filter rail: 208 DIP when expanded, collapsible to 0 DIP.
-- Secondary sidebar (devices, settings): 208 DIP in compact mode, 236 DIP otherwise.
+- Sidebar: 208 DIP when expanded, collapsible to 0 DIP. It is the only sidebar in the window.
 - History list minimum: 300 DIP.
 - History preview minimum: 460 DIP while split.
 - Detail content maximum: 720 DIP.
 
-At compact widths, controls stack before they clip. The filter rail scrolls vertically; page text and actions do not.
+At compact widths, controls stack before they clip. The sidebar scrolls vertically; page text and actions do not.
 
 ## Component rules
 
 ### Navigation
 
-- The left rail is the history filter rail, not a destination list. It stays visible on every page, so History is always one click away and no separate History icon is needed.
-- The rail's bottom row sits below a divider: icon-only Settings and a light/dark appearance toggle at the left, icon-only Devices at the right. Their labels live in tooltips and accessible names.
-- The filter rail collapses by animating its width to zero behind a fixed-width, clipped content column, so its content slides out of view instead of squeezing. The list and preview slide in step, and their title-bar band grows with the same spring.
+- One sidebar serves the whole window, and its content follows the current section: History shows the filter groups, Devices shows the device list, Settings shows the settings panes. A page never adds a second sidebar of its own, so the leading column never shows one section's controls while another section is displayed.
+- The sidebar leads with the section title (History, Devices, Settings), so its identity stays clear as the content changes. The history search field sits below that title and appears only on History.
+- Each section's sidebar body carries its own key, so scroll position never carries across sections.
+- The sidebar's bottom row sits below a divider: icon-only Settings and a light/dark appearance toggle at the left, icon-only Devices at the right. Their labels live in tooltips and accessible names.
+- The sidebar collapses by animating its width to zero behind a fixed-width, clipped content column, so its content slides out of view instead of squeezing. The detail panes slide in step, and their title-bar band grows with the same spring.
 - The appearance toggle shows the mode it switches to: a moon in light mode, a sun in dark mode. A system appearance resolves to the mode it currently shows.
 - A collapse/expand button sits in the title bar, just right of the platform window controls. Collapsing hides the rail entirely; the button stays, so the rail can return.
 - Filter rows are left-aligned: the icon sits at the rail's content edge, the label follows it, and section labels share that same left edge.
@@ -162,7 +163,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### Devices and settings
 
-- Use the shared secondary sidebar and detail width.
+- The device list and the settings panes live in the shared sidebar, not in a second column beside it; the detail pane takes the remaining width.
 - Pair status text with a status dot or icon; never use color alone.
 - Make the direct, peer-to-peer connection explicit in device details and pairing states, without naming a specific network type.
 - Use helper text for switches and direction controls so disabled states explain their scope.

@@ -80,15 +80,11 @@ const (
 )
 
 const (
-	// secondarySidebarWidth is shared by the device and settings pages so their
-	// detail panes begin at the same x position.
-	secondarySidebarWidth        = 236
-	secondarySidebarCompactWidth = 208
-	// filterRailWidth is the history filter rail's width in DIPs. It has to
-	// hold "all sources" and long paired-device names.
-	filterRailWidth        = 208
-	responsiveCompactWidth = 1024
-	pageDetailMaxWidth     = 720
+	// filterRailWidth is the sidebar's width in DIPs. The sidebar holds the
+	// history filters, the device list, or the settings panes, so it has to
+	// fit "all sources" and long paired-device names.
+	filterRailWidth    = 208
+	pageDetailMaxWidth = 720
 	// sidebarTrailingInset 是历史、设备侧栏右侧的统一留白：既对齐各页内容，
 	// 也为滚动条预留出空间，避免滚动条遮挡选中卡片的边框。
 	sidebarTrailingInset float32 = 4
@@ -195,13 +191,6 @@ func controlHeightSize(c *ui.Context, theme *ui.Theme, units float32) float32 {
 	return space(theme, units*textScale(c))
 }
 
-func secondarySidebarSize(c *ui.Context, theme *ui.Theme) float32 {
-	if contentWidth(c) < responsiveCompactWidth {
-		return space(theme, secondarySidebarCompactWidth/4)
-	}
-	return secondarySidebarWidth
-}
-
 // filterRailSize 返回筛选栏当前占用的宽度：收起时为 0，内容区因此占满窗口。
 func (a *application) filterRailSize(c *ui.Context, theme *ui.Theme) float32 {
 	if !a.filterRailOpen {
@@ -219,7 +208,7 @@ func filterRailContentWidth(theme *ui.Theme) float32 {
 
 func (a *application) compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
 	// 筛选栏常驻在窗口左侧（收起时为 0），设备页与设置页的详情宽度要把它一起扣掉。
-	available := contentWidth(c) - a.filterRailSize(c, theme) - secondarySidebarSize(c, theme) - 1
+	available := contentWidth(c) - a.filterRailSize(c, theme) - 1
 	return available < 680*textScale(c)
 }
 
@@ -232,14 +221,6 @@ func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
 			Role(ui.RoleHeading).SingleLine()
 		ui.Text(c, description).FontSize(font(theme, fontBody)).TextColor(secondaryText(theme)).Wrap()
 	})
-}
-
-// secondarySidebarTitle 是设备页与设置页侧栏顶部的首个标题。两栏共用同一份
-// 定义，保证字号、字重、颜色和左边距一致，不会再各自漂移。侧栏不再保留标题栏
-// 留白，因此标题行同时承担拖动窗口的职责。
-func secondarySidebarTitle(c *ui.Context, theme *ui.Theme, label string) ui.Element {
-	return ui.Text(c, label).FontSize(font(theme, fontPaneTitle)).FontWeight(600).
-		Padding(space(theme, 0.5), 0, space(theme, 0.5), 0).SingleLine().DragWindow()
 }
 
 func standardCard(c *ui.Context, theme *ui.Theme, key string, body func()) {

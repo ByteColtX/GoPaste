@@ -13,33 +13,9 @@ type settingsNavItem struct {
 	title string
 }
 
-// settingsPage 使用参考图中的二级导航布局：左侧定位设置主题，右侧展示当前内容。
+// settingsPage 只渲染详情。设置分栏是侧栏的一部分，见 filterRail 的 sidebarSettings。
 func (a *application) settingsPage(c *ui.Context, theme *ui.Theme) {
-	ui.Row(c).Fill().AlignItems(ui.Stretch).Children(func() {
-		a.settingsSidebar(c, theme)
-		ui.Box(c).Width(1).FillHeight().Shrink(0).
-			Background(dividerColor(theme))
-		a.settingsDetail(c, theme)
-	})
-}
-
-func (a *application) settingsSidebar(c *ui.Context, theme *ui.Theme) {
-	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
-		Padding(space(theme, columnTopInset), space(theme, 4), space(theme, 5), space(theme, 4)).
-		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		a.pageTop(c)
-		secondarySidebarTitle(c, theme, a.t(msgNavSettings))
-
-		ui.Column(c).Gap(space(theme, 0.5)).Children(func() {
-			for _, item := range a.settingsNavigationItems() {
-				a.settingsNavButton(c, theme, item)
-			}
-		})
-
-		ui.Spacer(c)
-		ui.Textf(c, "GoPaste %s", settingsVersion).FontSize(font(theme, fontCaption)).
-			TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2)).SingleLine()
-	})
+	a.settingsDetail(c, theme)
 }
 
 func (a *application) settingsNavigationItems() []settingsNavItem {
@@ -53,8 +29,8 @@ func (a *application) settingsNavigationItems() []settingsNavItem {
 
 func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item settingsNavItem) {
 	button := ui.ButtonBase(c.Key("settings-nav-"+item.key)).
-		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.25), space(theme, 2)).Radius(radius(theme, controlRadius)).
+		Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
+		Padding(space(theme, 1.5), space(theme, 2)).Radius(radius(theme, controlRadius)).
 		Border(1, ui.Transparent).
 		TextColor(secondaryText(theme)).Label(item.title).Tooltip(item.title).
 		Role(ui.RoleToggleButton).Selected(a.settingsArea == item.area).Transition(motionColors)
@@ -67,7 +43,7 @@ func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item set
 	}
 	button.Children(func() {
 		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
-			ui.Icon(c, item.icon).Size(space(theme, 4), space(theme, 4)).Shrink(0)
+			ui.Icon(c, item.icon).Size(space(theme, 4.25), space(theme, 4.25)).Shrink(0)
 			ui.Text(c, item.title).FontSize(font(theme, fontControl)).SingleLine()
 		})
 	})

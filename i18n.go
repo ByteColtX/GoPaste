@@ -40,7 +40,8 @@ func languageFromLocale(locale string) language {
 type messageKey string
 
 const (
-	// Navigation.
+	// Navigation. These also title the contextual sidebar for each section.
+	msgNavHistory  messageKey = "nav.history"
 	msgNavDevices  messageKey = "nav.devices"
 	msgNavSettings messageKey = "nav.settings"
 
@@ -121,7 +122,6 @@ const (
 	msgToastDeviceDiscoveryUnavailable messageKey = "toast.deviceDiscoveryUnavailable"
 
 	// Devices.
-	msgDevicesTitle            messageKey = "devices.title"
 	msgDevicesPaired           messageKey = "devices.paired"
 	msgDevicesRefresh          messageKey = "devices.refresh"
 	msgDevicesOnlineCount      messageKey = "devices.onlineCount"
@@ -292,6 +292,7 @@ type catalog map[messageKey]string
 func (c catalog) text(key messageKey) string { return c[key] }
 
 var simplifiedChineseCatalog = catalog{
+	msgNavHistory:  "历史记录",
 	msgNavDevices:  "设备",
 	msgNavSettings: "设置",
 
@@ -365,7 +366,6 @@ var simplifiedChineseCatalog = catalog{
 	msgToastLaunchAtLoginOff:           "已关闭开机自启",
 	msgToastDeviceDiscoveryUnavailable: "设备发现服务尚未接入",
 
-	msgDevicesTitle:            "本设备",
 	msgDevicesPaired:           "已配对设备",
 	msgDevicesRefresh:          "刷新设备列表",
 	msgDevicesOnlineCount:      "%d 台在线",
@@ -525,6 +525,7 @@ var simplifiedChineseCatalog = catalog{
 }
 
 var englishCatalog = catalog{
+	msgNavHistory:  "History",
 	msgNavDevices:  "Devices",
 	msgNavSettings: "Settings",
 
@@ -598,7 +599,6 @@ var englishCatalog = catalog{
 	msgToastLaunchAtLoginOff:           "Launch at login turned off",
 	msgToastDeviceDiscoveryUnavailable: "Device discovery isn't available yet",
 
-	msgDevicesTitle:            "This device",
 	msgDevicesPaired:           "Paired devices",
 	msgDevicesRefresh:          "Refresh device list",
 	msgDevicesOnlineCount:      "%d online",

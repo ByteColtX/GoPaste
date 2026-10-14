@@ -4,81 +4,10 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// devicesPage 使用侧栏选择设备，右侧展示当前 Peer 的同步设置。
+// devicesPage 只渲染详情。设备列表是侧栏的一部分，见 filterRail 的 sidebarDevices。
 func (a *application) devicesPage(c *ui.Context, theme *ui.Theme) {
-	ui.Row(c).Fill().MinWidth(0).Children(func() {
-		a.deviceSidebar(c, theme)
-		ui.Box(c).Width(1).FillHeight().Shrink(0).
-			Background(dividerColor(theme))
-		a.deviceDetail(c, theme)
-	})
-
+	a.deviceDetail(c, theme)
 	a.addDeviceDialogView(c, theme)
-}
-
-// deviceSidebar 是设备页的主从导航。侧栏保持固定宽度，避免设备名称变化时右侧内容跳动。
-func (a *application) deviceSidebar(c *ui.Context, theme *ui.Theme) {
-	onlineCount := a.onlineDeviceCount()
-	onlineColor := secondaryText(theme)
-	if onlineCount > 0 {
-		onlineColor = theme.Success
-	}
-
-	ui.Column(c).Width(secondarySidebarSize(c, theme)).FillHeight().Shrink(0).
-		Padding(space(theme, columnTopInset), 0, space(theme, 5), space(theme, 4)).
-		Gap(space(theme, spaceControl)).Background(sidebarFill(theme)).Children(func() {
-		a.pageTop(c)
-		secondarySidebarTitle(c, theme, a.t(msgDevicesTitle))
-		a.localDeviceEntry(c, theme)
-
-		ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
-			Margin(0, space(theme, sidebarTrailingInset), 0, 0).
-			Padding(space(theme, 3), 0, 0, 0).Children(func() {
-			ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
-				TextColor(secondaryText(theme)).SingleLine()
-			ui.Spacer(c)
-			refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
-				Size(controlHeightSize(c, theme, controlHeight), controlHeightSize(c, theme, controlHeight)).Shrink(0).Center().
-				Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
-				Label(a.t(msgDevicesRefresh)).Tooltip(a.t(msgDevicesRefresh))
-			if refresh.Hovered() {
-				refresh.Background(hoverFill(theme))
-			}
-			refresh.Children(func() {
-				ui.Icon(c, icons.refresh).Size(space(theme, 4), space(theme, 4))
-			})
-			if refresh.Clicked() {
-				a.refreshDevices(c)
-			}
-		})
-
-		ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 0.5), 0, 0).
-			Children(func() {
-				ui.Column(c).FillWidth().Gap(space(theme, 1)).Children(func() {
-					switch a.deviceDiscovery {
-					case deviceDiscoveryLoading:
-						a.deviceLoadingState(c, theme)
-					case deviceDiscoveryError:
-						a.deviceErrorState(c, theme)
-					default:
-						if len(a.pairedDevices) == 0 {
-							a.deviceEmptyState(c, theme)
-						}
-						for index := range a.pairedDevices {
-							a.pairedDeviceEntry(c, theme, index)
-						}
-					}
-				})
-			})
-
-		ui.Column(c).Shrink(0).Gap(space(theme, 2)).
-			Margin(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
-			a.inviteDeviceButton(c, theme)
-			ui.Row(c).Shrink(0).Padding(space(theme, 1), space(theme, 2.5)).Children(func() {
-				deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
-			})
-		})
-	})
 }
 
 func (a *application) deviceEmptyState(c *ui.Context, theme *ui.Theme) {
@@ -174,7 +103,6 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key string, selected bool) ui.Element {
 	entry := ui.ButtonBase(c.Key(key)).MinHeight(controlHeightSize(c, theme, 16)).Shrink(0).
 		AlignSelf(ui.Stretch).
-		Margin(0, space(theme, sidebarTrailingInset), 0, 0).
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
 		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
 		TextColor(primaryText(theme)).Label(a.t(msgDevicesSelect)).
