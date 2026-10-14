@@ -718,7 +718,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 	panel := ui.Column(c).Fill().
 		MinWidth(minHistoryPaneWidth).
 		Background(theme.Background).
-		Padding(0, 0, space(theme, 2.5), space(theme, 4))
+		Padding(0, 0, space(theme, 2.5), space(theme, sidebarTrailingInset))
 
 	panel.Children(func() {
 		// 顶部保留标题栏带，列表内容从带子下方统一的第一行开始。

@@ -99,7 +99,7 @@ const (
 	// sidebarTrailingInset 是侧栏与历史列表左右两侧的统一留白（单位是 spacing，
 	// 即 16 DIP）。两侧取同一个值，选中的条目/行才会在所在栏里居中；右侧同时
 	// 让开覆盖式滚动条（滚动条占右侧 3–9 DIP），高亮框因此不会被它压住。
-	sidebarTrailingInset float32 = 4
+	sidebarTrailingInset float32 = 3.5
 
 	// columnTopInset 是各面板内容列首行距标题栏带底边的留白。每个面板都先让出
 	// 标题栏带（窗口控件与侧栏开关在带内居中），再从这条基线开始内容，因此
