@@ -93,9 +93,14 @@ const (
 	// 也为滚动条预留出空间，避免滚动条遮挡选中卡片的边框。
 	sidebarTrailingInset float32 = 4
 
-	// columnTopInset 统一筛选栏与历史、设备、设置三页内容列的首行起始内边距，
-	// 让各页栏位从同一高度开始。
-	columnTopInset float32 = 3
+	// columnTopInset 是各面板内容列首行的起始内边距。取 6 DIP，正好让首行的
+	// 视觉中线落在标题栏带的中线上（带高 32、标题行盒高约 20，上下各留 6），
+	// 也就是与窗口控制按钮、侧栏开关处在同一条中线上。
+	//
+	// 依据 Apple WWDC20《Adopt the new look of macOS》的统一工具栏：窗口控件、
+	// 内联标题与工具栏项共享同一行并垂直居中。实测红绿灯中心 y=16，首行用 12 DIP
+	// 时标题中心在 y≈21.4，比控件低约 5–6 DIP，因此统一收到 6 DIP。
+	columnTopInset float32 = 1.5
 )
 
 func font(theme *ui.Theme, scale float32) float32 {

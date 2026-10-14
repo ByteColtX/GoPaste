@@ -185,17 +185,6 @@ func (a *application) trafficLightInset(c *ui.Context, theme *ui.Theme) float32 
 	return c.TitleBar().Left + titleBarButtonHeight(c, theme) + space(theme, 3)
 }
 
-// historyHeaderShift 是收起时标题行内容要上抬的距离，让标题与标题栏里的
-// 展开/收起按钮处在同一条水平中线上，整条读作「控件 + 工具栏标题」。抬高的
-// 量由 historyHeader 从下方内边距补回，标题行总高度不变，列表行不跟着动。
-func (a *application) historyHeaderShift(c *ui.Context, theme *ui.Theme) float32 {
-	if a.filterRailOpen {
-		return 0
-	}
-	// 6 DIP 正好把标题的中心抬到按钮中心（实测按钮中心 y=16，标题原本 y≈21.4）。
-	return space(theme, 1.5)
-}
-
 func (a *application) globalShortcuts(c *ui.Context) {
 	c.OnShortcut(ui.Cmd, ui.Key1, func() { a.setPage(pageHistory) })
 	c.OnShortcut(ui.Cmd, ui.Key2, func() { a.setPage(pageDevices) })
@@ -742,14 +731,13 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 	header := ui.Row(c).Key("history-header").Shrink(0).FillWidth().AlignItems(ui.Start).DragWindow()
 
 	// 侧栏展开时标题在左，与筛选项同一列；收起时窗口控制按钮落到列表上方，
-	// 标题改成工具栏标题的读法：横向紧跟展开按钮，纵向与它同一中线。
+	// 标题横向让到它们右侧，读作工具栏标题。
 	//
-	// 两处位移都用与侧栏同一个弹簧插值，所以收起时标题是滑过去而不是跳过去。
-	// 纵向只把内边距在上下之间挪：上边距减去 shift、下边距加上 shift，标题行的
-	// 总高度不变，列表行位置因此一点不动。
+	// 只做横向位移，纵向一动不动：标题的首行高度、标题块总高、下面列表行的
+	// 位置在展开与收起两种状态下完全一致，切换时不会有任何纵向跳动。位移用
+	// 与侧栏同一个弹簧插值，所以是滑过去而不是跳过去。
 	left := header.AnimateTo("header-left", a.trafficLightInset(c, theme), motionLayoutSpringAnimation)
-	shift := header.AnimateTo("header-shift", a.historyHeaderShift(c, theme), motionLayoutSpringAnimation)
-	header.Padding(space(theme, columnTopInset)-shift, space(theme, sidebarTrailingInset), space(theme, 1.5)+shift, left).
+	header.Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), left).
 		Children(func() {
 			ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
 				ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
