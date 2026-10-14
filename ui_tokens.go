@@ -509,13 +509,16 @@ func listRow(
 		Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).Row().
 		AlignItems(ui.Center).TextColor(primaryText(theme)).Label(label).
 		Role(ui.RoleButton).Selected(selected).Transition(motionColors)
+	// 注意：MyGo 的 Selected(true) 会顺手把底色设成 Accent、文字设成 AccentText，
+	// 所以选中分支必须把两者都改回来——只改底色的话，行内文字会保持「强调色上的
+	// 文字」（浅色外观下接近白色），贴在淡色高亮底上几乎读不出来。
 	switch {
 	case selected:
-		row.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
+		row.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
 	case row.Hovered():
-		row.Background(hoverFill(theme)).BorderColor(ui.Transparent)
+		row.Background(hoverFill(theme)).BorderColor(ui.Transparent).TextColor(primaryText(theme))
 	default:
-		row.Background(ui.Transparent).BorderColor(ui.Transparent)
+		row.Background(ui.Transparent).BorderColor(ui.Transparent).TextColor(primaryText(theme))
 	}
 	row.Children(func() {
 		tile()
