@@ -409,13 +409,18 @@ func (a *application) filterSourceItem(c *ui.Context, theme *ui.Theme, index int
 }
 
 // filterSection 渲染筛选栏的一个分区：小号分区标题加分区内的筛选项。
-// 标题的左内边距与筛选项一致，两者左边缘对齐。
+//
+// 间距按 Apple 的 8 pt 基线网格（macOS 上标准间距都是 4 pt 的整数倍）：标题
+// 上方 16 pt 把它与上一组拉开，标题下方 8 pt 是「标签到控件」的标准间距
+// （spacing.m）。下方小于上方，标题才读得出属于它标注的那一组。标题左内边距
+// 与筛选项一致，两者的左边缘对齐。
 func (a *application) filterSection(c *ui.Context, theme *ui.Theme, title string, body func()) {
-	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 0.5)).
-		Padding(space(theme, 2), 0, space(theme, 0.5), 0).Children(func() {
+	ui.Column(c).FillWidth().Shrink(0).
+		Padding(space(theme, 4), 0, 0, 0).Children(func() {
 		ui.Text(c, title).FontSize(font(theme, fontCaption)).FontWeight(600).
-			TextColor(secondaryText(theme)).Padding(0, space(theme, 2)).SingleLine()
-		body()
+			TextColor(secondaryText(theme)).
+			Padding(0, space(theme, 2), space(theme, 2), space(theme, 2)).SingleLine()
+		ui.Column(c).FillWidth().Gap(space(theme, 0.5)).Children(body)
 	})
 }
 
