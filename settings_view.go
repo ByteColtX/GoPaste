@@ -150,13 +150,11 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsSubheading(c, a.t(msgSettingsVisualStyle), theme)
 	settingsGroup(c, theme, "settings-appearance-group", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsMode), a.t(msgSettingsModeDesc), func() {
-			control := ui.Segmented(
-				c.Key("settings-appearance"),
-				&a.appearance,
+			control := segmentedField(c, theme, "settings-appearance", &a.appearance, a.t(msgSettingsAppearance), []string{
 				a.t(msgSettingsThemeSystem),
 				a.t(msgSettingsThemeLight),
 				a.t(msgSettingsThemeDark),
-			).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).Label(a.t(msgSettingsAppearance))
+			}).Height(controlHeightSize(c, theme, controlHeight))
 			if a.compactDetailLayout(c, theme) {
 				control.FillWidth()
 			} else {

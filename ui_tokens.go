@@ -74,8 +74,10 @@ func subtleFill(theme *ui.Theme) ui.Color {
 	return theme.SurfaceHover.Alpha(0.5)
 }
 
+// selectedFill 是选中行、筛选项和导航项背后的底色。它只是一层很淡的强调色
+// 淡洗，让选中读作一种安静的状态，而不是一块亮色；强调留给文字和图标。
 func selectedFill(theme *ui.Theme) ui.Color {
-	return theme.Accent.Alpha(0.12)
+	return theme.Accent.Alpha(0.09)
 }
 
 func hoverFill(theme *ui.Theme) ui.Color {
@@ -118,11 +120,14 @@ func dangerFill(theme *ui.Theme) ui.Color {
 	return theme.Danger.Alpha(0.14)
 }
 
+// selectionBorder 是选中项的 1px 描边。普通外观下它保持透明：选中状态完全由
+// 那层淡强调色底色表达，不再描一圈亮框；宽度恒定，未选中时用透明色占位，切换
+// 状态时内容不会跳动。高对比度外观下才恢复为实强调色描边。
 func selectionBorder(c *ui.Context, theme *ui.Theme) ui.Color {
 	if c.Preferences().HighContrast {
 		return theme.Accent
 	}
-	return theme.Accent.Alpha(0.30)
+	return ui.Transparent
 }
 
 func contentWidth(c *ui.Context) float32 {
@@ -332,12 +337,15 @@ func selectField[T comparable](
 			Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, 0.18))
 		for _, opt := range options {
 			item := sel.Item(opt.value).Padding(space(theme, 1.5), space(theme, 2.5)).
-				Radius(radius(theme, controlRadius))
+				Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
+				TextColor(primaryText(theme))
+			// 当前值与指针/方向键所在的项用同一套选中样式，
+			// 而不是一块实心强调色：下拉里的选中和列表里的选中看起来一样。
 			switch {
 			case item.Highlighted():
-				item.Background(theme.Accent).TextColor(theme.AccentText)
+				item.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
 			case opt.value == *value:
-				item.Background(theme.Surface)
+				item.Background(selectedFill(theme))
 			}
 			item.Children(func() {
 				ui.Text(c, opt.label).FontSize(font(theme, fontControl)).SingleLine()
@@ -345,6 +353,43 @@ func selectField[T comparable](
 		}
 	})
 	return trigger
+}
+
+// segmentedField 渲染分段控件（模式切换），并让选中的那一段使用与行、筛选项
+// 相同的选中样式：淡强调色底 + 淡描边，而不是一块自带的凸起白片。
+func segmentedField(
+	c *ui.Context,
+	theme *ui.Theme,
+	key string,
+	selected *int,
+	label string,
+	labels []string,
+) ui.Element {
+	parts := ui.SegmentedBase(c.Key(key), selected, len(labels))
+	track := parts.Track
+	track.Shrink(0).AlignItems(ui.Stretch).
+		Padding(space(theme, 0.5)).Gap(space(theme, 0.5)).
+		Radius(radius(theme, controlRadius)).Background(subtleFill(theme)).
+		Border(1, borderColor(theme)).Label(label)
+	track.Children(func() {
+		for index, text := range labels {
+			segment := parts.Segment(index).Shrink(0).Center().
+				Padding(space(theme, 1), space(theme, 2.5)).
+				Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
+				TextColor(secondaryText(theme))
+			switch {
+			case index == *selected:
+				segment.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).
+					TextColor(primaryText(theme))
+			case segment.Hovered():
+				segment.Background(hoverFill(theme))
+			}
+			segment.Children(func() {
+				ui.Text(c, text).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+			})
+		}
+	})
+	return track
 }
 
 // keycap 渲染单键快捷键提示：小圆角方块内一个字母，跟在按钮文字之后。fg 取按钮

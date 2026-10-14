@@ -39,7 +39,7 @@ All runtime colors come from `ui.Theme`, so system accent, high contrast, and li
 | Surface | `theme.Surface` | Sidebars, controls, inputs |
 | Elevated surface | `theme.Surface` | Cards, preview content, dialogs |
 | Hover | `theme.SurfaceHover` | Hover and pressed state layers |
-| Selected | `theme.Accent` (tinted) | Selected rows, filters, navigation; use `selectedFill` and `selectionBorder` |
+| Selected | `theme.Accent` (tinted) | Selected rows, filters, navigation, dropdown items, and the chosen segment; use `selectedFill` and `selectionBorder` |
 | Border | `theme.Border` | Cards, controls, separators |
 | Primary text | `theme.Text` | Headings and content |
 | Secondary text | `theme.TextMuted` | Metadata, helper copy, timestamps |
@@ -128,7 +128,8 @@ At compact widths, controls stack before they clip. The filter rail scrolls vert
 
 - Cards use `standardCard`, a 1px semantic border, and an opaque surface.
 - Dividers use `standardDivider` and separate sibling rows.
-- Selection keeps a stable border so content does not jump between states.
+- Selection is one shared style everywhere: a light accent wash with no visible outline. The outline stays transparent unless high contrast asks for one, and it always keeps its 1px slot so content does not jump between states.
+- Every selectable row, filter, navigation item, dropdown option, and segmented segment uses `selectedFill` and `selectionBorder`, so no control introduces a brighter highlight of its own.
 
 ### States
 
