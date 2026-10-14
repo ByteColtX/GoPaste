@@ -263,18 +263,21 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 	if !a.filterRailOpen {
 		return
 	}
+	// 滚动条要贴近右侧分割线，所以这一列不再留右内边距：搜索框、筛选项和
+	// 底栏各自留出右留白，滚动条就能画到靠近分割线的位置。
 	ui.Column(c).Width(a.filterRailSize(c, theme)).FillHeight().Shrink(0).
-		Padding(0, space(theme, 2), space(theme, 2), space(theme, 2)).
+		Padding(0, 0, space(theme, 2), space(theme, 2)).
 		Background(sidebarFill(theme)).Border(1, dividerColor(theme)).Children(func() {
 		paneTop(c)
 		// 搜索框是筛选栏的第一项，固定在列表上方。
-		ui.Box(c).FillWidth().Shrink(0).Padding(0, 0, space(theme, 1.5), 0).Children(func() {
+		ui.Box(c).FillWidth().Shrink(0).Padding(0, space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
 			a.searchField(c, theme)
 		})
 
 		ui.Scroll(c).Grow(1).MinHeight(0).FillWidth().
-			ScrollbarInsets(0, space(theme, 0.5), 0, 0).Children(func() {
-			ui.Column(c).FillWidth().Gap(space(theme, 0.5)).Children(func() {
+			ScrollbarInsets(0, 0, 0, 0).Children(func() {
+			ui.Column(c).FillWidth().Gap(space(theme, 0.5)).
+				Padding(0, space(theme, 2.5), 0, 0).Children(func() {
 				// 快捷：所有（清空所有筛选）与收藏。
 				a.filterItemButton(c, theme, filterFacet{
 					key:      "filter-all",
@@ -328,10 +331,10 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 		})
 
 		// 导航固定在筛选栏最下方：设置与外观切换靠左，设备靠右。
-		ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), 0, 0, 0).Children(func() {
+		ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).Children(func() {
 			standardDivider(c, theme)
 		})
-		ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), 0, 0, 0).
+		ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).
 			Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
 			a.filterRailNavButton(c, theme, "filter-rail-settings", pageSettings, icons.settings, a.t(msgNavSettings))
 			a.filterRailAppearanceButton(c, theme)
