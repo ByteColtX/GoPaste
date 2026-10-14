@@ -102,22 +102,25 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 ### Navigation
 
 - One sidebar serves the whole window, and its content follows the current section: History shows the filter groups, Devices shows the device list, Settings shows the settings panes. A page never adds a second sidebar of its own, so the leading column never shows one section's controls while another section is displayed.
-- The sidebar leads with the section title (History, Devices, Settings), so its identity stays clear as the content changes. The history search field sits below that title and appears only on History.
+- The sidebar carries no title line of its own: the switcher's selected item names the section. The history search field is its first item and appears only on History.
 - Each section's sidebar body carries its own key, so scroll position never carries across sections.
-- The sidebar's bottom row is the section switcher, below a divider: icon-only History, Settings, and a light/dark appearance toggle at the left, icon-only Devices at the right. History must be present, because the contextual sidebar shows no filters on the other sections, so it is the only pointer route back. Their labels live in tooltips and accessible names.
+- The section switcher sits at the bottom of the sidebar: icon-only History, Settings, and the light/dark appearance toggle at the left, icon-only Devices at the right, with labels in tooltips and accessible names. History must be present, because the contextual sidebar shows no filters on the other sections, so it is the only pointer route back.
+- Known trade-off: HIG › Sidebars advises against critical actions at a sidebar's bottom edge, because a relocated window can hide it. The switcher stays there by product decision.
+- The history list header reads 历史记录, and the sidebar has no second title beside it.
+- The device list's refresh and add-device actions sit in the list header row, beside the list they act on; the sidebar's bottom holds only the informational online count.
 - The sidebar collapses by animating its width to zero behind a fixed-width, clipped content column, so its content slides out of view instead of squeezing. The detail panes slide in step, and their title-bar band grows with the same spring.
 - The appearance toggle shows the mode it switches to: a moon in light mode, a sun in dark mode. A system appearance resolves to the mode it currently shows.
-- A collapse/expand button sits in the title bar, just right of the platform window controls. Collapsing hides the rail entirely; the button stays, so the rail can return.
-- Filter rows are left-aligned: the icon sits at the rail's content edge, the label follows it, and section labels share that same left edge.
+- A collapse/expand button sits in the title bar, just right of the platform window controls. Collapsing hides the sidebar entirely; the button stays, so it can return.
+- Filter rows are left-aligned: the icon sits at the sidebar's content edge, the label follows it, and section labels share that same left edge.
 - Current destination and current filter both use `Selected(true)`, `selectedFill(theme)`, and primary text.
 - Navigation and filter controls have stable keys, labels, tooltips, and visible focus rings.
 - Choosing any filter returns to History with that filter applied.
 
 ### Search
 
-- The history search field is the first item in the filter rail, above the filter list.
+- The history search field sits below the section switcher, above the filter list.
 - Typing in the search from another page returns to History, so the result is visible immediately.
-- The search shortcut (Cmd+K, Cmd+F) expands the rail before focusing the field.
+- The search shortcut (Cmd+K, Cmd+F) expands the sidebar before focusing the field.
 
 ### Buttons and controls
 
@@ -143,9 +146,9 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ### History
 
-- The filter rail groups filters top to bottom: All and Favorites, then Type (text, rich text, image, file), Tag (link, code, image), Source (all sources, then each paired device), and Time (all time, today, yesterday, last 7 days, last 30 days).
+- The sidebar groups history filters top to bottom: All and Favorites, then Type (text, rich text, image, file), Tag (link, code), Source (all sources, then each paired device), and Time (all time, today, yesterday, last 7 days, last 30 days). The Tag group holds only the detected subtypes, so it never repeats a Type: an image item is reached through Type, not through a second Image row.
 - Filter section labels sit 16 DIP below the previous group and 8 DIP above their own rows, so a label reads as part of the group it names. The values follow Apple's 8 pt baseline grid, where 8 DIP is the standard label-to-control gap and section separation is the larger step.
-- Every page's content starts at the window's top edge and its header rows double as the drag region: the history list and preview, and the devices and settings sidebars and details. Only the filter rail reserves the title-bar band, because the window controls sit over it. When the rail is collapsed the controls move over the content, so every page reserves the band again, with the same spring.
+- Every page's content starts at the window's top edge and its header rows double as the drag region: the history list and preview, and the devices and settings details. Only the sidebar reserves the title-bar band, because the window controls sit over it. When the sidebar is collapsed the controls move over the content, so every page reserves the band again, with the same spring.
 - Type filters by payload format, so Text includes links and code; Tag narrows to a detected subtype. Choosing the selected facet again clears it, and All clears every facet.
 - A list row is two lines: a rounded, kind-tinted icon tile, then the content title with its favorite star, then a metadata line of type and time. The tile icon and color follow the item's own kind, so text, link, code, image, and file rows are told apart by icon before the label is read.
 - Show type and favorite state in the list metadata row; show type, size, source device, sync state, and time in the preview metadata row, with the source device and its sync chip sitting before the time. The source device reads 本机 for items captured here and names the paired device for items that arrived over the LAN.
@@ -183,7 +186,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 ## Motion and feedback
 
 - Use MyGo `ElementTransition`, `Animate*`, `AnimatePose` and `Loop`; no third-party animation package. The shared motion tokens live in `ui_tokens.go`.
-- Follow Apple's spring guidance (WWDC23, "Animate with springs"): move things with springs, so a change on the way keeps its velocity and a second click reverses smoothly instead of stopping dead. Use a zero-bounce spring for anything clipped while it moves, such as the filter rail, so overshoot cannot show as a gap.
+- Follow Apple's spring guidance (WWDC23, "Animate with springs"): move things with springs, so a change on the way keeps its velocity and a second click reverses smoothly instead of stopping dead. Use a zero-bounce spring for anything clipped while it moves, such as the sidebar, so overshoot cannot show as a gap.
 - Keep durations inside NN/g's 100–500 ms band and prefer the shortest that still reads: 120 ms for hover and selection color, 140 ms for a page cross-fade, 300 ms for layout springs.
 - Animate only what changed: `motionColors` for color feedback, `motionLayout` and `motionSlide` for layout springs, `motionAppear` for content entering, `motionPage` for a page change.
 - Fade when movement carries no meaning (HIG › Motion), as the page cross-fade does.
@@ -201,7 +204,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 ## Implementation map
 
 - `ui_tokens.go` owns shared metrics, semantic colors, and primitives.
-- `view.go` owns the shell, filter rail, footer navigation, header search, history list, preview, and history actions.
+- `view.go` owns the shell, the contextual sidebar, its section switcher, the header search, the history list, the preview, and the history actions.
 - `device_view.go` owns device navigation, sync controls, pairing, and connection details.
 - `settings_view.go` owns settings navigation and preference groups.
 - `icons.go` and `resources/icons/` own the embedded icon family.
@@ -213,7 +216,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - [ ] No page code contains raw color literals.
 - [ ] Light, dark, and high-contrast themes preserve text, border, status, and focus contrast.
 - [ ] Focus is visible on navigation, lists, fields, selects, switches, and modal actions.
-- [ ] The filter rail stays usable at the 300 DIP list minimum and the 1000 DIP window minimum, and collapses to 0 without clipping the content.
+- [ ] The sidebar stays usable at the 300 DIP list minimum and the 1000 DIP window minimum, and collapses to 0 without clipping the content.
 - [ ] Empty, loading, success, warning, error, offline, and unavailable states have recovery copy where applicable.
 - [ ] Chinese, English, and enlarged system text do not clip controls.
 - [ ] No clipboard content enters ordinary logs, telemetry, cloud services, or relays.

@@ -63,6 +63,7 @@ const (
 	msgFilterRailCollapse    messageKey = "filter.rail.collapse"
 	msgFilterRailExpand      messageKey = "filter.rail.expand"
 	msgAppearanceSwitchDark  messageKey = "appearance.switchDark"
+	msgAppMenuSettings       messageKey = "app.menu.settings"
 	msgAppearanceSwitchLight messageKey = "appearance.switchLight"
 
 	// History list, search, empty states, and preview.
@@ -309,12 +310,13 @@ var simplifiedChineseCatalog = catalog{
 	msgFilterTimeYesterday:   "昨天",
 	msgFilterTimeLast7:       "近 7 天",
 	msgFilterTimeLast30:      "近 30 天",
-	msgFilterRailCollapse:    "收起筛选栏",
-	msgFilterRailExpand:      "展开筛选栏",
+	msgFilterRailCollapse:    "收起侧栏",
+	msgFilterRailExpand:      "展开侧栏",
 	msgAppearanceSwitchDark:  "切换到深色外观",
+	msgAppMenuSettings:       "设置…",
 	msgAppearanceSwitchLight: "切换到浅色外观",
 
-	msgHistoryRecent:             "最近复制",
+	msgHistoryRecent:             "历史记录",
 	msgHistoryCount:              "%d 条记录",
 	msgHistoryCountOne:           "%d 条记录",
 	msgHistoryCountFiltered:      "%d / %d 条记录",
@@ -533,8 +535,8 @@ var englishCatalog = catalog{
 	msgFilterFavorites: "Favorites",
 
 	msgFilterSectionType:     "Type",
-	msgFilterSectionTag:      "Tag",
-	msgFilterSectionSource:   "Source",
+	msgFilterSectionTag:      "标签",
+	msgFilterSectionSource:   "来源",
 	msgFilterSectionTime:     "Time",
 	msgFilterSourceAll:       "All sources",
 	msgFilterTimeAll:         "All time",
@@ -545,9 +547,10 @@ var englishCatalog = catalog{
 	msgFilterRailCollapse:    "Collapse sidebar",
 	msgFilterRailExpand:      "Expand sidebar",
 	msgAppearanceSwitchDark:  "Switch to dark appearance",
+	msgAppMenuSettings:       "Settings…",
 	msgAppearanceSwitchLight: "Switch to light appearance",
 
-	msgHistoryRecent:             "Recent copies",
+	msgHistoryRecent:             "History",
 	msgHistoryCount:              "%d records",
 	msgHistoryCountOne:           "%d record",
 	msgHistoryCountFiltered:      "%d / %d records",

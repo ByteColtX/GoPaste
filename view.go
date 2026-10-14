@@ -178,6 +178,8 @@ func (a *application) globalShortcuts(c *ui.Context) {
 	c.OnShortcut(ui.Cmd, ui.Key1, func() { a.setPage(pageHistory) })
 	c.OnShortcut(ui.Cmd, ui.Key2, func() { a.setPage(pageDevices) })
 	c.OnShortcut(ui.Cmd, ui.Key3, func() { a.setPage(pageSettings) })
+	// HIG › Settings 的标准快捷键。
+	c.OnShortcut(ui.Cmd, ui.KeyComma, func() { a.setPage(pageSettings) })
 	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.focusHistorySearch(c) })
 	c.OnShortcut(ui.Cmd, ui.KeyF, func() { a.focusHistorySearch(c) })
 }
@@ -278,7 +280,6 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 			Width(filterRailContentWidth(theme)).FillHeight().Shrink(0).
 			Padding(0, 0, space(theme, 2), space(theme, 2)).Children(func() {
 			paneTop(c)
-			a.sidebarTitle(c, theme)
 			// 搜索属于历史筛选，只在历史分区出现。
 			if a.page == pageHistory {
 				ui.Box(c).FillWidth().Shrink(0).Padding(0, space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
@@ -292,19 +293,26 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-// sidebarTitle 是侧栏顶部的分区标题。侧栏内容随分区切换，标题让身份始终明确；
-// 它同时承担拖动窗口的职责。左内边距与筛选项一致，标题与它们左对齐。
-func (a *application) sidebarTitle(c *ui.Context, theme *ui.Theme) {
-	label := a.t(msgNavHistory)
-	switch a.page {
-	case pageDevices:
-		label = a.t(msgNavDevices)
-	case pageSettings:
-		label = a.t(msgNavSettings)
-	}
-	ui.Text(c, label).FontSize(font(theme, fontPaneTitle)).FontWeight(600).
-		Padding(space(theme, 1), space(theme, 2), space(theme, 1), space(theme, 2)).
-		SingleLine().DragWindow()
+// sidebarNavigation 是侧栏最下方的全局导航，也就是主窗口的分区切换器：历史、
+// 设置、外观切换靠左，设备靠右。它不属于任何分区，切换分区时保持不动。
+//
+// 侧栏随分区切换内容，设备页与设置页不再显示筛选项，所以切换器必须自己带上
+// 「历史」入口，否则从这两页回到历史只剩快捷键。
+//
+// 已知取舍：HIG › Sidebars 建议不要把关键操作放在侧栏底部（窗口下缘可能被移出
+// 屏幕）。这里按产品决定仍放在底部。
+func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
+	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).Children(func() {
+		standardDivider(c, theme)
+	})
+	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).
+		Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
+		a.filterRailNavButton(c, theme, "sidebar-history", pageHistory, icons.history, a.t(msgNavHistory))
+		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
+		a.filterRailAppearanceButton(c, theme)
+		ui.Spacer(c)
+		a.filterRailNavButton(c, theme, "sidebar-devices", pageDevices, icons.devices, a.t(msgNavDevices))
+	})
 }
 
 // sidebarBody 是侧栏的滚动区，按当前分区渲染历史筛选、设备列表或设置分栏。
@@ -354,7 +362,6 @@ func (a *application) sidebarHistoryFilters(c *ui.Context, theme *ui.Theme) {
 	a.filterSection(c, theme, a.t(msgFilterSectionTag), func() {
 		a.filterItemButton(c, theme, a.tagFacet("filter-tag-link", icons.link, msgKindLink, tagFilterLink))
 		a.filterItemButton(c, theme, a.tagFacet("filter-tag-code", icons.code, msgKindCode, tagFilterCode))
-		a.filterItemButton(c, theme, a.tagFacet("filter-tag-image", icons.image, msgKindImage, tagFilterImage))
 	})
 
 	a.filterSection(c, theme, a.t(msgFilterSectionSource), func() {
@@ -388,19 +395,10 @@ func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 		ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
-		refresh := ui.ButtonBase(c.Key("refresh-paired-devices")).
-			Size(controlHeightSize(c, theme, controlHeight), controlHeightSize(c, theme, controlHeight)).
-			Shrink(0).Center().Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
-			Label(a.t(msgDevicesRefresh)).Tooltip(a.t(msgDevicesRefresh)).Transition(motionColors)
-		if refresh.Hovered() {
-			refresh.Background(hoverFill(theme))
-		}
-		refresh.Children(func() {
-			ui.Icon(c, icons.refresh).Size(space(theme, 4), space(theme, 4))
-		})
-		if refresh.Clicked() {
+		a.sidebarIconAction(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), func() {
 			a.refreshDevices(c)
-		}
+		})
+		a.sidebarIconAction(c, theme, "add-paired-device", icons.deviceAdd, a.t(msgDevicesAdd), a.openAddDeviceDialog)
 	})
 
 	switch a.deviceDiscovery {
@@ -425,8 +423,9 @@ func (a *application) sidebarSettings(c *ui.Context, theme *ui.Theme) {
 	}
 }
 
-// sidebarFooter 是侧栏在滚动区下方的分区专属操作，目前只有设备分区有：新增设备
-// 与在线台数。它固定在底部，设备再多也不用滚到底才能配对。
+// sidebarFooter 是侧栏在滚动区下方的分区专属状态。目前只有设备分区有：在线
+// 台数。它是信息而不是操作——HIG › Sidebars 反对把关键操作放在侧栏底部，所以
+// 「新增设备」已经移到设备列表头部的「+」。
 func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 	if a.page != pageDevices {
 		return
@@ -436,31 +435,9 @@ func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 	if onlineCount > 0 {
 		onlineColor = theme.Success
 	}
-	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2)).
-		Padding(space(theme, 2), space(theme, 2.5), 0, 0).Children(func() {
-		a.inviteDeviceButton(c, theme)
-		ui.Row(c).Shrink(0).Padding(space(theme, 1), space(theme, 2.5)).Children(func() {
-			deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
-		})
-	})
-}
-
-// sidebarNavigation 是侧栏最下方的全局导航，也就是主窗口的分区切换器：历史、
-// 设置、外观切换靠左，设备靠右。它不属于任何分区，切换分区时保持不动。
-//
-// 侧栏现在随分区切换内容，设备页与设置页不再显示筛选项，所以分区切换器必须
-// 自己带上「历史」入口，否则从这两页回到历史只剩快捷键。
-func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
-	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).Children(func() {
-		standardDivider(c, theme)
-	})
-	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).
-		Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
-		a.filterRailNavButton(c, theme, "filter-rail-history", pageHistory, icons.history, a.t(msgNavHistory))
-		a.filterRailNavButton(c, theme, "filter-rail-settings", pageSettings, icons.settings, a.t(msgNavSettings))
-		a.filterRailAppearanceButton(c, theme)
-		ui.Spacer(c)
-		a.filterRailNavButton(c, theme, "filter-rail-devices", pageDevices, icons.devices, a.t(msgNavDevices))
+	ui.Row(c).FillWidth().Shrink(0).
+		Padding(space(theme, 1.5), space(theme, 2.5), space(theme, 0.5), 0).Children(func() {
+		deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
 	})
 }
 

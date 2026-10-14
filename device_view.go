@@ -117,24 +117,29 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 	return entry
 }
 
-func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
-	button := ui.ButtonBase(c.Key("invite-device")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, spaceInline)).
-		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
-		TextColor(primaryText(theme)).Label(a.t(msgDevicesAdd)).Transition(motionColors)
+// openAddDeviceDialog 打开配对对话框，并清掉上一次尝试留下的状态。设备列表头
+// 部的「+」与托盘入口共用这条路径。
+func (a *application) openAddDeviceDialog() {
+	a.addDeviceDialog = true
+	a.pairingPending = false
+	a.pairingError = ""
+}
+
+// sidebarIconAction 是侧栏里的小图标动作按钮（刷新、新增设备）：与分区切换器
+// 同一套尺寸、圆角与悬停反馈，但没有选中态。文字放在提示与辅助技术标签里。
+func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, onClick func()) {
+	size := controlHeightSize(c, theme, controlHeight)
+	button := ui.ButtonBase(c.Key(key)).Size(size, size).Shrink(0).Center().
+		Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
+		Label(label).Tooltip(label).Transition(motionColors)
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
-	} else {
-		button.Background(ui.Transparent)
 	}
 	button.Children(func() {
-		ui.Icon(c, icons.deviceAdd).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0)
-		ui.Text(c, a.t(msgDevicesAdd)).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		ui.Icon(c, icon).Size(space(theme, 4), space(theme, 4))
 	})
 	if button.Clicked() {
-		a.addDeviceDialog = true
-		a.pairingPending = false
-		a.pairingError = ""
+		onClick()
 	}
 }
 
