@@ -136,7 +136,7 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - Single-line item: 32 DIP high, (6, 8) DIP padding, a 17 DIP icon, 8 DIP between icon and label, 2 DIP between items, control radius, and the shared selected style.
 - Two-line row: 64 DIP minimum height, a 36 DIP icon tile with an 18 DIP glyph, (8, 8) DIP padding, 12 DIP between tile and text, 4 DIP between rows, control radius, and the same selected style. The container supplies the 4 DIP row spacing, so the first row still lands on the pane's first-line baseline.
 - Inside one pane, section labels, single-line item icons, and two-line row tiles share one left edge.
-- Each pane keeps its own content inset — 8 DIP in the sidebar, 16 in the history list, 24 in the preview and the detail panes — so a denser pane stays denser while the elements inside it keep the shared metrics.
+- Each pane keeps its own content inset — 16 DIP in the sidebar and the history list, 24 in the preview and the detail panes — and a pane's inset is the same on both sides, so a selected item or row sits centred in its pane. The sidebar's and list's trailing inset also clears the overlay scrollbar (which occupies the 3–9 DIP nearest the pane's trailing edge), so a highlight is never covered by it.
 
 ### Cards and dividers
 

@@ -286,7 +286,10 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 		// 宽度取外层内容盒的宽度，滚动条因此仍贴在外层右缘。
 		ui.Column(c).Key("filter-rail-content").
 			Width(filterRailContentWidth(theme)).FillHeight().Shrink(0).
-			Padding(0, 0, space(theme, 2), space(theme, 2)).Children(func() {
+			// 左右都用同一个留白，选中项的高亮框才在侧栏里居中；右留白同时要让开
+			// 滚动条（滚动条占右侧 3–9 DIP），所以不能为了居中把它调小。滚动容器
+			// 本身仍占满这一列（右内边距为 0），滚动条因此依旧贴近分割线。
+			Padding(0, 0, space(theme, 2), space(theme, sidebarTrailingInset)).Children(func() {
 			paneTop(c)
 			// 标题栏带下方统一留一段上边距：侧栏的第一个元素——历史页的搜索框、
 			// 设备页的本机条目、设置页的第一个分栏——因此在每一页都落在同一条

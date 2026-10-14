@@ -96,8 +96,9 @@ const (
 	// fit "all sources" and long paired-device names.
 	filterRailWidth    = 208
 	pageDetailMaxWidth = 720
-	// sidebarTrailingInset 是历史、设备侧栏右侧的统一留白：既对齐各页内容，
-	// 也为滚动条预留出空间，避免滚动条遮挡选中卡片的边框。
+	// sidebarTrailingInset 是侧栏与历史列表左右两侧的统一留白（单位是 spacing，
+	// 即 16 DIP）。两侧取同一个值，选中的条目/行才会在所在栏里居中；右侧同时
+	// 让开覆盖式滚动条（滚动条占右侧 3–9 DIP），高亮框因此不会被它压住。
 	sidebarTrailingInset float32 = 4
 
 	// columnTopInset 是各面板内容列首行距标题栏带底边的留白。每个面板都先让出
