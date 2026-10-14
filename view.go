@@ -1039,6 +1039,24 @@ func (a *application) historyRowMeta(c *ui.Context, theme *ui.Theme, item histor
 	})
 }
 
+// 预览元信息行里各子部件的尺寸：多数是 space 的 4 DIP 格，描边是 DIP。绘制与
+// 测量共用这一组常量：元信息行要先算宽度才能决定显示多少信息，两处各写一套
+// 数字迟早会对不上。
+const (
+	metaKindIconSize float32 = 3.75 // 类型图标
+	metaRowGap       float32 = 1.5  // 子项之间的间距
+	metaTagPadX      float32 = 1.5  // 自动标签左右内边距
+	metaTagPadY      float32 = 0.25 // 自动标签上下内边距
+	metaTagBorder    float32 = 1    // 自动标签描边，单位 DIP
+	metaSourceIcon   float32 = 3.25 // 来源图标
+	metaSourceGap    float32 = 1.25 // 来源图标与名称之间
+	metaSyncDot      float32 = 1.5  // 同步状态点
+	metaSyncGap      float32 = 1.25 // 状态点与标签之间
+	metaSyncPadX     float32 = 1    // 同步标记左右内边距
+	metaSyncPadY     float32 = 0.5  // 同步标记上下内边距
+	metaClusterGap   float32 = 0.5  // 来源与同步标记之间
+)
+
 // autoTag 渲染内容子类型的自动标签（链接、代码），没有标签时不占空间。
 // 预览标题把它紧跟在类型标签之后，让子类型与类型同处首行，不再单独占位。
 func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item) {
@@ -1048,9 +1066,20 @@ func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item)
 	}
 	tagColor := colorForKind(theme, item.Kind)
 	ui.Text(c, tag).FontSize(font(theme, fontCaption)).TextColor(tagColor).
-		Padding(space(theme, 0.25), space(theme, 1.5)).Radius(radius(theme, controlRadius)).
+		Padding(space(theme, metaTagPadY), space(theme, metaTagPadX)).Radius(radius(theme, controlRadius)).
 		Background(tagColor.Alpha(0.10)).
-		Border(1, tagColor.Alpha(0.24)).SingleLine()
+		Border(metaTagBorder, tagColor.Alpha(0.24)).SingleLine()
+}
+
+// autoTagWidth 是自动标签占用的宽度；没有标签时为 0，与 autoTag 不创建元素
+// 的情形一致。
+func (a *application) autoTagWidth(c *ui.Context, theme *ui.Theme, item history.Item) float32 {
+	tag := a.codeTag(item)
+	if tag == "" {
+		return 0
+	}
+	return textWidth(c, tag, font(theme, fontCaption), 0) +
+		2*space(theme, metaTagPadX) + 2*metaTagBorder
 }
 
 func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -1100,38 +1129,130 @@ func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history
 	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).DragWindow().
 		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3), space(theme, spacePageSide)).
 		Gap(space(theme, 1.75)).Children(func() {
-		// 本机条目带同步状态标记，局域网条目没有。标记并进来源「本机」一组，
-		// 让「本机 已同步」读作这条记录的来源与去向；它带弹出浮层，且正好落在
-		// 复制/收藏按钮上方，所以改成点击展开，指针滑过不会再误触发（见
-		// syncIndicator）。元信息行预留固定高度，标记就不会撑高这一行，切换
-		// 条目时下方的正文卡片也不再上下抖动。
-		ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-			baseKind := item.Kind.BaseKind()
-			kindColor := colorForKind(theme, baseKind)
-			ui.Icon(c, iconForKind(baseKind)).Size(space(theme, 3.75), space(theme, 3.75)).
-				Shrink(0).TextColor(kindColor)
-			ui.Text(c, a.kindLabel(baseKind)).FontSize(font(theme, fontMeta)).FontWeight(600).
-				TextColor(kindColor).SingleLine()
-			a.autoTag(c, theme, item)
-			for _, segment := range a.historyMetaSegments(item) {
-				ui.Text(c, "·").FontSize(font(theme, fontMeta)).
-					TextColor(secondaryText(theme))
-				ui.Text(c, segment).FontSize(font(theme, fontMeta)).
-					TextColor(secondaryText(theme)).SingleLine()
-			}
-			ui.Spacer(c)
-			// 来源与同步标记收进同一子行并收紧间距，让「本机 已同步」读作一组：
-			// 先交代记录从哪来，再交代同步到了哪。
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 0.5)).Children(func() {
-				a.historySource(c, theme, item)
-				a.syncIndicator(c, theme, item)
-			})
-			ui.Text(c, "·").FontSize(font(theme, fontCaption)).
-				TextColor(secondaryText(theme))
-			ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
-				TextColor(secondaryText(theme)).SingleLine()
+		// 元信息行预留固定高度，标记就不会撑高这一行，切换条目时下方的正文卡片
+		// 也不再上下抖动。
+		ui.Row(c).MinHeight(controlHeightSize(c, theme, 4.5)).AlignItems(ui.Center).
+			Gap(space(theme, metaRowGap)).Children(func() {
+			a.previewMetaRow(c, theme, item, a.previewContentWidth(c, theme))
 		})
 	})
+}
+
+// previewContentWidth 返回预览栏内容列的可用宽度：窗口宽度减去筛选栏、历史列表
+// 和分割线，再受详情列最大宽度与左右留白的限制。元信息行按它决定显示多少信息。
+func (a *application) previewContentWidth(c *ui.Context, theme *ui.Theme) float32 {
+	windowWidth, _ := c.Size()
+	previewWidth := windowWidth - a.filterRailSize(c, theme) - a.historyPaneWidth - splitDividerWidth
+	// 窗口比最小宽度还窄时，两侧面板各自守住自己的最小宽度，所以预览栏不会比
+	// minPreviewPaneWidth 更窄；这里取同一个下限，取舍判断才与实际布局一致。
+	previewWidth = max(previewWidth, float32(minPreviewPaneWidth))
+	previewWidth = min(previewWidth, pageDetailMaxWidth)
+	return previewWidth - 2*space(theme, spacePageSide)
+}
+
+// previewMetaRow 渲染预览标题的元信息行：类型图标与类型名、自动标签、内容片段，
+// 右端是来源、同步状态和时间。
+//
+// 宽度不够时只隐藏内容片段，而且从最不重要的开始：大小先消失，其次才是字符数，
+// 所以图片的分辨率、文件的大小作为各自类型里最后的信息保留到最后一刻。类型、
+// 来源、同步状态和时间不参与取舍——它们回答「这是什么、从哪来、什么时候」，
+// 比内容体量更重要。
+//
+// 本机条目带同步状态标记，局域网条目没有。标记并进来源「本机」一组，让「本机
+// 已同步」读作这条记录的来源与去向；它带弹出浮层，且正好落在复制/收藏按钮上方，
+// 所以改成点击展开，指针滑过不会再误触发（见 syncIndicator）。
+func (a *application) previewMetaRow(c *ui.Context, theme *ui.Theme, item history.Item, width float32) {
+	baseKind := item.Kind.BaseKind()
+	kindColor := colorForKind(theme, baseKind)
+	metaSize := font(theme, fontMeta)
+	captionSize := font(theme, fontCaption)
+	secondary := secondaryText(theme)
+	gap := space(theme, metaRowGap)
+
+	// 每个内容片段由它前面的间隔符和文字两个子项组成，所以除了两者自身的宽度，
+	// 还要算上它让行多出来的两个间距（见 fitMetaSegments）。
+	segments := a.historyMetaSegments(item)
+	segmentWidths := make([]float32, len(segments))
+	for index, segment := range segments {
+		segmentWidths[index] = textWidth(c, "·", metaSize, 0) + textWidth(c, segment, metaSize, 0)
+	}
+	visible := fitMetaSegments(width, a.previewMetaFixedWidth(c, theme, item, gap), gap, segmentWidths)
+
+	kindIconSize := space(theme, metaKindIconSize)
+	ui.Icon(c, iconForKind(baseKind)).Size(kindIconSize, kindIconSize).Shrink(0).TextColor(kindColor)
+	ui.Text(c, a.kindLabel(baseKind)).FontSize(metaSize).FontWeight(600).
+		TextColor(kindColor).SingleLine()
+	a.autoTag(c, theme, item)
+	for _, segment := range segments[:visible] {
+		ui.Text(c, "·").FontSize(metaSize).TextColor(secondary)
+		ui.Text(c, segment).FontSize(metaSize).TextColor(secondary).SingleLine()
+	}
+	ui.Spacer(c)
+	// 来源与同步标记收进同一子行并收紧间距，让「本机 已同步」读作一组：
+	// 先交代记录从哪来，再交代同步到了哪。
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, metaClusterGap)).Children(func() {
+		a.historySource(c, theme, item)
+		a.syncIndicator(c, theme, item)
+	})
+	ui.Text(c, "·").FontSize(captionSize).TextColor(secondary)
+	ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(captionSize).
+		TextColor(secondary).SingleLine()
+}
+
+// previewMetaFixedWidth 返回元信息行里不可隐藏部分占用的宽度，包含子项之间的
+// 间距：类型图标与类型名、自动标签、撑开左右的 Spacer、来源与同步状态、分隔符
+// 和时间。宽度按各部分真实的字体、内边距和间距累加，所以取舍判断与实际布局
+// 一致。
+func (a *application) previewMetaFixedWidth(c *ui.Context, theme *ui.Theme, item history.Item, gap float32) float32 {
+	captionSize := font(theme, fontCaption)
+	widths := []float32{
+		space(theme, metaKindIconSize),
+		textWidth(c, a.kindLabel(item.Kind.BaseKind()), font(theme, fontMeta), 600),
+	}
+	if tag := a.autoTagWidth(c, theme, item); tag > 0 {
+		widths = append(widths, tag)
+	}
+	widths = append(widths, 0) // Spacer：不占宽度，但和别的子项一样分到一个间距。
+	source := a.historySourceWidth(c, theme, item)
+	if sync := a.syncIndicatorWidth(c, theme, item); sync > 0 {
+		source += space(theme, metaClusterGap) + sync
+	}
+	widths = append(widths,
+		source,
+		textWidth(c, "·", captionSize, 0),
+		textWidth(c, a.timestampLabel(item.CreatedAt), captionSize, 0),
+	)
+	total := float32(0)
+	for _, width := range widths {
+		total += width
+	}
+	return total + float32(len(widths)-1)*gap
+}
+
+// fitMetaSegments 返回宽度放得下的内容片段数量。片段按重要程度排列，放不下的
+// 从最后一个开始整段隐藏：宁可少显示，也不要挤到行里溢出。
+//
+// 每个片段占两个子项（分隔符与文字），因此它让行多出两个 gap；fixed 已经包含
+// 不可隐藏部分自身的间距，这里再加上片段自己那一份。
+func fitMetaSegments(width, fixed, gap float32, segments []float32) int {
+	used := fixed
+	visible := 0
+	for _, segment := range segments {
+		cost := segment + 2*gap
+		if used+cost > width {
+			break
+		}
+		used += cost
+		visible++
+	}
+	return visible
+}
+
+// textWidth 返回一段文字在给定字号和字重下占用的宽度。它和 ui.Text 用同一套
+// 字体度量（字重 0 即默认字重），元信息行因此能在渲染之前判断还剩多少位置。
+func textWidth(c *ui.Context, value string, size float32, weight int) float32 {
+	width, _ := c.MeasureText(0, ui.Span{Text: value, Size: size, Weight: weight})
+	return width
 }
 
 func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item history.Item) {
@@ -1200,6 +1321,17 @@ const (
 	syncTrailingCol float32 = 13
 )
 
+// syncIndicatorWidth 是同步状态标记占用的宽度；条目没有标记时为 0，与
+// syncIndicator 不创建元素的情形一致。
+func (a *application) syncIndicatorWidth(c *ui.Context, theme *ui.Theme, item history.Item) float32 {
+	if !item.IsLocal() || item.Sync == syncStateNone {
+		return 0
+	}
+	label, _ := a.syncStateStyle(theme, item.Sync)
+	return space(theme, metaSyncDot) + space(theme, metaSyncGap) +
+		textWidth(c, label, font(theme, fontCaption), 600) + 2*space(theme, metaSyncPadX)
+}
+
 // syncIndicator renders the item's sync state as a compact chip in the preview
 // meta row. The per-device detail and resend actions live in a popover the chip
 // opens on hover, so the section costs no space while it is idle.
@@ -1211,14 +1343,14 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	}
 	label, color := a.syncStateStyle(theme, item.Sync)
 	chip := ui.Row(c.Key("sync-chip-"+item.ID)).Shrink(0).AlignItems(ui.Center).
-		Gap(space(theme, 1.25)).Padding(space(theme, 0.5), space(theme, 1)).
+		Gap(space(theme, metaSyncGap)).Padding(space(theme, metaSyncPadY), space(theme, metaSyncPadX)).
 		Radius(radius(theme, controlRadius))
 	hovered := chip.Hovered()
 	if hovered {
 		chip.Background(hoverFill(theme))
 	}
 	chip.Children(func() {
-		statusDot(c, color, space(theme, 1.5))
+		statusDot(c, color, space(theme, metaSyncDot))
 		ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
 			TextColor(primaryText(theme)).SingleLine()
 	})
@@ -1453,23 +1585,31 @@ func deliveryTextColor(theme *ui.Theme, state deliveryState) ui.Color {
 	}
 }
 
-// historySource names the device an item came from: this machine for a locally
-// captured item, or the paired device it arrived from over the LAN. The device
-// is resolved from the device list by its stable ID, so a renamed device still
-// reads correctly.
-func (a *application) historySource(c *ui.Context, theme *ui.Theme, item history.Item) {
-	icon := icons.devices
-	name := a.t(msgHistorySourceThisDevice)
-	if !item.IsLocal() {
-		icon = icons.lan
-		if device, ok := a.pairedDeviceByID(item.SourceDeviceID); ok {
-			name = a.tf(msgHistorySourceLanFormat, device.name)
-		} else {
-			name = a.t(msgHistorySourceLanDevice)
-		}
+// historySourceName 返回记录来源的名称与图标：本机捕获的条目是「本机」，
+// 局域网条目是它来自的配对设备名。设备按稳定 ID 解析，改名后仍然正确。
+func (a *application) historySourceName(item history.Item) (*ui.SVG, string) {
+	if item.IsLocal() {
+		return icons.devices, a.t(msgHistorySourceThisDevice)
 	}
-	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
-		ui.Icon(c, icon).Size(space(theme, 3.25), space(theme, 3.25)).Shrink(0).
+	if device, ok := a.pairedDeviceByID(item.SourceDeviceID); ok {
+		return icons.lan, a.tf(msgHistorySourceLanFormat, device.name)
+	}
+	return icons.lan, a.t(msgHistorySourceLanDevice)
+}
+
+// historySourceWidth 是来源标记占用的宽度，与 historySource 的布局共用同一组
+// 尺寸常量。
+func (a *application) historySourceWidth(c *ui.Context, theme *ui.Theme, item history.Item) float32 {
+	_, name := a.historySourceName(item)
+	return space(theme, metaSourceIcon) + space(theme, metaSourceGap) +
+		textWidth(c, name, font(theme, fontCaption), 0)
+}
+
+// historySource 渲染记录的来源标记：图标加名称。
+func (a *application) historySource(c *ui.Context, theme *ui.Theme, item history.Item) {
+	icon, name := a.historySourceName(item)
+	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, metaSourceGap)).Children(func() {
+		ui.Icon(c, icon).Size(space(theme, metaSourceIcon), space(theme, metaSourceIcon)).Shrink(0).
 			TextColor(secondaryText(theme))
 		ui.Text(c, name).Shrink(0).FontSize(font(theme, fontCaption)).
 			TextColor(secondaryText(theme)).SingleLine()
