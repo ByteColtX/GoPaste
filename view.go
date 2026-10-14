@@ -445,14 +445,18 @@ func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-// sidebarNavigation 是侧栏最下方的全局导航：设置与外观切换靠左，设备靠右。
-// 它不属于任何分区，切换分区时保持不动。
+// sidebarNavigation 是侧栏最下方的全局导航，也就是主窗口的分区切换器：历史、
+// 设置、外观切换靠左，设备靠右。它不属于任何分区，切换分区时保持不动。
+//
+// 侧栏现在随分区切换内容，设备页与设置页不再显示筛选项，所以分区切换器必须
+// 自己带上「历史」入口，否则从这两页回到历史只剩快捷键。
 func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
 	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).Children(func() {
 		standardDivider(c, theme)
 	})
 	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).
 		Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
+		a.filterRailNavButton(c, theme, "filter-rail-history", pageHistory, icons.history, a.t(msgNavHistory))
 		a.filterRailNavButton(c, theme, "filter-rail-settings", pageSettings, icons.settings, a.t(msgNavSettings))
 		a.filterRailAppearanceButton(c, theme)
 		ui.Spacer(c)
