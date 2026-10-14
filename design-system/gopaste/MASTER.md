@@ -104,6 +104,7 @@ At compact widths, controls stack before they clip. The filter rail scrolls vert
 
 - The left rail is the history filter rail, not a destination list. It stays visible on every page, so History is always one click away and no separate History icon is needed.
 - The rail's bottom row sits below a divider: icon-only Settings and a light/dark appearance toggle at the left, icon-only Devices at the right. Their labels live in tooltips and accessible names.
+- The filter rail collapses by animating its width to zero behind a fixed-width, clipped content column, so its content slides out of view instead of squeezing. The list and preview slide in step, and their title-bar band grows with the same spring.
 - The appearance toggle shows the mode it switches to: a moon in light mode, a sun in dark mode. A system appearance resolves to the mode it currently shows.
 - A collapse/expand button sits in the title bar, just right of the platform window controls. Collapsing hides the rail entirely; the button stays, so the rail can return.
 - Filter rows are left-aligned: the icon sits at the rail's content edge, the label follows it, and section labels share that same left edge.
@@ -180,11 +181,14 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ## Motion and feedback
 
-- Use MyGo `Animate` and `Loop`; no third-party animation package.
+- Use MyGo `ElementTransition`, `Animate*`, `AnimatePose` and `Loop`; no third-party animation package. The shared motion tokens live in `ui_tokens.go`.
+- Follow Apple's spring guidance (WWDC23, "Animate with springs"): move things with springs, so a change on the way keeps its velocity and a second click reverses smoothly instead of stopping dead. Use a zero-bounce spring for anything clipped while it moves, such as the filter rail, so overshoot cannot show as a gap.
+- Keep durations inside NN/g's 100–500 ms band and prefer the shortest that still reads: 120 ms for hover and selection color, 140 ms for a page cross-fade, 300 ms for layout springs.
+- Animate only what changed: `motionColors` for color feedback, `motionLayout` and `motionSlide` for layout springs, `motionAppear` for content entering, `motionPage` for a page change.
+- Fade when movement carries no meaning (HIG › Motion), as the page cross-fade does.
 - Pressed feedback is visible within 100–150 ms.
-- Disclosure and modal transitions are short and interruptible.
 - Skeletons and spinners run only for meaningful waits and stop when content is ready.
-- When `ReduceMotion` is enabled, render the final state immediately and avoid decorative loops.
+- MyGo goes straight to the target when `ReduceMotion` is on, so transitions need no extra branch.
 
 ## Privacy and platform invariants
 

@@ -1,6 +1,52 @@
 package main
 
-import "github.com/egoist/mygo/ui"
+import (
+	"time"
+
+	"github.com/egoist/mygo/ui"
+)
+
+// GoPaste 的动效参考 Apple 的 WWDC23《Animate with springs》与 HIG Motion：
+// 位移和尺寸一律用弹簧，可中断、可改目标，中途反向不会硬停；被裁剪的展开/收起
+// 用零回弹的弹簧，否则回弹会被裁掉；只换位置而不传达信息时用淡入淡出。
+// 时长参考 NN/g 的建议：常规动画 100–500 ms，取能看清的最短时间，所以悬停与
+// 选中用 120 ms、页面切换用 140 ms、布局变化用 300 ms。MyGo 在系统开启
+// 「减弱动态效果」时会自动直接到目标，这里不必再判断。
+const (
+	motionColorDuration = 120 * time.Millisecond
+	motionPageDuration  = 140 * time.Millisecond
+	motionLayoutSpring  = 300 * time.Millisecond
+)
+
+var (
+	// motionColors 用于悬停、选中、聚焦这类只改颜色、不动布局的反馈。
+	motionColors = ui.ElementTransition{Colors: true, Duration: motionColorDuration}
+
+	// motionLayout 用于展开/收起这类尺寸变化：内容被裁剪，所以用零回弹的弹簧。
+	motionLayout = ui.ElementTransition{
+		Size:      true,
+		Animation: &ui.Animation{Spring: ui.SpringOptions{Duration: motionLayoutSpring}},
+	}
+
+	// motionSlide 用于被布局推动的相邻元素，让它与变化的元素同步移动。
+	motionSlide = ui.ElementTransition{
+		Animation: &ui.Animation{Spring: ui.SpringOptions{Duration: motionLayoutSpring}},
+	}
+
+	// motionAppear 用于进入视野的内容：轻微上移并淡入。
+	motionAppear = ui.ElementTransition{
+		Animation: &ui.Animation{Spring: ui.SpringOptions{Duration: motionLayoutSpring, Bounce: 0.1}},
+		Enter:     &ui.Motion{Y: 8},
+	}
+
+	// motionPage 用于页面切换：新旧页面短暂交叉淡入淡出。
+	motionPage = ui.ElementTransition{
+		Duration: motionPageDuration,
+		Ease:     ui.EaseOut,
+		Enter:    &ui.Motion{Opacity: 0},
+		Exit:     &ui.Motion{Opacity: 0},
+	}
+)
 
 // GoPaste 的原生界面使用一组共享的尺寸和颜色角色。页面可以有不同的
 // 信息密度，但同一层级的标题、说明、控件和卡片都从这里取值。
@@ -164,6 +210,13 @@ func (a *application) filterRailSize(c *ui.Context, theme *ui.Theme) float32 {
 	return space(theme, filterRailWidth/4)
 }
 
+// filterRailContentWidth 是筛选栏内容列的固定宽度：外层收窄时内容宽度不变，
+// 由外层的 ClipX 裁掉，收起读起来是「滑走」而不是「挤扁」。它取外层内容盒的
+// 宽度（去掉两侧 1 DIP 描边），滚动条因此仍贴在外层右缘。
+func filterRailContentWidth(theme *ui.Theme) float32 {
+	return space(theme, filterRailWidth/4) - 2
+}
+
 func (a *application) compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
 	// 筛选栏常驻在窗口左侧（收起时为 0），设备页与设置页的详情宽度要把它一起扣掉。
 	available := contentWidth(c) - a.filterRailSize(c, theme) - secondarySidebarSize(c, theme) - 1
@@ -199,7 +252,7 @@ func standardDivider(c *ui.Context, theme *ui.Theme) {
 func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-		TextColor(primaryText(theme)).Label(label).Role(ui.RoleButton)
+		TextColor(primaryText(theme)).Label(label).Role(ui.RoleButton).Transition(motionColors)
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
@@ -212,7 +265,7 @@ func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element
 func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-		TextColor(theme.Danger).Label(label).Role(ui.RoleButton)
+		TextColor(theme.Danger).Label(label).Role(ui.RoleButton).Transition(motionColors)
 	if button.Hovered() {
 		button.Background(theme.Danger.Alpha(0.12))
 	} else {
@@ -225,7 +278,8 @@ func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element 
 func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-		Background(theme.Danger).TextColor(theme.AccentText).Label(label).Role(ui.RoleButton)
+		Background(theme.Danger).TextColor(theme.AccentText).Label(label).
+		Role(ui.RoleButton).Transition(motionColors)
 	if button.Hovered() {
 		button.Background(theme.Danger.Mix(theme.Text, 0.12))
 	}
@@ -327,7 +381,7 @@ func selectField[T comparable](
 		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, 1.5)).
 		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
 		Background(theme.Surface).TextColor(primaryText(theme)).
-		Justify(ui.SpaceBetween).Label(label)
+		Justify(ui.SpaceBetween).Label(label).Transition(motionColors)
 	trigger.Children(func() {
 		ui.Text(c, labelFor(*value, options)).FontSize(font(theme, fontControl)).SingleLine()
 		ui.Icon(c, icons.chevron).Size(space(theme, 3.5), space(theme, 3.5)).
@@ -340,7 +394,7 @@ func selectField[T comparable](
 		for _, opt := range options {
 			item := sel.Item(opt.value).Padding(space(theme, 1.5), space(theme, 2.5)).
 				Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
-				TextColor(primaryText(theme))
+				TextColor(primaryText(theme)).Transition(motionColors)
 			// 当前值与指针/方向键所在的项用同一套选中样式，
 			// 而不是一块实心强调色：下拉里的选中和列表里的选中看起来一样。
 			switch {
@@ -378,7 +432,7 @@ func segmentedField(
 			segment := parts.Segment(index).Shrink(0).Center().
 				Padding(space(theme, 1), space(theme, 2.5)).
 				Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
-				TextColor(secondaryText(theme))
+				TextColor(secondaryText(theme)).Transition(motionColors)
 			switch {
 			case index == *selected:
 				segment.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).
@@ -412,7 +466,8 @@ func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, lab
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, 1)).
 		Radius(radius(theme, controlRadius)).
-		Background(theme.Accent).TextColor(theme.AccentText).Label(label).Role(ui.RoleButton)
+		Background(theme.Accent).TextColor(theme.AccentText).Label(label).
+		Role(ui.RoleButton).Transition(motionColors)
 	if button.Hovered() {
 		button.Background(theme.AccentHover)
 	}

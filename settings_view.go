@@ -57,7 +57,7 @@ func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item set
 		Padding(space(theme, 1.25), space(theme, 2)).Radius(radius(theme, controlRadius)).
 		Border(1, ui.Transparent).
 		TextColor(secondaryText(theme)).Label(item.title).Tooltip(item.title).
-		Role(ui.RoleToggleButton).Selected(a.settingsArea == item.area)
+		Role(ui.RoleToggleButton).Selected(a.settingsArea == item.area).Transition(motionColors)
 	if a.settingsArea == item.area {
 		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
 	} else if button.Hovered() {

@@ -178,7 +178,7 @@ func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key stri
 		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
 		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
 		TextColor(primaryText(theme)).Label(a.t(msgDevicesSelect)).
-		Role(ui.RoleToggleButton).Selected(selected)
+		Role(ui.RoleToggleButton).Selected(selected).Transition(motionColors)
 	if selected {
 		entry.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
 	} else if entry.Hovered() {
@@ -193,7 +193,7 @@ func (a *application) inviteDeviceButton(c *ui.Context, theme *ui.Theme) {
 	button := ui.ButtonBase(c.Key("invite-device")).Height(controlHeightSize(c, theme, controlHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.5), space(theme, 3)).Gap(space(theme, spaceInline)).
 		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
-		TextColor(primaryText(theme)).Label(a.t(msgDevicesAdd))
+		TextColor(primaryText(theme)).Label(a.t(msgDevicesAdd)).Transition(motionColors)
 	if button.Hovered() {
 		button.Background(hoverFill(theme))
 	} else {
