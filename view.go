@@ -336,7 +336,7 @@ func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
 		a.filterRailNavButton(c, theme, "sidebar-devices", pageDevices, icons.devices, a.t(msgNavDevices))
 		// 第 5 个图标位暂时留空：占住一个按钮位，落地时布局不会跳动。
 		size := controlHeightSize(c, theme, compactHeight)
-		ui.Box(c).Size(size, size).Shrink(0)
+		ui.Box(c).Key("sidebar-reserved-slot").Size(size, size).Shrink(0)
 		a.filterRailAppearanceButton(c, theme)
 	})
 }
