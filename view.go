@@ -696,17 +696,18 @@ func (a *application) constrainHistoryPaneWidth(c *ui.Context, theme *ui.Theme) 
 	a.historyPaneWidth = min(max(a.historyPaneWidth, float32(minHistoryPaneWidth)), maxWidth)
 }
 
-// pageTop 给页面内容留出标题栏高度，只在筛选栏收起时才有高度。筛选栏展开时
-// 窗口控制按钮位于筛选栏上方，各页内容都可以直接顶到窗口顶边；收起后控制
-// 按钮会落到内容上方，所以这里补一条透明拖动条，避免内容被按钮压住。高度用
-// 与筛选栏同一个弹簧，收起时内容会跟着往下让位。
-func (a *application) pageTop(c *ui.Context) {
-	height := float32(0)
-	if !a.filterRailOpen {
-		height = chromeHeight(c)
+// trafficLightInset 是侧栏收起时，最左侧面板首行需要让出的水平留白：窗口控制
+// 按钮（macOS 红绿灯）此时落在内容上方。收起不改变高度，只把首行标题轻微右移，
+// 所以可见内容不会变少——这是 macOS 内置应用在没有工具栏项时的做法。侧栏展开时
+// 按钮在侧栏上方，这里为 0；其他平台的控制按钮在右侧，TitleBar().Left 为 0，
+// 自然也不需要留白。
+func (a *application) trafficLightInset(c *ui.Context, theme *ui.Theme) float32 {
+	if a.filterRailOpen {
+		return 0
 	}
-	ui.Row(c).Key("page-top").Height(height).FillWidth().Shrink(0).
-		DragWindow().Transition(motionLayout)
+	// 让开窗口控制按钮，也让开标题栏里的展开/收起按钮：收起后它正好落在
+	// 列表标题的左上方，不留出它的宽度，标题会紧贴按钮。
+	return c.TitleBar().Left + titleBarButtonHeight(c, theme) + space(theme, 3)
 }
 
 func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -716,9 +717,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 		Padding(0, 0, space(theme, 2.5), space(theme, 4))
 
 	panel.Children(func() {
-		a.pageTop(c)
-		// 列表上方没有窗口控件时不再留标题栏高度的空白：标题行直接顶到
-		// 窗口顶边，由标题行本身承担拖动窗口的职责。
+		// 列表始终顶到窗口顶边，标题行本身承担拖动窗口的职责。
 		a.historyHeader(c, theme, view)
 
 		if len(view.Items) == 0 {
@@ -732,14 +731,18 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 
 func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history.View) {
 	countLabel := a.l10n().recordCount(len(view.Items), view.Total, a.query != "" || a.historyFiltered())
-	ui.Row(c).Shrink(0).AlignItems(ui.Start).DragWindow().
-		Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), 0).Children(func() {
-		ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
-			ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
-			ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
-				TextColor(secondaryText(theme)).SingleLine()
+	header := ui.Row(c).Key("history-header").Shrink(0).AlignItems(ui.Start).DragWindow()
+	// 侧栏收起时红绿灯落到列表上方：高度不变，只把标题轻微右移让开按钮，
+	// 用与侧栏同一个弹簧，收起时标题跟着滑动而不是跳一下。
+	left := header.AnimateTo("traffic-light-inset", a.trafficLightInset(c, theme), motionLayoutSpringAnimation)
+	header.Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), left).
+		Children(func() {
+			ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
+				ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
+				ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
+					TextColor(secondaryText(theme)).SingleLine()
+			})
 		})
-	})
 }
 
 // searchField 渲染筛选栏顶部的搜索框。它仍然是历史搜索：在设备/设置页输入时
@@ -1032,9 +1035,7 @@ func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view histor
 	pane := ui.Column(c).Grow(1).FillHeight().
 		MinWidth(minPreviewPaneWidth).Background(theme.Background)
 	pane.Children(func() {
-		a.pageTop(c)
-		// 与列表一致：筛选栏展开时预览区直接顶到窗口顶边，
-		// 元信息行同时作为拖动窗口的区域。
+		// 与列表一致：预览区始终顶到窗口顶边，元信息行同时作为拖动窗口的区域。
 		item, ok := selectedHistoryItem(view)
 		if !ok {
 			a.emptyPreview(c, theme)

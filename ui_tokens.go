@@ -22,10 +22,14 @@ var (
 	// motionColors 用于悬停、选中、聚焦这类只改颜色、不动布局的反馈。
 	motionColors = ui.ElementTransition{Colors: true, Duration: motionColorDuration}
 
+	// motionLayoutSpringAnimation 是布局变化的弹簧，元素过渡与数值动画共用，
+	// 保证侧栏宽度和它让出的留白同步移动。
+	motionLayoutSpringAnimation = ui.Animation{Spring: ui.SpringOptions{Duration: motionLayoutSpring}}
+
 	// motionLayout 用于展开/收起这类尺寸变化：内容被裁剪，所以用零回弹的弹簧。
 	motionLayout = ui.ElementTransition{
 		Size:      true,
-		Animation: &ui.Animation{Spring: ui.SpringOptions{Duration: motionLayoutSpring}},
+		Animation: &motionLayoutSpringAnimation,
 	}
 
 	// motionSlide 用于被布局推动的相邻元素，让它与变化的元素同步移动。

@@ -147,7 +147,6 @@ func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key stri
 func (a *application) deviceDetail(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Grow(1).FillHeight().MinWidth(0).Background(theme.Background).
 		Children(func() {
-			a.pageTop(c)
 			ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 1), 0, 0).
 				Children(func() {
 					ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
