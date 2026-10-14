@@ -27,29 +27,11 @@ func (a *application) settingsNavigationItems() []settingsNavItem {
 	}
 }
 
+// settingsNavButton 渲染设置分栏的一个入口：单行条目的规格由 sidebarItemButton
+// 统一提供，与历史筛选项逐项一致（高度、内边距、图标、间距、选中态）。
 func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item settingsNavItem) {
-	button := ui.ButtonBase(c.Key("settings-nav-"+item.key)).
-		Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, 2)).Radius(radius(theme, controlRadius)).
-		Border(1, ui.Transparent).
-		TextColor(secondaryText(theme)).Label(item.title).Tooltip(item.title).
-		Role(ui.RoleToggleButton).Selected(a.settingsArea == item.area).Transition(motionColors)
-	if a.settingsArea == item.area {
-		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
-	} else if button.Hovered() {
-		button.Background(hoverFill(theme))
-	} else {
-		button.Background(ui.Transparent)
-	}
-	button.Children(func() {
-		ui.Row(c).FillWidth().AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
-			ui.Icon(c, item.icon).Size(space(theme, 4.25), space(theme, 4.25)).Shrink(0)
-			ui.Text(c, item.title).FontSize(font(theme, fontControl)).SingleLine()
-		})
-	})
-	if button.Clicked() {
-		a.settingsArea = item.area
-	}
+	sidebarItemButton(c, theme, "settings-nav-"+item.key, item.icon, item.title,
+		a.settingsArea == item.area, func() { a.settingsArea = item.area })
 }
 
 func (a *application) settingsDetail(c *ui.Context, theme *ui.Theme) {

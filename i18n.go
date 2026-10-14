@@ -134,7 +134,6 @@ const (
 	msgDevicesErrorTitle       messageKey = "devices.error.title"
 	msgDevicesErrorMessage     messageKey = "devices.error.message"
 	msgDevicesRetry            messageKey = "devices.retry"
-	msgDevicesSelect           messageKey = "devices.select"
 	msgDevicesAdd              messageKey = "devices.add"
 	msgDevicesOfflineTitle     messageKey = "devices.offline.title"
 	msgDevicesOfflineMessage   messageKey = "devices.offline.message"
@@ -380,7 +379,6 @@ var simplifiedChineseCatalog = catalog{
 	msgDevicesErrorTitle:       "设备列表加载失败",
 	msgDevicesErrorMessage:     "暂时无法读取已配对设备。",
 	msgDevicesRetry:            "重试",
-	msgDevicesSelect:           "选择设备",
 	msgDevicesAdd:              "新增设备",
 	msgDevicesOfflineTitle:     "设备已离线",
 	msgDevicesOfflineMessage:   "该设备当前不在线，重新连接后自动恢复同步。",
@@ -615,7 +613,6 @@ var englishCatalog = catalog{
 	msgDevicesErrorTitle:       "Couldn't load devices",
 	msgDevicesErrorMessage:     "Paired devices are temporarily unavailable.",
 	msgDevicesRetry:            "Retry",
-	msgDevicesSelect:           "Select device",
 	msgDevicesAdd:              "Add device",
 	msgDevicesOfflineTitle:     "Device offline",
 	msgDevicesOfflineMessage:   "This device is offline. Sync resumes when it reconnects.",

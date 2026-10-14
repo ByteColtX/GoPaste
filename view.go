@@ -296,7 +296,7 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 				// 搜索属于历史筛选，只在历史分区出现。
 				if a.page == pageHistory {
 					ui.Box(c).FillWidth().Shrink(0).
-						Padding(0, space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
+						Padding(0, space(theme, sidebarTrailingInset), space(theme, 1.5), 0).Children(func() {
 						a.searchField(c, theme)
 					})
 				}
@@ -317,10 +317,10 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 // 已知取舍：HIG › Sidebars 建议不要把关键操作放在侧栏底部（窗口下缘可能被移出
 // 屏幕）。这里按产品决定仍放在底部。
 func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
-	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).Children(func() {
+	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 		standardDivider(c, theme)
 	})
-	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, 2.5), 0, 0).
+	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, sidebarTrailingInset), 0, 0).
 		Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
 		a.filterRailNavButton(c, theme, "sidebar-history", pageHistory, icons.history, a.t(msgNavHistory))
 		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
@@ -336,7 +336,7 @@ func (a *application) sidebarBody(c *ui.Context, theme *ui.Theme) {
 	ui.Scroll(c).Key(a.page).Grow(1).MinHeight(0).FillWidth().
 		ScrollbarInsets(0, 0, 0, 0).Children(func() {
 		ui.Column(c).FillWidth().Gap(space(theme, 0.5)).
-			Padding(0, space(theme, 2.5), 0, 0).Children(func() {
+			Padding(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
 			switch a.page {
 			case pageDevices:
 				a.sidebarDevices(c, theme)
@@ -425,9 +425,13 @@ func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 		if len(a.pairedDevices) == 0 {
 			a.deviceEmptyState(c, theme)
 		}
-		for index := range a.pairedDevices {
-			a.pairedDeviceEntry(c, theme, index)
-		}
+		// 设备条目之间的间距由这一列的列间距提供，与历史列表的 4 DIP 节奏一致，
+		// 且第一行不会被行自身的 margin 推低。
+		ui.Column(c).FillWidth().Gap(space(theme, listRowGap)).Children(func() {
+			for index := range a.pairedDevices {
+				a.pairedDeviceEntry(c, theme, index)
+			}
+		})
 	}
 }
 
@@ -451,7 +455,7 @@ func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 		onlineColor = theme.Success
 	}
 	ui.Row(c).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, 2.5), space(theme, 0.5), 0).Children(func() {
+		Padding(space(theme, 1.5), space(theme, sidebarTrailingInset), space(theme, 0.5), 0).Children(func() {
 		deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
 	})
 }
@@ -536,40 +540,15 @@ func (a *application) filterSection(c *ui.Context, theme *ui.Theme, title string
 	})
 }
 
-// filterItemButton 渲染筛选栏中的一行。图标与文字靠左对齐，选中态用强调色淡
-// 填充与主文字色，与列表选中行保持一致；图标在选中时也转为强调色。
+// filterItemButton 渲染筛选栏中的一行：单行条目的规格由 sidebarItemButton 统一
+// 提供，与设置分栏逐项一致（高度、内边距、图标、间距、选中态）。
 func (a *application) filterItemButton(c *ui.Context, theme *ui.Theme, facet filterFacet) {
-	item := ui.ButtonBase(c.Key(facet.key)).
-		Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, 2)).Gap(space(theme, 2)).
-		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Justify(ui.Start).
-		Border(1, ui.Transparent).
-		TextColor(secondaryText(theme)).Label(facet.label).Tooltip(facet.label).
-		Role(ui.RoleToggleButton).Selected(facet.selected).Transition(motionColors)
-	switch {
-	case facet.selected:
-		item.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
-	case item.Hovered():
-		item.Background(hoverFill(theme))
-	default:
-		item.Background(ui.Transparent)
-	}
-	iconColor := secondaryText(theme)
-	if facet.selected {
-		iconColor = accentColor(theme)
-	}
-	item.Children(func() {
-		if facet.icon != nil {
-			ui.Icon(c, facet.icon).Size(space(theme, 4.25), space(theme, 4.25)).Shrink(0).TextColor(iconColor)
-		}
-		ui.Text(c, facet.label).FontSize(font(theme, fontControl)).SingleLine()
-	})
-	if item.Clicked() {
+	sidebarItemButton(c, theme, facet.key, facet.icon, facet.label, facet.selected, func() {
 		facet.onSelect()
-		// 筛选项属于历史页：从设备或设置页点任意筛选都会切回历史页，
-		// 因此不需要单独的历史导航入口。
+		// 筛选项只属于历史分区；这里再确认一次分区，让「点筛选即回到历史」
+		// 这个约定不依赖调用方的渲染条件。
 		a.setPage(pageHistory)
-	}
+	})
 }
 
 // filterRailNavButton 是筛选栏底部的导航按钮：只有图标，文字放在提示与辅助
@@ -962,49 +941,37 @@ func (a *application) historyListShortcuts(c *ui.Context, list ui.Element, view 
 	})
 }
 
+// historyRow 渲染一条历史记录：双行行的规格由 listRow 统一提供，与设备条目逐项
+// 一致（行高、内边距、图标块、行距、选中态）。
 func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.Item, selected bool) ui.Element {
-	row := ui.ButtonBase(c.Key("history-row-"+item.ID)).
-		MinHeight(controlHeightSize(c, theme, 16)).AlignSelf(ui.Stretch).Shrink(0).
-		Margin(space(theme, 0.5), space(theme, sidebarTrailingInset), space(theme, 0.5), 0).
-		Padding(space(theme, 2), space(theme, 2.5)).Gap(space(theme, 3)).
-		Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).Row().
-		AlignItems(ui.Center).
-		TextColor(primaryText(theme)).Label(a.historyListText(item)).
-		Role(ui.RoleButton).Selected(selected).Transition(motionColors)
-	switch {
-	case selected:
-		row.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
-	case row.Hovered():
-		row.Background(hoverFill(theme)).BorderColor(ui.Transparent)
-	default:
-		row.Background(ui.Transparent).BorderColor(ui.Transparent)
-	}
-
-	row.Children(func() {
-		a.historyRowTile(c, theme, item)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
+	// 历史列表是虚拟列表，没有列间距可用，因此由行自己提供 4 DIP 间距与右侧留白。
+	row := listRow(c, theme, "history-row-"+item.ID, a.historyListText(item), selected,
+		func() { a.historyRowTile(c, theme, item) },
+		func() {
 			a.historyRowTitle(c, theme, item)
 			a.historyRowMeta(c, theme, item)
 		})
-	})
+	row.Margin(space(theme, listRowGap/2), space(theme, sidebarTrailingInset), space(theme, listRowGap/2), 0)
 	return row
 }
 
+// historyRowTile 渲染历史记录行左侧的图标块：外框尺寸取自 listRowTile，与设备
+// 条目的图标块同一大小。
 func (a *application) historyRowTile(c *ui.Context, theme *ui.Theme, item history.Item) {
-	size := space(theme, 8.5)
-	tile := ui.Box(c).Size(size, size).Shrink(0).Radius(radius(theme, controlRadius)).Center()
 	if item.Kind == kindImage && item.Image != nil {
-		tile.Background(subtleFill(theme)).Border(1, borderColor(theme)).Children(func() {
+		tile := listRowTile(c, theme, subtleFill(theme), func() {
 			if bitmap := a.historyBitmap(item); bitmap != nil {
+				size := space(theme, listRowTileSize)
 				ui.Image(c, bitmap).Size(size-2, size-2).Fit(ui.Cover).Radius(radius(theme, controlRadius) - 1)
 			}
 		})
+		tile.Border(1, borderColor(theme))
 		return
 	}
 	// 列表行的图标按内容子类型着色（链接、代码各自不同），
 	// 让一屏记录只靠图标就能区分，而不必逐行读文字。
 	kindColor := colorForKind(theme, item.Kind)
-	tile.Background(kindColor.Alpha(0.14)).Children(func() {
+	listRowTile(c, theme, kindColor.Alpha(0.14), func() {
 		ui.Icon(c, iconForKind(item.Kind)).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
 	})
 }

@@ -76,6 +76,13 @@ const (
 	controlHeight float32 = 9
 	compactHeight float32 = 8
 	rowHeight     float32 = 14
+	// listRowHeight 是双行行（历史记录、设备条目）的最小高度；listRowTileSize 是
+	// 它左侧图标块的边长（内部图标 4.5，即 18 DIP）；listRowGap 是行与行之间的
+	// 垂直间距，由所在容器提供（历史列表用行的上下 margin，设备列表用列间距），
+	// 因此两种列表的第一行都正好落在所在栏的首行基线上。
+	listRowHeight   float32 = 16
+	listRowTileSize float32 = 9
+	listRowGap      float32 = 1
 	// 全应用只用两级圆角：控件、行、导航项和标签用 controlRadius；卡片、浮层、
 	// 对话框和媒体容器用 cardRadius。不再有临时值，嵌套圆角按「外层半径 − 内边距」
 	// 推导，因此下拉面板（cardRadius）里的选项正好是 controlRadius。
@@ -437,6 +444,90 @@ func segmentedField(
 		}
 	})
 	return track
+}
+
+// sidebarItemButton 是侧栏里单行条目（历史筛选项、设置分栏）的唯一实现：图标 +
+// 文字，紧凑高度，选中态与列表行共用 selectedFill / selectionBorder。两处调用
+// 同一份规格，不会再各自漂移。
+func sidebarItemButton(
+	c *ui.Context,
+	theme *ui.Theme,
+	key string,
+	icon *ui.SVG,
+	label string,
+	selected bool,
+	onSelect func(),
+) ui.Element {
+	item := ui.ButtonBase(c.Key(key)).
+		Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
+		Padding(space(theme, 1.5), space(theme, 2)).Gap(space(theme, 2)).
+		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Justify(ui.Start).
+		Border(1, ui.Transparent).
+		TextColor(secondaryText(theme)).Label(label).Tooltip(label).
+		Role(ui.RoleToggleButton).Selected(selected).Transition(motionColors)
+	switch {
+	case selected:
+		item.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme)).TextColor(primaryText(theme))
+	case item.Hovered():
+		item.Background(hoverFill(theme))
+	default:
+		item.Background(ui.Transparent)
+	}
+	iconColor := secondaryText(theme)
+	if selected {
+		iconColor = accentColor(theme)
+	}
+	item.Children(func() {
+		if icon != nil {
+			ui.Icon(c, icon).Size(space(theme, 4.25), space(theme, 4.25)).Shrink(0).TextColor(iconColor)
+		}
+		ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+	})
+	if item.Clicked() {
+		onSelect()
+	}
+	return item
+}
+
+// listRow 是双行行（历史记录、设备条目）的唯一实现：左侧一个统一尺寸的图标块，
+// 右侧两行文字。行高、内边距、图标块、行距与选中态只有这一份定义，两个列表因此
+// 逐项一致；图标块外框尺寸统一后，它也与其所在栏里单行条目的图标、分区标题落在
+// 同一条竖线上。
+func listRow(
+	c *ui.Context,
+	theme *ui.Theme,
+	key string,
+	label string,
+	selected bool,
+	tile func(),
+	lines func(),
+) ui.Element {
+	row := ui.ButtonBase(c.Key(key)).
+		MinHeight(controlHeightSize(c, theme, listRowHeight)).AlignSelf(ui.Stretch).Shrink(0).
+		Padding(space(theme, 2), space(theme, 2)).Gap(space(theme, 3)).
+		Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).Row().
+		AlignItems(ui.Center).TextColor(primaryText(theme)).Label(label).
+		Role(ui.RoleButton).Selected(selected).Transition(motionColors)
+	switch {
+	case selected:
+		row.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
+	case row.Hovered():
+		row.Background(hoverFill(theme)).BorderColor(ui.Transparent)
+	default:
+		row.Background(ui.Transparent).BorderColor(ui.Transparent)
+	}
+	row.Children(func() {
+		tile()
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(lines)
+	})
+	return row
+}
+
+// listRowTile 是双行行左侧图标块的统一外框：固定边长、controlRadius、居中。
+// 填充内容（类型色图标、缩略图、平台图标）由调用方给出。
+func listRowTile(c *ui.Context, theme *ui.Theme, background ui.Color, body func()) ui.Element {
+	return ui.Box(c).Size(space(theme, listRowTileSize), space(theme, listRowTileSize)).Shrink(0).
+		Radius(radius(theme, controlRadius)).Background(background).Center().Children(body)
 }
 
 // keycap 渲染单键快捷键提示：小圆角方块内一个字母，跟在按钮文字之后。fg 取按钮

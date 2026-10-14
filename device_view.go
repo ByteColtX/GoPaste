@@ -67,14 +67,12 @@ func (a *application) refreshDevices(c *ui.Context) {
 
 func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 	selected := a.selectedDeviceID == ""
-	entry := a.deviceEntryButton(c, theme, "local-device", selected)
-	entry.Children(func() {
-		deviceIcon(c, theme, iconForPlatform(a.devicePlatform), selected)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
-			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+	entry := listRow(c, theme, "local-device", a.deviceName, selected,
+		func() { deviceRowTile(c, theme, iconForPlatform(a.devicePlatform), selected) },
+		func() {
+			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			deviceSyncStatus(c, theme, a.deviceSyncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
 		})
-	})
 	if entry.Clicked() {
 		a.selectedDeviceID = ""
 		a.deviceInfoExpanded = false
@@ -84,37 +82,18 @@ func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index int) {
 	device := &a.pairedDevices[index]
 	selected := a.selectedDeviceID == device.id
-	entry := a.deviceEntryButton(c, theme, "paired-device-"+device.id, selected)
-	entry.Children(func() {
-		deviceIcon(c, theme, iconForPlatform(device.platform), selected)
-		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
-			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+	entry := listRow(c, theme, "paired-device-"+device.id, device.name, selected,
+		func() { deviceRowTile(c, theme, iconForPlatform(device.platform), selected) },
+		func() {
+			ui.Text(c, device.name).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 				deviceStatus(c, theme, a.connectionLabel(device.online), connectionColor(theme, device.online))
 			})
 		})
-	})
 	if entry.Clicked() {
 		a.selectedDeviceID = device.id
 		a.deviceInfoExpanded = true
 	}
-}
-
-func (a *application) deviceEntryButton(c *ui.Context, theme *ui.Theme, key string, selected bool) ui.Element {
-	entry := ui.ButtonBase(c.Key(key)).MinHeight(controlHeightSize(c, theme, 16)).Shrink(0).
-		AlignSelf(ui.Stretch).
-		Padding(space(theme, 2.5), space(theme, 3)).Gap(space(theme, 2.5)).
-		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Border(1, ui.Transparent).
-		TextColor(primaryText(theme)).Label(a.t(msgDevicesSelect)).
-		Role(ui.RoleToggleButton).Selected(selected).Transition(motionColors)
-	if selected {
-		entry.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
-	} else if entry.Hovered() {
-		entry.Background(hoverFill(theme))
-	} else {
-		entry.Background(ui.Transparent)
-	}
-	return entry
 }
 
 // openAddDeviceDialog 打开配对对话框，并清掉上一次尝试留下的状态。设备列表头
@@ -565,15 +544,16 @@ type deviceInfo struct {
 	value string
 }
 
-func deviceIcon(c *ui.Context, theme *ui.Theme, icon *ui.SVG, selected bool) {
+// deviceRowTile 渲染设备条目左侧的图标块：外框尺寸取自 listRowTile，与历史记录
+// 行的图标块同一大小。
+func deviceRowTile(c *ui.Context, theme *ui.Theme, icon *ui.SVG, selected bool) {
 	color := secondaryText(theme)
 	background := subtleFill(theme)
 	if selected {
 		color = primaryText(theme)
 		background = hoverFill(theme)
 	}
-	ui.Box(c).Size(space(theme, 9), space(theme, 9)).Shrink(0).Radius(radius(theme, controlRadius)).
-		Background(background).Center().Children(func() {
+	listRowTile(c, theme, background, func() {
 		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(color)
 	})
 }

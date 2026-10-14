@@ -130,6 +130,14 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - Secondary actions stay quiet. Destructive actions use `theme.Danger` and confirmation.
 - Preserve the default MyGo focus ring or draw an equivalent ring without changing layout bounds.
 
+### Rows and items
+
+- One implementation owns each shape: `sidebarItemButton` for single-line sidebar items (history filters, settings panes), and `listRow` with `listRowTile` for two-line rows (history records, device entries). Both sidebars and both lists call them, so the metrics cannot drift apart again.
+- Single-line item: 32 DIP high, (6, 8) DIP padding, a 17 DIP icon, 8 DIP between icon and label, 2 DIP between items, control radius, and the shared selected style.
+- Two-line row: 64 DIP minimum height, a 36 DIP icon tile with an 18 DIP glyph, (8, 8) DIP padding, 12 DIP between tile and text, 4 DIP between rows, control radius, and the same selected style. The container supplies the 4 DIP row spacing, so the first row still lands on the pane's first-line baseline.
+- Inside one pane, section labels, single-line item icons, and two-line row tiles share one left edge.
+- Each pane keeps its own content inset — 8 DIP in the sidebar, 16 in the history list, 24 in the preview and the detail panes — so a denser pane stays denser while the elements inside it keep the shared metrics.
+
 ### Cards and dividers
 
 - Cards use `standardCard`, a 1px semantic border, and an opaque surface.
