@@ -327,13 +327,14 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 			})
 		})
 
-		// 导航固定在筛选栏最下方：设置靠左、设备靠右。
+		// 导航固定在筛选栏最下方：设置与外观切换靠左，设备靠右。
 		ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), 0, 0, 0).Children(func() {
 			standardDivider(c, theme)
 		})
 		ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), 0, 0, 0).
 			Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
 			a.filterRailNavButton(c, theme, "filter-rail-settings", pageSettings, icons.settings, a.t(msgNavSettings))
+			a.filterRailAppearanceButton(c, theme)
 			ui.Spacer(c)
 			a.filterRailNavButton(c, theme, "filter-rail-devices", pageDevices, icons.devices, a.t(msgNavDevices))
 		})
@@ -479,6 +480,34 @@ func (a *application) filterRailNavButton(c *ui.Context, theme *ui.Theme, key st
 	})
 	if button.Clicked() {
 		a.setPage(target)
+	}
+}
+
+// filterRailAppearanceButton 在设置按钮右侧切换深浅外观。它显示点击后会得到的
+// 模式：当前是深色时显示太阳（切到浅色），否则显示月亮（切到深色）。系统外观
+// 按当前解析结果处理，点击后落到明确的浅色或深色。
+func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme) {
+	label := a.t(msgAppearanceSwitchDark)
+	icon := icons.moon
+	if theme.Dark {
+		label = a.t(msgAppearanceSwitchLight)
+		icon = icons.sun
+	}
+	size := controlHeightSize(c, theme, compactHeight)
+	button := ui.ButtonBase(c.Key("filter-rail-appearance")).
+		Size(size, size).Shrink(0).Center().
+		Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
+		TextColor(secondaryText(theme)).Label(label).Tooltip(label).Role(ui.RoleButton)
+	if button.Hovered() {
+		button.Background(hoverFill(theme))
+	} else {
+		button.Background(ui.Transparent)
+	}
+	button.Children(func() {
+		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(secondaryText(theme))
+	})
+	if button.Clicked() {
+		a.toggleAppearance(theme.Dark)
 	}
 }
 

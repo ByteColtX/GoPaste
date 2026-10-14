@@ -31,6 +31,8 @@ type iconSet struct {
 	clock        *ui.SVG
 	railCollapse *ui.SVG
 	railExpand   *ui.SVG
+	sun          *ui.SVG
+	moon         *ui.SVG
 	text         *ui.SVG
 	richText     *ui.SVG
 	link         *ui.SVG
@@ -68,6 +70,8 @@ func mustLoadIconSet() iconSet {
 		clock:        mustLoadIcon("clock.svg"),
 		railCollapse: mustLoadIcon("layout-sidebar-left-collapse.svg"),
 		railExpand:   mustLoadIcon("layout-sidebar-left-expand.svg"),
+		sun:          mustLoadIcon("sun.svg"),
+		moon:         mustLoadIcon("moon.svg"),
 		text:         mustLoadIcon("file-text.svg"),
 		richText:     mustLoadIcon("typography.svg"),
 		link:         mustLoadIcon("external-link.svg"),

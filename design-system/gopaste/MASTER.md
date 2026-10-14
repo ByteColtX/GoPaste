@@ -102,7 +102,8 @@ At compact widths, controls stack before they clip. The filter rail scrolls vert
 ### Navigation
 
 - The left rail is the history filter rail, not a destination list. It stays visible on every page, so History is always one click away and no separate History icon is needed.
-- The rail's bottom row holds icon-only Settings at the left and icon-only Devices at the right; their labels live in tooltips and accessible names.
+- The rail's bottom row sits below a divider: icon-only Settings and a light/dark appearance toggle at the left, icon-only Devices at the right. Their labels live in tooltips and accessible names.
+- The appearance toggle shows the mode it switches to: a moon in light mode, a sun in dark mode. A system appearance resolves to the mode it currently shows.
 - A collapse/expand button sits in the title bar, just right of the platform window controls. Collapsing hides the rail entirely; the button stays, so the rail can return.
 - Filter rows are left-aligned: the icon sits at the rail's content edge, the label follows it, and section labels share that same left edge.
 - Current destination and current filter both use `Selected(true)`, `selectedFill(theme)`, and primary text.

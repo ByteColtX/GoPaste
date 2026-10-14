@@ -157,6 +157,18 @@ func (a *application) applyAppearance() {
 	}
 }
 
+// toggleAppearance 在浅色与深色之间切换。dark 是当前解析出来的深色状态：
+// 当前为深色就落到明确的浅色，否则落到明确的深色，因此按钮图标始终反映点击
+// 后的结果；系统外观也随之变成一次明确的浅色或深色选择。
+func (a *application) toggleAppearance(dark bool) {
+	if dark {
+		a.appearance = appearanceLight
+	} else {
+		a.appearance = appearanceDark
+	}
+	a.applyAppearance()
+}
+
 func (a *application) updateLaunchAtLogin() string {
 	if err := mygo.App.SetOpenAtLogin(a.launchAtLogin); err != nil {
 		a.launchAtLogin = !a.launchAtLogin
