@@ -28,8 +28,10 @@ func (a *application) activeFilterLabel() string {
 		return a.kindFilterLabel(a.filterKind)
 	case a.filterTag != tagFilterAny:
 		return a.tagFilterLabel(a.filterTag)
-	case a.filterSource != "":
-		if device, ok := a.pairedDeviceByID(a.filterSource); ok {
+	case a.filterSource.IsLocal():
+		return a.t(msgHistorySourceThisDevice)
+	case a.filterSource.IsSet():
+		if device, ok := a.pairedDeviceByID(a.filterSource.DeviceID()); ok {
 			return device.name
 		}
 		return a.t(msgHistorySourceLanDevice)
@@ -395,9 +397,10 @@ func (a *application) sidebarHistoryFilters(c *ui.Context, theme *ui.Theme) {
 			key:      "filter-source-all",
 			icon:     icons.lan,
 			label:    a.t(msgFilterSourceAll),
-			selected: a.filterSource == "",
-			onSelect: func() { a.filterSource = "" },
+			selected: !a.filterSource.IsSet(),
+			onSelect: func() { a.filterSource = history.SourceFilter{} },
 		})
+		a.filterItemButton(c, theme, a.localSourceFacet())
 		for index := range a.pairedDevices {
 			a.filterSourceItem(c, theme, index)
 		}
@@ -516,21 +519,40 @@ func (a *application) periodFacet(key string, label messageKey, filter historyPe
 	}
 }
 
+// localSourceFacet 构造「本机」来源筛选项。本机捕获的条目没有来源设备 ID，
+// 所以这一项按“来源为空”过滤，名称与预览区的本机来源一致。
+func (a *application) localSourceFacet() filterFacet {
+	return filterFacet{
+		key:      "filter-source-local",
+		icon:     iconForPlatform(a.devicePlatform),
+		label:    a.t(msgHistorySourceThisDevice),
+		selected: a.filterSource.IsLocal(),
+		onSelect: func() {
+			if a.filterSource.IsLocal() {
+				a.filterSource = history.SourceFilter{}
+				return
+			}
+			a.filterSource = history.LocalSource()
+		},
+	}
+}
+
 // filterSourceItem 是一台已配对设备的来源筛选项。它按设备 ID 过滤，
 // 因此设备改名后筛选仍然有效。
 func (a *application) filterSourceItem(c *ui.Context, theme *ui.Theme, index int) {
 	device := a.pairedDevices[index]
+	source := history.DeviceSource(device.id)
 	a.filterItemButton(c, theme, filterFacet{
-		key:      "filter-source-" + device.id,
+		key:      "filter-source-device-" + device.id,
 		icon:     iconForPlatform(device.platform),
 		label:    device.name,
-		selected: a.filterSource == device.id,
+		selected: a.filterSource == source,
 		onSelect: func() {
-			if a.filterSource == device.id {
-				a.filterSource = ""
+			if a.filterSource == source {
+				a.filterSource = history.SourceFilter{}
 				return
 			}
-			a.filterSource = device.id
+			a.filterSource = source
 		},
 	})
 }
@@ -874,14 +896,14 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 // 让搜索在任意界面语言下都能匹配内容类型。
 func (a *application) historyQuery() history.Query {
 	return history.Query{
-		Text:           a.query,
-		Kind:           a.filterKind,
-		Tag:            a.filterTag,
-		FavoriteOnly:   a.filterFavorite,
-		SourceDeviceID: a.filterSource,
-		Period:         a.filterPeriod,
-		KindTerms:      a.kindSearchTerms,
-		SourceName:     a.sourceDeviceName,
+		Text:         a.query,
+		Kind:         a.filterKind,
+		Tag:          a.filterTag,
+		FavoriteOnly: a.filterFavorite,
+		Source:       a.filterSource,
+		Period:       a.filterPeriod,
+		KindTerms:    a.kindSearchTerms,
+		SourceName:   a.sourceDeviceName,
 	}
 }
 

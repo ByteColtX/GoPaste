@@ -98,7 +98,7 @@ func TestFacetsCombine(t *testing.T) {
 		t.Fatalf("text + favorite: got %v, want only favorite", idsOf(view))
 	}
 
-	view = store.Snapshot(Query{SourceDeviceID: "peer-a"})
+	view = store.Snapshot(Query{Source: DeviceSource("peer-a")})
 	if len(view.Items) != 1 || view.Items[0].ID != "received" {
 		t.Fatalf("source: got %v, want only received", idsOf(view))
 	}
@@ -142,7 +142,7 @@ func TestQueryFiltered(t *testing.T) {
 	if !(Query{FavoriteOnly: true}).Filtered() {
 		t.Fatal("a favorite filter must read as filtered")
 	}
-	if !(Query{SourceDeviceID: "peer-a"}).Filtered() {
+	if !(Query{Source: DeviceSource("peer-a")}).Filtered() {
 		t.Fatal("a source filter must read as filtered")
 	}
 	if !(Query{Kind: KindFilterText}).Filtered() {
@@ -153,6 +153,38 @@ func TestQueryFiltered(t *testing.T) {
 	}
 	if !(Query{Period: PeriodFilterToday}).Filtered() {
 		t.Fatal("a period filter must read as filtered")
+	}
+}
+
+func TestSourceFilterKeepsLocalItemsApart(t *testing.T) {
+	store := filterFixture(t)
+
+	view := store.Snapshot(Query{Source: LocalSource()})
+	got := idsOf(view)
+	if got["received"] {
+		t.Errorf("the local source must not include a received item: %v", got)
+	}
+	if !got["text"] {
+		t.Errorf("the local source must include items captured here: %v", got)
+	}
+
+	// The empty source is the zero value, so an unset filter shows both the
+	// local items and the ones received from a peer.
+	all := idsOf(store.Snapshot(Query{}))
+	if !all["received"] || !all["text"] {
+		t.Fatalf("the empty source must show every source: %v", all)
+	}
+	if !LocalSource().IsSet() || (SourceFilter{}).IsSet() {
+		t.Fatal("only a source that names one origin may read as set")
+	}
+	if !LocalSource().IsLocal() || DeviceSource("peer-a").IsLocal() {
+		t.Fatal("IsLocal must report the local source only")
+	}
+	if got := DeviceSource("peer-a").DeviceID(); got != "peer-a" {
+		t.Errorf("device source ID = %q, want peer-a", got)
+	}
+	if DeviceSource("").IsSet() {
+		t.Error("an empty device ID must return the empty source")
 	}
 }
 

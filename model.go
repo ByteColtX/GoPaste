@@ -183,7 +183,7 @@ type application struct {
 	filterKind     historyKindFilter
 	filterTag      historyTagFilter
 	filterFavorite bool
-	filterSource   string
+	filterSource   history.SourceFilter
 	filterPeriod   historyPeriodFilter
 	query          string
 	history        *history.Store

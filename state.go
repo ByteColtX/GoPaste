@@ -83,7 +83,7 @@ func (a *application) setPage(next page) {
 // historyFiltered 报告筛选栏当前是否收窄了历史列表（不含搜索词）。
 func (a *application) historyFiltered() bool {
 	return a.filterKind != kindFilterAny || a.filterTag != tagFilterAny ||
-		a.filterFavorite || a.filterSource != "" || a.filterPeriod != periodFilterAny
+		a.filterFavorite || a.filterSource.IsSet() || a.filterPeriod != periodFilterAny
 }
 
 // resetHistoryFilters 清空筛选栏的每一个维度，回到“所有”。搜索词由调用方
@@ -92,7 +92,7 @@ func (a *application) resetHistoryFilters() {
 	a.filterKind = kindFilterAny
 	a.filterTag = tagFilterAny
 	a.filterFavorite = false
-	a.filterSource = ""
+	a.filterSource = history.SourceFilter{}
 	a.filterPeriod = periodFilterAny
 }
 
@@ -278,8 +278,8 @@ func (a *application) removePairedDevice(id string) (int, pairedDevice, bool) {
 		a.deviceInfoExpanded = false
 		// 筛选栏可能正按这台设备过滤：设备没了就回到“所有来源”，
 		// 避免历史列表卡在一个永远匹配不到的筛选上。
-		if a.filterSource == id {
-			a.filterSource = ""
+		if a.filterSource == history.DeviceSource(id) {
+			a.filterSource = history.SourceFilter{}
 		}
 		return index, device, true
 	}

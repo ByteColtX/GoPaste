@@ -68,6 +68,40 @@ const (
 	PeriodFilterLast30Days
 )
 
+// SourceFilter selects where history items came from. Its zero value, the
+// empty source, shows items from every source, so it follows the other
+// facets' zero-value rule.
+//
+// An item captured on this machine carries no source device ID, so "this
+// machine" cannot be written as a device ID: it is its own case, which is
+// why this filter is a value with constructors rather than a plain enum.
+type SourceFilter struct {
+	local    bool
+	deviceID string
+}
+
+// LocalSource returns the filter for items captured on this machine.
+func LocalSource() SourceFilter { return SourceFilter{local: true} }
+
+// DeviceSource returns the filter for items received from one paired device.
+// An empty device ID returns the empty filter, which shows every source.
+func DeviceSource(deviceID string) SourceFilter {
+	if deviceID == "" {
+		return SourceFilter{}
+	}
+	return SourceFilter{deviceID: deviceID}
+}
+
+// IsSet reports whether the filter narrows the history to one source.
+func (s SourceFilter) IsSet() bool { return s != SourceFilter{} }
+
+// IsLocal reports whether the filter is this machine.
+func (s SourceFilter) IsLocal() bool { return s.local }
+
+// DeviceID returns the paired device the filter names. It is empty for this
+// machine and for the empty filter.
+func (s SourceFilter) DeviceID() string { return s.deviceID }
+
 // Image stores the portable image payload needed by history and clipboard
 // writes. UI bitmap objects stay outside this package.
 type Image struct {
@@ -119,10 +153,9 @@ type Query struct {
 	Tag TagFilter
 	// FavoriteOnly keeps only favorited items.
 	FavoriteOnly bool
-	// SourceDeviceID limits items to one source, which is a paired device
-	// ID or empty for items captured on this machine. It is empty when the
-	// source facet is not set, so every source shows.
-	SourceDeviceID string
+	// Source limits items to one origin, which is this machine or a paired
+	// device. Its zero value shows every source.
+	Source SourceFilter
 	// Period limits items to a window of time; PeriodFilterAny shows every
 	// record regardless of age.
 	Period PeriodFilter
@@ -139,7 +172,7 @@ type Query struct {
 // Filtered reports whether any facet narrows the list beyond the search text.
 func (q Query) Filtered() bool {
 	return q.Kind != KindFilterAny || q.Tag != TagFilterAny || q.FavoriteOnly ||
-		q.SourceDeviceID != "" || q.Period != PeriodFilterAny
+		q.Source.IsSet() || q.Period != PeriodFilterAny
 }
 
 // View is a stable snapshot used by both the list and preview panes.
@@ -413,10 +446,17 @@ func matchesTag(item Item, filter TagFilter) bool {
 	}
 }
 
-// matchesSource applies the source facet. An unset source, which is the empty
-// device ID, matches every item, including the ones captured here.
+// matchesSource applies the source facet. The empty source matches every
+// item, including the ones captured here.
 func matchesSource(item Item, query Query) bool {
-	return query.SourceDeviceID == "" || item.SourceDeviceID == query.SourceDeviceID
+	switch {
+	case query.Source.IsLocal():
+		return item.IsLocal()
+	case query.Source.deviceID != "":
+		return item.SourceDeviceID == query.Source.deviceID
+	default:
+		return true
+	}
 }
 
 // matchesPeriod applies the time-window facet against now.
