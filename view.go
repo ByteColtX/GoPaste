@@ -288,16 +288,22 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 			Width(filterRailContentWidth(theme)).FillHeight().Shrink(0).
 			Padding(0, 0, space(theme, 2), space(theme, 2)).Children(func() {
 			paneTop(c)
-			// 搜索属于历史筛选，只在历史分区出现。
-			if a.page == pageHistory {
-				ui.Box(c).FillWidth().Shrink(0).
-					Padding(space(theme, columnTopInset), space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
-					a.searchField(c, theme)
-				})
-			}
-			a.sidebarBody(c, theme)
-			a.sidebarFooter(c, theme)
-			a.sidebarNavigation(c, theme)
+			// 标题栏带下方统一留一段上边距：侧栏的第一个元素——历史页的搜索框、
+			// 设备页的本机条目、设置页的第一个分栏——因此在每一页都落在同一条
+			// 基线上，与列表、预览、详情列的首行对齐。
+			ui.Column(c).FillWidth().Grow(1).MinHeight(0).
+				Padding(space(theme, columnTopInset), 0, 0, 0).Children(func() {
+				// 搜索属于历史筛选，只在历史分区出现。
+				if a.page == pageHistory {
+					ui.Box(c).FillWidth().Shrink(0).
+						Padding(0, space(theme, 2.5), space(theme, 1.5), 0).Children(func() {
+						a.searchField(c, theme)
+					})
+				}
+				a.sidebarBody(c, theme)
+				a.sidebarFooter(c, theme)
+				a.sidebarNavigation(c, theme)
+			})
 		})
 	})
 }
