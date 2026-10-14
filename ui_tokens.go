@@ -94,12 +94,18 @@ const (
 	// filterRailWidth is the sidebar's width in DIPs. The sidebar holds the
 	// history filters, the device list, or the settings panes, so it has to
 	// fit "all sources" and long paired-device names.
-	filterRailWidth    = 208
+	// filterRailWidth 是侧栏宽度，单位 DIP。底栏左侧是图标组（含一个暂时留空的
+	// 第 5 个位置），右侧是单独右对齐的外观按钮：4 个 32 DIP 图标位 + 外观 + 4 个
+	// navButtonGap 间隙 = 218 − 30，正好铺满，所以间隙是整数 7 DIP、外观贴右留白。
+	filterRailWidth = 218
+	// navButtonGap 是底栏图标之间的固定间隙，单位 DIP。用固定值而不是均分，任何
+	// 宽度下都不会算出小数间隙；余量由外观按钮前的 Spacer 吸收。
+	navButtonGap       = 7
 	pageDetailMaxWidth = 720
-	// sidebarTrailingInset 是侧栏与历史列表左右两侧的统一留白（单位是 spacing，
-	// 即 16 DIP）。两侧取同一个值，选中的条目/行才会在所在栏里居中；右侧同时
-	// 让开覆盖式滚动条（滚动条占右侧 3–9 DIP），高亮框因此不会被它压住。
-	sidebarTrailingInset float32 = 3.5
+	// paneSideInset 是侧栏与历史列表左右两侧的统一留白，单位 DIP：整数，两侧取
+	// 同一个值，选中的条目/行才会在所在栏里居中；右侧同时让开覆盖式滚动条
+	// （滚动条占右侧 3–9 DIP），高亮框因此不会被它压住。
+	paneSideInset = 14
 
 	// columnTopInset 是各面板内容列首行距标题栏带底边的留白。每个面板都先让出
 	// 标题栏带（窗口控件与侧栏开关在带内居中），再从这条基线开始内容，因此
@@ -112,6 +118,12 @@ const (
 
 func font(theme *ui.Theme, scale float32) float32 {
 	return theme.Rem(scale)
+}
+
+// spaceDIP 把以 DIP 计的尺寸换算成 theme.Space 的单位。必须用浮点除法：写成
+// dip/4 时两个无类型整数常量会做整数除法（14/4 = 3），留白会静默少掉 2 DIP。
+func spaceDIP(theme *ui.Theme, dip float32) float32 {
+	return theme.Space(dip / 4)
 }
 
 func space(theme *ui.Theme, units float32) float32 {
@@ -212,14 +224,14 @@ func (a *application) filterRailSize(c *ui.Context, theme *ui.Theme) float32 {
 	if !a.filterRailOpen {
 		return 0
 	}
-	return space(theme, filterRailWidth/4)
+	return spaceDIP(theme, filterRailWidth)
 }
 
 // filterRailContentWidth 是筛选栏内容列的固定宽度：外层收窄时内容宽度不变，
 // 由外层的 ClipX 裁掉，收起读起来是「滑走」而不是「挤扁」。它取外层内容盒的
 // 宽度（去掉两侧 1 DIP 描边），滚动条因此仍贴在外层右缘。
 func filterRailContentWidth(theme *ui.Theme) float32 {
-	return space(theme, filterRailWidth/4) - 2
+	return spaceDIP(theme, filterRailWidth) - 2
 }
 
 func (a *application) compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {

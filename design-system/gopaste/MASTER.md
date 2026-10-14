@@ -72,7 +72,7 @@ User-facing text stays at or above the caption token. Long content wraps; trunca
 
 ## Layout and spacing
 
-The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tokens in `ui_tokens.go`:
+The base spacing unit is `theme.Space(1)` (4 DIP by default). Use the shared tokens in `ui_tokens.go`. Widths and insets that are stated in DIP go through `spaceDIP(theme, dip)`, never `theme.Space(dip/4)`: `14/4` is an untyped-integer division and yields `3`, silently shrinking a 14 DIP inset to 12.
 
 - Inline: 8 DIP
 - Control group: 8–12 DIP
@@ -90,7 +90,7 @@ Two radii cover the whole app: `controlRadius` for controls, rows, navigation an
 Responsive widths:
 
 - Window minimum: 1000 × 560 DIP.
-- Sidebar: 208 DIP when expanded, collapsible to 0 DIP. It is the only sidebar in the window.
+- Sidebar: 218 DIP when expanded, collapsible to 0 DIP. It is the only sidebar in the window. The width is set by the bottom navigation row: four 32 DIP icon slots (the fourth reserved for a future icon) plus the appearance toggle, separated by four whole-DIP gaps, exactly fill 218 − 30 DIP. Whole-DIP gaps in every state are the reason the width is 218 rather than 208.
 - History list minimum: 300 DIP.
 - History preview minimum: 460 DIP while split.
 - Detail content maximum: 720 DIP.
@@ -104,7 +104,7 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - One sidebar serves the whole window, and its content follows the current section: History shows the filter groups, Devices shows the device list, Settings shows the settings panes. A page never adds a second sidebar of its own, so the leading column never shows one section's controls while another section is displayed.
 - The sidebar carries no title line of its own: the switcher's selected item names the section. The history search field is its first item and appears only on History.
 - Each section's sidebar body carries its own key, so scroll position never carries across sections.
-- The section switcher sits at the bottom of the sidebar: icon-only History, Settings, and Devices at the left, the light/dark appearance toggle at the right, with labels in tooltips and accessible names. History must be present, because the contextual sidebar shows no filters on the other sections, so it is the only pointer route back.
+- The section switcher sits at the bottom of the sidebar: icon-only History, Settings, and Devices at the left, the light/dark appearance toggle at the right, with labels in tooltips and accessible names. History must be present, because the contextual sidebar shows no filters on the other sections, so it is the only pointer route back. The left group reserves a fourth icon slot that is deliberately empty for now, so a future icon lands without moving the appearance toggle; the group stays left-aligned and the toggle stays at the trailing inset.
 - Known trade-off: HIG › Sidebars advises against critical actions at a sidebar's bottom edge, because a relocated window can hide it. The switcher stays there by product decision.
 - The history list header reads 历史记录, and the sidebar has no second title beside it.
 - The device list's refresh and add-device actions sit in the list header row, beside the list they act on; the sidebar's bottom holds only the informational online count.
@@ -137,7 +137,8 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - Two-line row: 64 DIP minimum height, a 36 DIP icon tile with an 18 DIP glyph, (8, 8) DIP padding, 12 DIP between tile and text, 4 DIP between rows, control radius, and the same selected style. The container supplies the 4 DIP row spacing, so the first row still lands on the pane's first-line baseline.
 - Inside one pane, section labels, single-line item icons, and two-line row tiles share one left edge.
 - MyGo's `Selected(true)` also paints an accent background and `AccentText`, so a selected row or item must re-assert both its fill and its text colour; overriding only the fill leaves the label in near-white on a pale highlight, which reads as invisible in the light appearance.
-- Each pane keeps its own content inset — 16 DIP in the sidebar and the history list, 24 in the preview and the detail panes — and a pane's inset is the same on both sides, so a selected item or row sits centred in its pane. The sidebar's and list's trailing inset also clears the overlay scrollbar (which occupies the 3–9 DIP nearest the pane's trailing edge), so a highlight is never covered by it.
+- A `ui.Spacer` is a real child, so it consumes one `Gap` on each side: a row that pads its trailing action with a Spacer gets one extra gap and overflows by exactly that much. A bottom row that must keep its leading group left-aligned and its trailing action at the trailing inset therefore uses one fewer child and `Justify(ui.SpaceBetween)`, which lands the same gaps when the width was chosen for that count.
+- Each pane keeps its own content inset — 14 DIP in the sidebar and the history list, 24 in the preview and the detail panes — and a pane's inset is the same on both sides, so a selected item or row sits centred in its pane. Every inset and every gap is a whole DIP. The sidebar's and list's trailing inset also clears the overlay scrollbar (which occupies the 3–9 DIP nearest the pane's trailing edge), so a highlight is never covered by it.
 
 ### Cards and dividers
 

@@ -289,7 +289,7 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 			// 左右都用同一个留白，选中项的高亮框才在侧栏里居中；右留白同时要让开
 			// 滚动条（滚动条占右侧 3–9 DIP），所以不能为了居中把它调小。滚动容器
 			// 本身仍占满这一列（右内边距为 0），滚动条因此依旧贴近分割线。
-			Padding(0, 0, space(theme, 2), space(theme, sidebarTrailingInset)).Children(func() {
+			Padding(0, 0, space(theme, 2), spaceDIP(theme, paneSideInset)).Children(func() {
 			paneTop(c)
 			// 标题栏带下方统一留一段上边距：侧栏的第一个元素——历史页的搜索框、
 			// 设备页的本机条目、设置页的第一个分栏——因此在每一页都落在同一条
@@ -299,7 +299,7 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 				// 搜索属于历史筛选，只在历史分区出现。
 				if a.page == pageHistory {
 					ui.Box(c).FillWidth().Shrink(0).
-						Padding(0, space(theme, sidebarTrailingInset), space(theme, 1.5), 0).Children(func() {
+						Padding(0, spaceDIP(theme, paneSideInset), space(theme, 1.5), 0).Children(func() {
 						a.searchField(c, theme)
 					})
 				}
@@ -320,15 +320,23 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 // 已知取舍：HIG › Sidebars 建议不要把关键操作放在侧栏底部（窗口下缘可能被移出
 // 屏幕）。这里按产品决定仍放在底部。
 func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
-	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, sidebarTrailingInset), 0, 0).Children(func() {
+	ui.Box(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), 0, 0).Children(func() {
 		standardDivider(c, theme)
 	})
-	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), space(theme, sidebarTrailingInset), 0, 0).
-		Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
+	// 底栏：左侧图标组左对齐，外观按钮单独右对齐。第 5 个图标位先留空占位，落地时
+	// 位置和间距都不用再动。这里不能用 Spacer 顶开外观按钮——Spacer 自己也是一个子
+	// 元素，会在两侧各吃一个 gap，6 个子元素共 5 个 gap 会把这一行撑溢出 7 DIP（外观
+	// 按钮的右留白从 14 掉到 7）。改成 5 个子元素 + SpaceBetween 均分：侧栏宽度按
+	// 「4 个图标位 + 外观 + 4 个间隙正好铺满」选定（见 filterRailWidth），间隙正好是
+	// navButtonGap，左边仍贴左留白、外观仍贴右留白。
+	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), 0, 0).
+		Gap(spaceDIP(theme, navButtonGap)).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
 		a.filterRailNavButton(c, theme, "sidebar-history", pageHistory, icons.history, a.t(msgNavHistory))
 		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
 		a.filterRailNavButton(c, theme, "sidebar-devices", pageDevices, icons.devices, a.t(msgNavDevices))
-		ui.Spacer(c)
+		// 第 5 个图标位暂时留空：占住一个按钮位，落地时布局不会跳动。
+		size := controlHeightSize(c, theme, compactHeight)
+		ui.Box(c).Size(size, size).Shrink(0)
 		a.filterRailAppearanceButton(c, theme)
 	})
 }
@@ -339,7 +347,7 @@ func (a *application) sidebarBody(c *ui.Context, theme *ui.Theme) {
 	ui.Scroll(c).Key(a.page).Grow(1).MinHeight(0).FillWidth().
 		ScrollbarInsets(0, 0, 0, 0).Children(func() {
 		ui.Column(c).FillWidth().Gap(space(theme, 0.5)).
-			Padding(0, space(theme, sidebarTrailingInset), 0, 0).Children(func() {
+			Padding(0, spaceDIP(theme, paneSideInset), 0, 0).Children(func() {
 			switch a.page {
 			case pageDevices:
 				a.sidebarDevices(c, theme)
@@ -458,7 +466,7 @@ func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 		onlineColor = theme.Success
 	}
 	ui.Row(c).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), space(theme, sidebarTrailingInset), space(theme, 0.5), 0).Children(func() {
+		Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), space(theme, 0.5), 0).Children(func() {
 		deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
 	})
 }
@@ -718,7 +726,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 	panel := ui.Column(c).Fill().
 		MinWidth(minHistoryPaneWidth).
 		Background(theme.Background).
-		Padding(0, 0, space(theme, 2.5), space(theme, sidebarTrailingInset))
+		Padding(0, 0, space(theme, 2.5), spaceDIP(theme, paneSideInset))
 
 	panel.Children(func() {
 		// 顶部保留标题栏带，列表内容从带子下方统一的第一行开始。
@@ -739,7 +747,7 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 	// 标题在标题栏带下方起一行，与侧栏、预览、详情列共用同一条首行基线，
 	// 因此侧栏收起时不需要任何横向或纵向位移。
 	ui.Row(c).Key("history-header").Shrink(0).FillWidth().AlignItems(ui.Start).DragWindow().
-		Padding(space(theme, columnTopInset), space(theme, sidebarTrailingInset), space(theme, 1.5), 0).
+		Padding(space(theme, columnTopInset), spaceDIP(theme, paneSideInset), space(theme, 1.5), 0).
 		Children(func() {
 			ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
 				ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
@@ -954,7 +962,7 @@ func (a *application) historyRow(c *ui.Context, theme *ui.Theme, item history.It
 			a.historyRowTitle(c, theme, item)
 			a.historyRowMeta(c, theme, item)
 		})
-	row.Margin(space(theme, listRowGap/2), space(theme, sidebarTrailingInset), space(theme, listRowGap/2), 0)
+	row.Margin(space(theme, listRowGap/2), spaceDIP(theme, paneSideInset), space(theme, listRowGap/2), 0)
 	return row
 }
 
