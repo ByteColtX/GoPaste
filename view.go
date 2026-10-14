@@ -309,9 +309,9 @@ func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
 		Gap(space(theme, 1)).AlignItems(ui.Center).Children(func() {
 		a.filterRailNavButton(c, theme, "sidebar-history", pageHistory, icons.history, a.t(msgNavHistory))
 		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
-		a.filterRailAppearanceButton(c, theme)
-		ui.Spacer(c)
 		a.filterRailNavButton(c, theme, "sidebar-devices", pageDevices, icons.devices, a.t(msgNavDevices))
+		ui.Spacer(c)
+		a.filterRailAppearanceButton(c, theme)
 	})
 }
 
