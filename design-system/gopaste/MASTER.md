@@ -109,7 +109,7 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - The history list header reads 历史记录, and the sidebar has no second title beside it.
 - The device list's refresh and add-device actions sit in the list header row, beside the list they act on; the sidebar's bottom holds only the informational online count.
 - The sidebar collapses by animating its width to zero behind a fixed-width, clipped content column, so its content slides out of view instead of squeezing. The detail panes slide in step with the same spring, and their height never changes: only the leftmost pane's first row shifts right to clear the window controls.
-- The appearance toggle shows the mode it switches to: a moon in light mode, a sun in dark mode. A system appearance resolves to the mode it currently shows.
+- The appearance toggle cycles the three modes in the settings pane's order — follow system, light, dark — and shows the mode a click lands on: a half-filled circle for follow-system, a sun for light, a moon for dark. The settings pane's segmented control stays the way to pick one explicitly.
 - A collapse/expand button sits in the title bar, right of the platform window controls and 12 DIP clear of them. HIG › Accessibility asks for enough padding between controls to reduce wrong-control clicks: about 12 DIP around a bezelled control, about 24 DIP around an unbezelled one. Collapsing hides the sidebar entirely; the button stays, so it can return.
 - Filter rows are left-aligned: the icon sits at the sidebar's content edge, the label follows it, and section labels share that same left edge.
 - Current destination and current filter both use `Selected(true)`, `selectedFill(theme)`, and primary text.

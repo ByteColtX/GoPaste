@@ -33,6 +33,7 @@ type iconSet struct {
 	railExpand   *ui.SVG
 	sun          *ui.SVG
 	moon         *ui.SVG
+	auto         *ui.SVG
 	text         *ui.SVG
 	richText     *ui.SVG
 	link         *ui.SVG
@@ -72,6 +73,7 @@ func mustLoadIconSet() iconSet {
 		railExpand:   mustLoadIcon("layout-sidebar-left-expand.svg"),
 		sun:          mustLoadIcon("sun.svg"),
 		moon:         mustLoadIcon("moon.svg"),
+		auto:         mustLoadIcon("circle-half.svg"),
 		text:         mustLoadIcon("file-text.svg"),
 		richText:     mustLoadIcon("typography.svg"),
 		link:         mustLoadIcon("external-link.svg"),

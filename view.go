@@ -597,16 +597,14 @@ func (a *application) filterRailNavButton(c *ui.Context, theme *ui.Theme, key st
 	}
 }
 
-// filterRailAppearanceButton 在设置按钮右侧切换深浅外观。它显示点击后会得到的
-// 模式：当前是深色时显示太阳（切到浅色），否则显示月亮（切到深色）。系统外观
-// 按当前解析结果处理，点击后落到明确的浅色或深色。
+// filterRailAppearanceButton 在侧栏底部循环切换外观：跟随系统 → 浅色 → 深色。
+// 它显示点击后会得到的那个模式——半填充圆是跟随系统，太阳是浅色，月亮是深色——
+// 与展开/收起按钮一样按「动作」表达，提示里也写明目标模式。设置页的「模式」
+// 分段控件仍是明确挑选某一个的入口。
 func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme) {
-	label := a.t(msgAppearanceSwitchDark)
-	icon := icons.moon
-	if theme.Dark {
-		label = a.t(msgAppearanceSwitchLight)
-		icon = icons.sun
-	}
+	next := nextAppearance(a.appearance)
+	label := a.appearanceSwitchLabel(next)
+	icon := appearanceIcon(next)
 	size := controlHeightSize(c, theme, compactHeight)
 	button := ui.ButtonBase(c.Key("filter-rail-appearance")).
 		Size(size, size).Shrink(0).Center().
@@ -621,7 +619,31 @@ func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme)
 		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(secondaryText(theme))
 	})
 	if button.Clicked() {
-		a.toggleAppearance(theme.Dark)
+		a.cycleAppearance()
+	}
+}
+
+// appearanceIcon 返回某个外观模式对应的图标。
+func appearanceIcon(mode int) *ui.SVG {
+	switch mode {
+	case appearanceLight:
+		return icons.sun
+	case appearanceDark:
+		return icons.moon
+	default:
+		return icons.auto
+	}
+}
+
+// appearanceSwitchLabel 返回「切换到某个外观」的提示文案。
+func (a *application) appearanceSwitchLabel(mode int) string {
+	switch mode {
+	case appearanceLight:
+		return a.t(msgAppearanceSwitchLight)
+	case appearanceDark:
+		return a.t(msgAppearanceSwitchDark)
+	default:
+		return a.t(msgAppearanceSwitchSystem)
 	}
 }
 

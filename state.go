@@ -157,15 +157,23 @@ func (a *application) applyAppearance() {
 	}
 }
 
-// toggleAppearance 在浅色与深色之间切换。dark 是当前解析出来的深色状态：
-// 当前为深色就落到明确的浅色，否则落到明确的深色，因此按钮图标始终反映点击
-// 后的结果；系统外观也随之变成一次明确的浅色或深色选择。
-func (a *application) toggleAppearance(dark bool) {
-	if dark {
-		a.appearance = appearanceLight
-	} else {
-		a.appearance = appearanceDark
+// appearanceModes 是外观的循环顺序，与设置页「模式」分段控件的顺序一致。
+var appearanceModes = [...]int{appearanceSystem, appearanceLight, appearanceDark}
+
+// nextAppearance 返回循环中的下一个外观。
+func nextAppearance(current int) int {
+	for index, mode := range appearanceModes {
+		if mode == current {
+			return appearanceModes[(index+1)%len(appearanceModes)]
+		}
 	}
+	return appearanceSystem
+}
+
+// cycleAppearance 按「跟随系统 → 浅色 → 深色 → 跟随系统」循环并立即应用。
+// 侧栏按钮是快捷入口，设置页的模式分段控件仍是明确选择某一个的方式。
+func (a *application) cycleAppearance() {
+	a.appearance = nextAppearance(a.appearance)
 	a.applyAppearance()
 }
 
