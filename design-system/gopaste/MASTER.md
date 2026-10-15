@@ -157,6 +157,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 ### History
 
 - The sidebar groups history filters top to bottom: All and Favorites, then Type (text, rich text, image, file), Tag (link, code), Source (all sources, then each paired device), and Time (all time, today, yesterday, last 7 days, last 30 days). The Tag group holds only the detected subtypes, so it never repeats a Type: an image item is reached through Type, not through a second Image row.
+- All carries a list glyph, not the switcher's history glyph: the two sit in the same rail on History, and the section icon has to name the section, so the unfiltered list takes its own shape.
 - Filter section labels sit 16 DIP below the previous group and 8 DIP above their own rows, so a label reads as part of the group it names. The values follow Apple's 8 pt baseline grid, where 8 DIP is the standard label-to-control gap and section separation is the larger step.
 - Every pane reserves the title-bar band, so its content keeps a clear margin from the window's top edge and never sits under the window controls. The band holds the window controls and the sidebar toggle, centred on one midline, and each pane's header row doubles as the drag region.
 - Because the content starts below the band, collapsing the sidebar needs no horizontal or vertical dodge: the columns simply change width, and every first line, header height, and row position stays put.

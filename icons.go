@@ -17,6 +17,7 @@ var embeddedTrayIcon []byte
 
 type iconSet struct {
 	history      *ui.SVG
+	list         *ui.SVG
 	devices      *ui.SVG
 	brandApple   *ui.SVG
 	brandWindows *ui.SVG
@@ -57,6 +58,7 @@ var icons = mustLoadIconSet()
 func mustLoadIconSet() iconSet {
 	return iconSet{
 		history:      mustLoadIcon("history.svg"),
+		list:         mustLoadIcon("list.svg"),
 		devices:      mustLoadIcon("device-desktop.svg"),
 		brandApple:   mustLoadIcon("brand-apple.svg"),
 		brandWindows: mustLoadIcon("brand-windows.svg"),

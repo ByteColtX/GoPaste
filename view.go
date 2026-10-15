@@ -371,9 +371,13 @@ func (a *application) sidebarBody(c *ui.Context, theme *ui.Theme) {
 // sidebarHistoryFilters 是历史分区的筛选分组。
 func (a *application) sidebarHistoryFilters(c *ui.Context, theme *ui.Theme) {
 	// 快捷：所有（清空所有筛选）与收藏。
+	//
+	// 「所有」用列表图标而不是底栏「历史」分区用的时钟图标：两者在历史页会同时
+	// 出现在同一列里，同一枚字形担两个意思读起来像重复。分区图标要准确指向
+	// 「历史」，而这里表达的是「不过滤、全部条目」。
 	a.filterItemButton(c, theme, filterFacet{
 		key:      "filter-all",
-		icon:     icons.history,
+		icon:     icons.list,
 		label:    a.t(msgFilterAll),
 		selected: !a.historyFiltered(),
 		onSelect: a.resetHistoryFilters,
