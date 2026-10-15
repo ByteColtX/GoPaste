@@ -42,7 +42,7 @@ func (a *application) settingsDetail(c *ui.Context, theme *ui.Theme) {
 		paneTop(c)
 		ui.Scroll(c).Fill().MinWidth(0).MinHeight(0).
 			ScrollbarInsets(0, space(theme, 1), 0, 0).Children(func() {
-			ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+			ui.Column(c).FillWidth().MaxWidth(detailMaxWidth(theme)).AlignSelf(ui.Center).
 				Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
 				Gap(space(theme, spaceSection)).Children(func() {
 				switch a.settingsArea {
@@ -125,6 +125,39 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 	})
 	ui.Text(c, a.tf(msgSettingsCurrentAppearance, a.appearanceLabel(a.appearance))).FontSize(font(theme, fontMeta)).
 		TextColor(secondaryText(theme)).Padding(space(theme, 1), 0, 0, 0).Wrap()
+
+	a.settingsSubheading(c, a.t(msgSettingsInterface), theme)
+	settingsGroup(c, theme, "settings-zoom-group", func() {
+		a.settingsRow(c, theme, a.t(msgSettingsZoom), a.t(msgSettingsZoomDesc), func() {
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
+				out := neutralButton(c, theme, "settings-zoom-out", a.t(msgSettingsZoomOut))
+				out.Children(func() {
+					ui.Text(c, a.t(msgSettingsZoomOut)).FontSize(font(theme, fontControl)).SingleLine()
+				})
+				if out.Clicked() {
+					a.zoomOut()
+				}
+				ui.Text(c, zoomLabel(a.zoom)).FontSize(font(theme, fontControl)).FontWeight(600).
+					TextColor(primaryText(theme)).MinWidth(space(theme, 9)).Center().SingleLine()
+				in := neutralButton(c, theme, "settings-zoom-in", a.t(msgSettingsZoomIn))
+				in.Children(func() {
+					ui.Text(c, a.t(msgSettingsZoomIn)).FontSize(font(theme, fontControl)).SingleLine()
+				})
+				if in.Clicked() {
+					a.zoomIn()
+				}
+				// 已经在 100% 时没有可重置的东西，按钮置灰。
+				reset := neutralButton(c, theme, "settings-zoom-reset", a.t(msgSettingsZoomReset)).
+					Disabled(a.zoom == 1)
+				reset.Children(func() {
+					ui.Text(c, a.t(msgSettingsZoomReset)).FontSize(font(theme, fontControl)).SingleLine()
+				})
+				if reset.Clicked() {
+					a.resetZoom()
+				}
+			})
+		})
+	})
 }
 
 func (a *application) appearanceLabel(appearance int) string {

@@ -173,6 +173,19 @@ type application struct {
 
 	onSyncStateChanged func()
 	onLanguageChanged  func()
+	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
+	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
+	onZoomChanged func(zoom float32)
+	onMaxZoom     func() float32
+
+	// zoom 是界面缩放比例，1 为 100%；platformFontSize/platformSpacing 记住
+	// 平台主题的基准值（含系统文字大小设置），zoomedFontSize/zoomedSpacing 是
+	// 上一次写回主题的值，用来分辨「读到的主题是自己写的」还是平台改了。
+	zoom             float32
+	platformFontSize float32
+	platformSpacing  float32
+	zoomedFontSize   float32
+	zoomedSpacing    float32
 
 	historyPaneWidth float32
 	// filterRailOpen 记录筛选栏是否展开：标题栏的展开/收起按钮切换它。

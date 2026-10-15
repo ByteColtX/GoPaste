@@ -231,6 +231,17 @@ const (
 	msgSettingsThemeLightName        messageKey = "settings.theme.lightName"
 	msgSettingsThemeDarkName         messageKey = "settings.theme.darkName"
 	msgSettingsThemeSystemName       messageKey = "settings.theme.systemName"
+	msgSettingsInterface             messageKey = "settings.interface"
+	msgSettingsZoom                  messageKey = "settings.zoom"
+	msgSettingsZoomDesc              messageKey = "settings.zoomDesc"
+	msgSettingsZoomOut               messageKey = "settings.zoomOut"
+	msgSettingsZoomIn                messageKey = "settings.zoomIn"
+	msgSettingsZoomReset             messageKey = "settings.zoomReset"
+	msgMenuView                      messageKey = "menu.view"
+	msgMenuZoomIn                    messageKey = "menu.zoomIn"
+	msgMenuZoomOut                   messageKey = "menu.zoomOut"
+	msgMenuZoomReset                 messageKey = "menu.zoomReset"
+	msgToastZoom                     messageKey = "toast.zoom"
 	msgSettingsStorage               messageKey = "settings.storage"
 	msgSettingsStorageDesc           messageKey = "settings.storageDesc"
 	msgSettingsData                  messageKey = "settings.data"
@@ -473,6 +484,17 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsThemeLightName:        "浅色主题",
 	msgSettingsThemeDarkName:         "深色主题",
 	msgSettingsThemeSystemName:       "跟随系统",
+	msgSettingsInterface:             "界面",
+	msgSettingsZoom:                  "界面缩放",
+	msgSettingsZoomDesc:              "放大或缩小整个界面，快捷键 ⌘=、⌘-、⌘0",
+	msgSettingsZoomOut:               "缩小",
+	msgSettingsZoomIn:                "放大",
+	msgSettingsZoomReset:             "实际大小",
+	msgMenuView:                      "视图",
+	msgMenuZoomIn:                    "放大",
+	msgMenuZoomOut:                   "缩小",
+	msgMenuZoomReset:                 "实际大小",
+	msgToastZoom:                     "界面缩放 %s",
 	msgSettingsStorage:               "存储",
 	msgSettingsStorageDesc:           "查看和清理保存在本机的历史记录。",
 	msgSettingsData:                  "数据管理",
@@ -707,6 +729,17 @@ var englishCatalog = catalog{
 	msgSettingsThemeLightName:        "Light theme",
 	msgSettingsThemeDarkName:         "Dark theme",
 	msgSettingsThemeSystemName:       "System",
+	msgSettingsInterface:             "Interface",
+	msgSettingsZoom:                  "Interface zoom",
+	msgSettingsZoomDesc:              "Zoom the whole interface; ⌘=, ⌘- and ⌘0",
+	msgSettingsZoomOut:               "Zoom out",
+	msgSettingsZoomIn:                "Zoom in",
+	msgSettingsZoomReset:             "Actual size",
+	msgMenuView:                      "View",
+	msgMenuZoomIn:                    "Zoom in",
+	msgMenuZoomOut:                   "Zoom out",
+	msgMenuZoomReset:                 "Actual size",
+	msgToastZoom:                     "Interface zoom %s",
 	msgSettingsStorage:               "Storage",
 	msgSettingsStorageDesc:           "View and clear history saved on this device.",
 	msgSettingsData:                  "Data",

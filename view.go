@@ -192,6 +192,12 @@ func (a *application) globalShortcuts(c *ui.Context) {
 	c.OnShortcut(ui.Cmd, ui.KeyComma, func() { a.setPage(pageSettings) })
 	c.OnShortcut(ui.Cmd, ui.KeyK, func() { a.focusHistorySearch(c) })
 	c.OnShortcut(ui.Cmd, ui.KeyF, func() { a.focusHistorySearch(c) })
+	// 界面缩放：Cmd +=、Cmd +-、Cmd 0。放大同时接受带 Shift 的等号键，
+	// 因为多数键盘上「+」要按 Shift，浏览器也是这么绑的。
+	c.OnShortcut(ui.Cmd, ui.KeyEqual, func() { a.zoomIn() })
+	c.OnShortcut(ui.Cmd|ui.Shift, ui.KeyEqual, func() { a.zoomIn() })
+	c.OnShortcut(ui.Cmd, ui.KeyMinus, func() { a.zoomOut() })
+	c.OnShortcut(ui.Cmd, ui.Key0, func() { a.resetZoom() })
 }
 
 // focusHistorySearch 在窗口级别响应搜索快捷键，使焦点位于预览区或其他区域时也能聚焦搜索框。
@@ -739,14 +745,14 @@ func (a *application) constrainHistoryPaneWidth(c *ui.Context, theme *ui.Theme) 
 	}
 
 	windowWidth, _ := c.Size()
-	maxWidth := windowWidth - a.filterRailSize(c, theme) - minPreviewPaneWidth - splitDividerWidth
-	maxWidth = max(maxWidth, float32(minHistoryPaneWidth))
-	a.historyPaneWidth = min(max(a.historyPaneWidth, float32(minHistoryPaneWidth)), maxWidth)
+	maxWidth := windowWidth - a.filterRailSize(c, theme) - paneMinWidth(theme, minPreviewPaneWidth) - splitDividerWidth
+	maxWidth = max(maxWidth, paneMinWidth(theme, minHistoryPaneWidth))
+	a.historyPaneWidth = min(max(a.historyPaneWidth, paneMinWidth(theme, minHistoryPaneWidth)), maxWidth)
 }
 
 func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.View) {
 	panel := ui.Column(c).Fill().
-		MinWidth(minHistoryPaneWidth).
+		MinWidth(paneMinWidth(theme, minHistoryPaneWidth)).
 		Background(theme.Background).
 		Padding(0, 0, space(theme, 2.5), spaceDIP(theme, paneSideInset))
 
@@ -1084,7 +1090,7 @@ func (a *application) autoTagWidth(c *ui.Context, theme *ui.Theme, item history.
 
 func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view history.View) {
 	pane := ui.Column(c).Grow(1).FillHeight().
-		MinWidth(minPreviewPaneWidth).Background(theme.Background)
+		MinWidth(paneMinWidth(theme, minPreviewPaneWidth)).Background(theme.Background)
 	pane.Children(func() {
 		// 与列表一致：预览区同样让出标题栏带，元信息行落在同一条首行基线上。
 		paneTop(c)
@@ -1126,7 +1132,7 @@ func (a *application) emptyPreview(c *ui.Context, theme *ui.Theme) {
 func (a *application) previewHeader(c *ui.Context, theme *ui.Theme, item history.Item) {
 	// 与设备、设置详情一致：先限制最大宽度并居中，再应用左右内边距，
 	// 让标题、操作按钮和正文卡片的左右边缘对齐。
-	ui.Column(c).Shrink(0).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).DragWindow().
+	ui.Column(c).Shrink(0).FillWidth().MaxWidth(detailMaxWidth(theme)).AlignSelf(ui.Center).DragWindow().
 		Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, 3), space(theme, spacePageSide)).
 		Gap(space(theme, 1.75)).Children(func() {
 		// 元信息行预留固定高度，标记就不会撑高这一行，切换条目时下方的正文卡片
@@ -1145,8 +1151,8 @@ func (a *application) previewContentWidth(c *ui.Context, theme *ui.Theme) float3
 	previewWidth := windowWidth - a.filterRailSize(c, theme) - a.historyPaneWidth - splitDividerWidth
 	// 窗口比最小宽度还窄时，两侧面板各自守住自己的最小宽度，所以预览栏不会比
 	// minPreviewPaneWidth 更窄；这里取同一个下限，取舍判断才与实际布局一致。
-	previewWidth = max(previewWidth, float32(minPreviewPaneWidth))
-	previewWidth = min(previewWidth, pageDetailMaxWidth)
+	previewWidth = max(previewWidth, paneMinWidth(theme, minPreviewPaneWidth))
+	previewWidth = min(previewWidth, detailMaxWidth(theme))
 	return previewWidth - 2*space(theme, spacePageSide)
 }
 
@@ -1258,7 +1264,7 @@ func textWidth(c *ui.Context, value string, size float32, weight int) float32 {
 func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item history.Item) {
 	content := ui.Scroll(c).Grow(1).MinHeight(0)
 	content.Children(func() {
-		ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+		ui.Column(c).FillWidth().MaxWidth(detailMaxWidth(theme)).AlignSelf(ui.Center).
 			Padding(0, space(theme, spacePageSide), previewActionsClearance(c, theme)+space(theme, 2), space(theme, spacePageSide)).
 			Gap(space(theme, 3)).Children(func() {
 			switch item.Kind {
@@ -1280,10 +1286,10 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 						Background(panelFill(theme)).Border(1, borderColor(theme))
 					return
 				}
-				ui.Box(c).MaxWidth(pageDetailMaxWidth).Center().Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
+				ui.Box(c).MaxWidth(detailMaxWidth(theme)).Center().Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
 					Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
 					if bitmap := a.historyBitmap(item); bitmap != nil {
-						ui.Image(c, bitmap).MaxWidth(pageDetailMaxWidth - space(theme, 6)).MaxHeight(520).
+						ui.Image(c, bitmap).MaxWidth(detailMaxWidth(theme) - space(theme, 6)).MaxHeight(520).
 							Fit(ui.Contain).Radius(radius(theme, controlRadius))
 					}
 				})
@@ -1752,7 +1758,7 @@ const (
 func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item history.Item) {
 	ui.Row(c).Absolute().Left(0).Right(0).Bottom(0).Shrink(0).
 		Justify(ui.Center).Children(func() {
-		ui.Row(c).FillWidth().MaxWidth(pageDetailMaxWidth).Justify(ui.Center).
+		ui.Row(c).FillWidth().MaxWidth(detailMaxWidth(theme)).Justify(ui.Center).
 			Padding(0, space(theme, spacePageSide), space(theme, previewBarBottomInset), space(theme, spacePageSide)).
 			Children(func() {
 				ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).

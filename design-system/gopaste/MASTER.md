@@ -206,6 +206,13 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Skeletons and spinners run only for meaningful waits and stop when content is ready.
 - MyGo goes straight to the target when `ReduceMotion` is on, so transitions need no extra branch.
 
+## Zoom
+
+- `⌘=`, `⌘-` and `⌘0` (View menu and in-app shortcuts) scale the interface. Zoom multiplies the theme's `FontSize` and `Spacing`, so every `font()` and `space()` value scales together; no layout code branches on the zoom level.
+- Layout limits written in DIPs scale with it too (`detailMaxWidth`, `paneMinWidth`, the window minimum), so a zoomed interface never gets narrower content columns.
+- Zoom stops at the largest step the current screen's work area can hold, and growing the window for a zoom never exceeds that work area. The window grows to fit a larger zoom and never shrinks on its own.
+- Zoom is deliberately independent of the system text scale: `Preferences.TextScale` arrives already applied in the platform theme's `FontSize`, and the user's zoom multiplies on top of it.
+
 ## Privacy and platform invariants
 
 - Synchronization remains limited to paired devices on the local network.
@@ -216,6 +223,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 ## Implementation map
 
 - `ui_tokens.go` owns shared metrics, semantic colors, and primitives.
+- `zoom.go` owns interface zoom: steps, theme scaling, and the window geometry that follows it.
 - `view.go` owns the shell, the contextual sidebar, its section switcher, the header search, the history list, the preview, and the history actions.
 - `device_view.go` owns device navigation, sync controls, pairing, and connection details.
 - `settings_view.go` owns settings navigation and preference groups.
@@ -229,6 +237,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - [ ] Light, dark, and high-contrast themes preserve text, border, status, and focus contrast.
 - [ ] Focus is visible on navigation, lists, fields, selects, switches, and modal actions.
 - [ ] The sidebar stays usable at the 300 DIP list minimum and the 1000 DIP window minimum, and collapses to 0 without clipping the content.
+- [ ] Every page renders at each zoom step.
 - [ ] Empty, loading, success, warning, error, offline, and unavailable states have recovery copy where applicable.
 - [ ] Chinese, English, and enlarged system text do not clip controls.
 - [ ] No clipboard content enters ordinary logs, telemetry, cloud services, or relays.

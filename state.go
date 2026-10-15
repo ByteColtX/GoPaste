@@ -28,6 +28,7 @@ func newApplication() *application {
 		language:          languageSimplifiedChinese,
 		appearance:        appearanceSystem,
 		settingsArea:      settingsGeneral,
+		zoom:              1,
 	}
 	app.sortPairedDevices()
 	return app
