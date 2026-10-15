@@ -85,6 +85,31 @@ func TestLanguageChoiceLabels(t *testing.T) {
 	}
 }
 
+// TestSupportedLanguagesCoverTheCatalogs 检查交给 MyGo 的语言标签和界面真正支持的
+// 语言一一对应：每个标签都能解析回一种界面语言，两种界面语言也都有标签。第一种
+// 是应用自己的语言，也是都匹配不上时的回退，所以它必须是英语。
+func TestSupportedLanguagesCoverTheCatalogs(t *testing.T) {
+	tags := supportedLanguages()
+	if len(tags) == 0 {
+		t.Fatal("没有声明任何语言")
+	}
+	if got := languageFromLocale(tags[0]); got != languageEnglish {
+		t.Errorf("第一种语言 %q 解析成 %v，期望英语——它是应用的回退语言", tags[0], got)
+	}
+	seen := make(map[language]bool, len(tags))
+	for _, tag := range tags {
+		seen[languageFromLocale(tag)] = true
+	}
+	for _, want := range []language{languageSimplifiedChinese, languageEnglish} {
+		if !seen[want] {
+			t.Errorf("声明的语言 %v 覆盖不到 %v", tags, want)
+		}
+	}
+	if len(seen) != len(tags) {
+		t.Errorf("声明的语言 %v 有重复", tags)
+	}
+}
+
 // TestApplyLanguageFollowsThePreference 检查 applyLanguage 按偏好改写界面语言，
 // 固定语言时不看系统 locale。
 func TestApplyLanguageFollowsThePreference(t *testing.T) {

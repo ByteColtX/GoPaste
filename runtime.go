@@ -63,6 +63,9 @@ func newApplicationRuntime() *applicationRuntime {
 // runApplication 注册应用级事件，并把控制权交给 MyGo 的事件循环。
 func runApplication() error {
 	controller := newApplicationRuntime()
+	// 先告诉 MyGo 应用写了哪些语言，它才能把用户的偏好语言解析成 Locale()：
+	// 不声明的话 MyGo 认为应用只写了英语，「跟随系统」永远解析成 en。
+	mygo.App.SetLanguages(supportedLanguages()...)
 	mygo.App.OnSecondInstance(func([]string, string) {
 		controller.showMainWindow()
 	})
@@ -85,6 +88,14 @@ func (r *applicationRuntime) ready() {
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
+	// 系统语言变了 MyGo 会实时上报：跟随系统时界面语言跟着换，固定某种语言时
+	// 不动——用户的显式选择优先。
+	mygo.App.OnLocaleChanged(func(string) {
+		if r.app.languagePreference != languagePreferenceSystem {
+			return
+		}
+		r.app.applyLanguage()
+	})
 	r.app.clipboard = mygoClipboardWriter{}
 	r.window = openMainWindow(r.app)
 	r.window.OnClose(func(event *mygo.CloseEvent) {

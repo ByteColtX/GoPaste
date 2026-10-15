@@ -59,6 +59,20 @@ func (l localizer) languageChoices() []option[languagePreference] {
 	}
 }
 
+// supportedLanguages lists the languages GoPaste is written in, for
+// mygo.App.SetLanguages. By MyGo's convention the first is the app's own
+// language, and the one shown when none of the user's languages matches: it is
+// English here, which is the same fallback languageFromLocale takes for
+// anything that is not Chinese.
+//
+// Declaring these is what makes following the system work at all: MyGo picks
+// the language to show by matching the user's preferred languages against this
+// list, and without it the app is taken to be written in English alone, so
+// Locale reports "en" on every machine.
+func supportedLanguages() []string {
+	return []string{"en", "zh-Hans"}
+}
+
 // languageFromLocale maps a system locale such as "en-US" or "zh-Hans-CN" to a
 // supported language. Anything that is not Chinese falls back to English.
 func languageFromLocale(locale string) language {
