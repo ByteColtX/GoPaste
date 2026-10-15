@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"gopaste/internal/filetype"
 	"gopaste/internal/history"
 
 	"github.com/egoist/mygo/ui"
@@ -1111,12 +1112,22 @@ func (a *application) historyRowTile(c *ui.Context, theme *ui.Theme, item histor
 		tile.Border(1, borderColor(theme))
 		return
 	}
-	// 列表行的图标按内容子类型着色（链接、代码各自不同），
+	// 列表行的图标按内容子类型着色（链接、代码、文件类型各自不同），
 	// 让一屏记录只靠图标就能区分，而不必逐行读文字。
-	kindColor := colorForKind(theme, item.Kind)
+	kindColor, icon := a.rowIcon(theme, item)
 	listRowTile(c, theme, kindColor.Alpha(0.14), func() {
-		ui.Icon(c, iconForKind(item.Kind)).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
+		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
 	})
+}
+
+// rowIcon 返回一条记录在列表行里用的图标与颜色。文件按识别出的文件格式取图标，
+// 其余类型按内容子类型取；两者共用同一套着色，列表因此一屏就能读出记录的种类。
+func (a *application) rowIcon(theme *ui.Theme, item history.Item) (ui.Color, *ui.SVG) {
+	if item.Kind == kindFile {
+		format := a.fileFormat(item)
+		return colorForFileKind(theme, format.Kind()), iconForFormat(format)
+	}
+	return colorForKind(theme, item.Kind), iconForKind(item.Kind)
 }
 
 func (a *application) historyRowTitle(c *ui.Context, theme *ui.Theme, item history.Item) {
@@ -1167,10 +1178,10 @@ const (
 	metaClusterGap   float32 = 0.5  // 来源与同步标记之间
 )
 
-// autoTag 渲染内容子类型的自动标签（链接、代码），没有标签时不占空间。
-// 预览标题把它紧跟在类型标签之后，让子类型与类型同处首行，不再单独占位。
+// autoTag 渲染内容子类型的自动标签（链接、代码语言、文件类型），没有标签时不
+// 占空间。预览标题把它紧跟在类型标签之后，让子类型与类型同处首行，不再单独占位。
 func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item) {
-	tag := a.codeTag(item)
+	tag := a.contentTag(item)
 	if tag == "" {
 		return
 	}
@@ -1184,12 +1195,91 @@ func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item)
 // autoTagWidth 是自动标签占用的宽度；没有标签时为 0，与 autoTag 不创建元素
 // 的情形一致。
 func (a *application) autoTagWidth(c *ui.Context, theme *ui.Theme, item history.Item) float32 {
-	tag := a.codeTag(item)
+	tag := a.contentTag(item)
 	if tag == "" {
 		return 0
 	}
 	return textWidth(c, tag, font(theme, fontCaption), 0) +
 		2*space(theme, metaTagPadX) + 2*metaTagBorder
+}
+
+// contentTag names an item's detected subtype for its auto tag: a code item's
+// language or a file item's type. It returns "" when the item carries no
+// subtype worth naming.
+func (a *application) contentTag(item history.Item) string {
+	switch item.Kind {
+	case kindCode:
+		return a.codeTag(item)
+	case kindFile:
+		return a.fileTypeLabel(item)
+	default:
+		return ""
+	}
+}
+
+// fileFormat classifies a file item's first path. A copy can carry several
+// files, one path per line; the first names the group.
+func (a *application) fileFormat(item history.Item) filetype.Format {
+	return filetype.Detect(firstFilePath(item.Text))
+}
+
+// fileTypeLabel names a file item's detected format, falling back to the
+// uppercased extension for an unrecognised format and to "" when the name has
+// neither a known format nor an extension.
+func (a *application) fileTypeLabel(item history.Item) string {
+	if label := a.l10n().fileFormatLabel(a.fileFormat(item)); label != "" {
+		return label
+	}
+	if extension := filetype.Extension(firstFilePath(item.Text)); extension != "" {
+		return strings.ToUpper(extension)
+	}
+	return ""
+}
+
+// filePaths splits a file item's text into the individual paths it holds. A
+// single-file copy is one line; a multi-file copy lists one path per line.
+func filePaths(text string) []string {
+	var paths []string
+	for _, line := range strings.Split(text, "\n") {
+		if path := strings.TrimSpace(line); path != "" {
+			paths = append(paths, path)
+		}
+	}
+	return paths
+}
+
+// firstFilePath returns the first path of a file item, or "" when it holds none.
+func firstFilePath(text string) string {
+	if paths := filePaths(text); len(paths) > 0 {
+		return paths[0]
+	}
+	return ""
+}
+
+// fileDisplayName is the name shown at the top of a file preview: the copied
+// file's own name, without the directory the list already shows.
+func (a *application) fileDisplayName(item history.Item) string {
+	path := firstFilePath(item.Text)
+	if path == "" {
+		return a.kindLabel(kindFile)
+	}
+	return filetype.BaseName(path)
+}
+
+// fileMetaLine describes a file item under its name: the extension, how many
+// files were copied, and the total size, dropping whatever is unknown.
+func (a *application) fileMetaLine(item history.Item) string {
+	parts := make([]string, 0, 3)
+	if extension := filetype.Extension(firstFilePath(item.Text)); extension != "" {
+		parts = append(parts, strings.ToUpper(extension))
+	}
+	if count := len(filePaths(item.Text)); count > 1 {
+		parts = append(parts, a.l10n().fileCount(count))
+	}
+	if size := historySizeLabel(item); size != "" {
+		parts = append(parts, size)
+	}
+	return strings.Join(parts, " · ")
 }
 
 func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -1384,19 +1474,9 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 						TextColor(theme.Accent).Wrap()
 				})
 			case kindImage:
-				if item.Image == nil {
-					ui.Text(c, a.t(msgHistoryImageUnavailable)).FontSize(font(theme, fontBody)).
-						TextColor(secondaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
-						Background(panelFill(theme)).Border(1, borderColor(theme))
-					return
-				}
-				ui.Box(c).MaxWidth(detailMaxWidth(theme)).Center().Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
-					Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
-					if bitmap := a.historyBitmap(item); bitmap != nil {
-						ui.Image(c, bitmap).MaxWidth(detailMaxWidth(theme) - space(theme, 6)).MaxHeight(520).
-							Fit(ui.Contain).Radius(radius(theme, controlRadius))
-					}
-				})
+				a.imagePreview(c, theme, item.Image, a.historyBitmap(item))
+			case kindFile:
+				a.filePreview(c, theme, item)
 			default:
 				ui.Text(c, item.Text).FontSize(font(theme, fontBody)).
 					TextColor(primaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
@@ -1404,6 +1484,73 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 			}
 		})
 	})
+}
+
+// imagePreview renders an image payload, or the unavailable note when there is
+// nothing to draw. An image item and a file item's image preview both go
+// through here, so the two keep one card and one empty state.
+func (a *application) imagePreview(c *ui.Context, theme *ui.Theme, image *history.Image, bitmap *ui.Bitmap) {
+	if image == nil || bitmap == nil {
+		a.unavailablePreview(c, theme, a.t(msgHistoryImageUnavailable))
+		return
+	}
+	ui.Box(c).MaxWidth(detailMaxWidth(theme)).Center().Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
+		Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
+		ui.Image(c, bitmap).MaxWidth(detailMaxWidth(theme) - space(theme, 6)).MaxHeight(520).
+			Fit(ui.Contain).Radius(radius(theme, controlRadius))
+	})
+}
+
+// filePreview renders a file item: a card naming the copied file, then the
+// preview the capture path materialised. An image file shows its picture, a
+// text-like file an excerpt, and a file with no payload keeps the naming card
+// plus a note, so the pane always says what the file is without pretending to
+// show content it does not have.
+func (a *application) filePreview(c *ui.Context, theme *ui.Theme, item history.Item) {
+	a.fileIdentityCard(c, theme, item)
+	if preview := item.FilePreview; preview != nil {
+		if preview.Image != nil {
+			a.imagePreview(c, theme, preview.Image, a.filePreviewBitmap(item))
+			return
+		}
+		if strings.TrimSpace(preview.Text) != "" {
+			ui.Text(c, preview.Text).Font("monospace").FontSize(font(theme, fontCode)).
+				TextColor(primaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
+				Background(panelFill(theme)).Border(1, borderColor(theme)).Wrap().Selectable()
+			return
+		}
+	}
+	a.unavailablePreview(c, theme, a.t(msgHistoryFilePreviewGone))
+}
+
+// fileIdentityCard names a file item above its preview: the file's type icon
+// and name, and a line with the extension, file count and size.
+func (a *application) fileIdentityCard(c *ui.Context, theme *ui.Theme, item history.Item) {
+	format := a.fileFormat(item)
+	kindColor := colorForFileKind(theme, format.Kind())
+	ui.Row(c).FillWidth().Gap(space(theme, 2.5)).AlignItems(ui.Center).
+		Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
+		Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
+		ui.Box(c).Size(space(theme, 9), space(theme, 9)).Shrink(0).
+			Radius(radius(theme, controlRadius)).Background(kindColor.Alpha(0.14)).Center().Children(func() {
+			ui.Icon(c, iconForFormat(format)).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
+		})
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
+			ui.Text(c, a.fileDisplayName(item)).FontSize(font(theme, fontBody)).FontWeight(600).
+				TextColor(primaryText(theme)).SingleLine()
+			if meta := a.fileMetaLine(item); meta != "" {
+				ui.Text(c, meta).FontSize(font(theme, fontCaption)).
+					TextColor(secondaryText(theme)).SingleLine()
+			}
+		})
+	})
+}
+
+// unavailablePreview is the shared card for a preview that cannot be drawn.
+func (a *application) unavailablePreview(c *ui.Context, theme *ui.Theme, message string) {
+	ui.Text(c, message).FontSize(font(theme, fontBody)).
+		TextColor(secondaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
+		Background(panelFill(theme)).Border(1, borderColor(theme))
 }
 
 // syncDeviceStatus is one paired device's delivery line in the sync popover.
@@ -1832,20 +1979,37 @@ func calendarDaysAgo(value, now time.Time) int {
 }
 
 func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
-	if item.Image == nil || len(item.Image.PNG) == 0 {
+	return a.decodeBitmap(item.ID, item.Image)
+}
+
+// filePreviewBitmap decodes and caches a file item's image preview under its
+// own key, so it never collides with the item's own image payload.
+func (a *application) filePreviewBitmap(item history.Item) *ui.Bitmap {
+	if item.FilePreview == nil {
 		return nil
 	}
-	if bitmap, ok := a.historyBitmaps[item.ID]; ok {
+	return a.decodeBitmap(item.ID+"#file-preview", item.FilePreview.Image)
+}
+
+// decodeBitmap decodes an image payload once per cache key and reuses the
+// bitmap across frames. Decoding is CPU-only work on bytes already in memory,
+// so it runs on the UI thread; a payload that cannot be decoded caches nothing
+// and reads as absent.
+func (a *application) decodeBitmap(key string, image *history.Image) *ui.Bitmap {
+	if image == nil || len(image.PNG) == 0 {
+		return nil
+	}
+	if bitmap, ok := a.historyBitmaps[key]; ok {
 		return bitmap
 	}
-	bitmap, err := ui.DecodeBitmap(item.Image.PNG)
+	bitmap, err := ui.DecodeBitmap(image.PNG)
 	if err != nil {
 		return nil
 	}
 	if a.historyBitmaps == nil {
 		a.historyBitmaps = make(map[string]*ui.Bitmap)
 	}
-	a.historyBitmaps[item.ID] = bitmap
+	a.historyBitmaps[key] = bitmap
 	return bitmap
 }
 
@@ -1989,5 +2153,44 @@ func colorForKind(theme *ui.Theme, kind contentKind) ui.Color {
 		return theme.Accent.Mix(theme.Success, 0.45)
 	default:
 		return theme.TextMuted
+	}
+}
+
+// colorForFileKind colors a file format's coarse family. The palette is derived
+// from the same semantic roles as the rest of the interface, so a PDF reads as
+// a warning-red document and a spreadsheet as a green sheet in both appearances
+// instead of each format carrying its own hard-coded brand color. The format's
+// icon carries the specificity; one palette keeps the list from turning into a
+// color wheel.
+func colorForFileKind(theme *ui.Theme, kind filetype.Kind) ui.Color {
+	switch kind {
+	case filetype.KindPDF:
+		return theme.Danger
+	case filetype.KindDocument:
+		return theme.Accent
+	case filetype.KindSpreadsheet:
+		return theme.Success
+	case filetype.KindPresentation:
+		return theme.Warning
+	case filetype.KindImage:
+		return theme.Success
+	case filetype.KindVideo:
+		return theme.Accent.Mix(theme.Success, 0.4)
+	case filetype.KindAudio:
+		return theme.Warning.Mix(theme.Accent, 0.35)
+	case filetype.KindArchive:
+		return theme.Warning.Mix(theme.Text, 0.25)
+	case filetype.KindCode:
+		return theme.Accent.Mix(theme.Text, 0.28)
+	case filetype.KindDatabase:
+		return theme.Success.Mix(theme.Accent, 0.35)
+	case filetype.KindDesign:
+		return theme.Accent.Mix(theme.Success, 0.3)
+	case filetype.KindText:
+		return theme.TextMuted
+	case filetype.KindFont, filetype.KindExecutable:
+		return theme.TextMuted
+	default:
+		return theme.Warning
 	}
 }

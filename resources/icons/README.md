@@ -5,7 +5,13 @@ GoPaste 把选中的 SVG 图标随 Go 二进制一起嵌入（见 `icons.go` 的
 
 ## Tabler Icons（描边风格）
 
-- `brand-apple.svg`、`brand-windows.svg`、`brand-ubuntu.svg`，以及其余界面图标。
+- 平台图标：`brand-apple.svg`、`brand-windows.svg`、`brand-ubuntu.svg`。
+- 文件格式图标：`file-type-*.svg`（pdf、doc、xls、ppt、zip、csv、sql、xml、svg、png、jpg、bmp），
+  以及 `file-spreadsheet.svg`、`file-code.svg`、`file-settings.svg`、`markdown.svg`、`json.svg`、`terminal-2.svg`。
+- 语言与工具品牌图标：`brand-golang.svg`、`brand-python.svg`、`brand-javascript.svg`、`brand-typescript.svg`、
+  `brand-vue.svg`、`brand-svelte.svg`、`brand-rust.svg`、`brand-php.svg`、`brand-html5.svg`、`brand-css3.svg`、
+  `brand-sass.svg`、`brand-docker.svg`、`brand-figma.svg`、`brand-blender.svg`。
+- 其余界面图标。
 - 来源：<https://github.com/tabler/tabler-icons>
 - 许可：MIT，全文见同目录 `LICENSE`。
 
