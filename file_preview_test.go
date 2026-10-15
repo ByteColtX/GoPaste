@@ -263,6 +263,50 @@ func TestTruncatePathMiddleKeepsBothEnds(t *testing.T) {
 	}
 }
 
+// TestListSubtypeLabelNamesTheLanguageAndFormat checks the subtype a list row
+// shows after its kind: a code item's language, a file item's format, and
+// nothing when neither was recognised.
+func TestListSubtypeLabelNamesTheLanguageAndFormat(t *testing.T) {
+	app := newApplication()
+	cases := []struct {
+		name string
+		item history.Item
+		want string
+	}{
+		{"代码语言", history.Item{ID: "c", Kind: kindCode, Text: "package main\n\nfunc main() {}"}, "Go"},
+		{"图片格式", fileItem("f", "~/Pictures/photo.png", 1), "PNG"},
+		{"文档格式", fileItem("f", "~/Documents/report.docx", 1), "DOCX"},
+		{"未知扩展名", fileItem("f", "~/data/thing.qqq", 1), "QQQ"},
+		{"无扩展名", fileItem("f", "~/data/no-extension", 1), ""},
+		{"文本没有子类型", history.Item{ID: "t", Kind: kindText, Text: "hello"}, ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := app.listSubtypeLabel(tc.item); got != tc.want {
+				t.Errorf("listSubtypeLabel = %q，期望 %q", got, tc.want)
+			}
+		})
+	}
+}
+
+// TestHistoryRowShowsTheFileFormat checks the list row for a file: it names the
+// detected format after the kind, the way a code row names its language. The
+// preview shows a text item here, so the format below can only come from the
+// file's own list row.
+func TestHistoryRowShowsTheFileFormat(t *testing.T) {
+	app := newApplication()
+	app.history = history.New([]history.Item{
+		{ID: "t", Kind: kindText, Text: "普通文本记录", CreatedAt: fileItem("x", "a.txt", 1).CreatedAt},
+		fileItem("f", "~/Pictures/photo.png", 1024),
+	})
+	app.pairedDevices = nil
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
+	if !hasExactText(tt.Texts(), "PNG") {
+		t.Errorf("文件列表行应显示格式后缀 %q，实际显示：%q", "PNG", tt.Texts())
+	}
+}
+
 // recordingClipboard is a history.ClipboardWriter that records what a preview
 // action wrote, so a test can assert what copying a path produced.
 type recordingClipboard struct {

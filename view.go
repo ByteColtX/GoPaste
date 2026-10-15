@@ -1190,16 +1190,30 @@ func (a *application) historyRowMeta(c *ui.Context, theme *ui.Theme, item histor
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 		ui.Text(c, a.kindLabel(item.Kind)).FontSize(font(theme, fontCaption)).FontWeight(600).
 			TextColor(kindColor).SingleLine()
-		// 代码条目在类型后接上识别出的语言（代码 · Go），让列表不读图标也能分辨语言；
-		// 识别不出时只留类型。
-		if language := a.codeLanguage(item); language != "" {
+		// 类型后接上识别出的子类型（代码 · Go、文件 · PNG），让列表不读图标也能分辨
+		// 语言和文件格式，长文件名被截断时也还知道是什么文件；识别不出时只留类型。
+		if subtype := a.listSubtypeLabel(item); subtype != "" {
 			ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
-			ui.Text(c, language).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+			ui.Text(c, subtype).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
 		}
 		ui.Spacer(c)
 		ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
 			TextColor(secondaryText(theme)).SingleLine()
 	})
+}
+
+// listSubtypeLabel names the subtype a list row shows after its kind: a code
+// item's language or a file item's format. It returns "" when nothing was
+// recognised, so the row shows the kind alone instead of repeating it.
+func (a *application) listSubtypeLabel(item history.Item) string {
+	switch item.Kind {
+	case kindCode:
+		return a.codeLanguage(item)
+	case kindFile:
+		return a.fileTypeLabel(item)
+	default:
+		return ""
+	}
 }
 
 // 预览元信息行里各子部件的尺寸：多数是 space 的 4 DIP 格，描边是 DIP。绘制与
