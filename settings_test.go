@@ -19,6 +19,7 @@ func TestSettingsAppearanceShowsZoom(t *testing.T) {
 		app.t(msgSettingsZoom),
 		app.t(msgSettingsZoomOut),
 		app.t(msgSettingsZoomIn),
+		app.t(msgSettingsZoomReset),
 		zoomLabel(1),
 	} {
 		if !tt.HasText(want) {
@@ -36,6 +37,18 @@ func TestSettingsAppearanceShowsZoom(t *testing.T) {
 	}
 	if !tt.HasText(zoomLabel(1.1)) {
 		t.Errorf("设置页应显示 %s，实际显示：%q", zoomLabel(1.1), tt.Texts())
+	}
+
+	// 点「实际大小」按钮：回到 100%。
+	if err := tt.Click(app.t(msgSettingsZoomReset)); err != nil {
+		t.Fatalf("点击实际大小失败：%v", err)
+	}
+	tt.Frame()
+	if app.zoom != 1 {
+		t.Fatalf("点击实际大小后缩放 = %v，期望 1", app.zoom)
+	}
+	if !tt.HasText(zoomLabel(1)) {
+		t.Errorf("设置页应显示 %s，实际显示：%q", zoomLabel(1), tt.Texts())
 	}
 }
 

@@ -146,6 +146,15 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 				if in.Clicked() {
 					a.zoomIn()
 				}
+				// 已经在 100% 时没有可重置的东西，按钮置灰。
+				reset := neutralButton(c, theme, "settings-zoom-reset", a.t(msgSettingsZoomReset)).
+					Disabled(a.zoom == 1)
+				reset.Children(func() {
+					ui.Text(c, a.t(msgSettingsZoomReset)).FontSize(font(theme, fontControl)).SingleLine()
+				})
+				if reset.Clicked() {
+					a.resetZoom()
+				}
 			})
 		})
 	})
