@@ -11,6 +11,7 @@ import (
 
 	"gopaste/internal/capture"
 	"gopaste/internal/history"
+	"gopaste/internal/history/sqlite"
 )
 
 // recordingRepository 记录写操作的顺序，用来验证写队列串行且保序。
@@ -194,6 +195,59 @@ func TestRecordClipboardWriteReplacesThePreviousEcho(t *testing.T) {
 	secondEcho, _ := clipboardEchoOf(second)
 	if !app.consumeClipboardEcho(secondEcho.ID) {
 		t.Error("新的标记没有生效")
+	}
+}
+
+// TestHistoryPersistenceRoundTripsThroughSQLite 检查排进写队列的变更真的落到
+// SQLite 仓库，并且重新打开数据库后能原样读回来。
+func TestHistoryPersistenceRoundTripsThroughSQLite(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "history.db")
+	ctx := context.Background()
+
+	repository, err := sqlite.Open(ctx, path)
+	if err != nil {
+		t.Fatalf("打开仓库出错: %v", err)
+	}
+	item, ok := capture.Snapshot{
+		Kind: kindRichText,
+		Text: "你好",
+		HTML: "<b>你好</b>",
+		At:   time.UnixMilli(1700000000000),
+	}.Item()
+	if !ok {
+		t.Fatal("富文本读数没有生成记录")
+	}
+	item.Favorite = true
+	item.Sync = syncStateSynced
+	item.Deliveries = []history.DeviceDelivery{{DeviceID: "preview-mac", State: deliveryReceived}}
+
+	persistence := newHistoryPersistence(repository)
+	persistence.enqueue(putItem(item))
+	persistence.enqueue(putItem(history.Item{ID: "preview-gone", Kind: kindText, Text: "临时"}))
+	persistence.enqueue(deleteItems("preview-gone"))
+	persistence.Close()
+
+	reopened, err := sqlite.Open(ctx, path)
+	if err != nil {
+		t.Fatalf("重新打开仓库出错: %v", err)
+	}
+	defer reopened.Close()
+	items, err := reopened.Load(ctx)
+	if err != nil {
+		t.Fatalf("读取历史记录出错: %v", err)
+	}
+	if len(items) != 1 {
+		t.Fatalf("历史记录 = %d 条，期望 1 条", len(items))
+	}
+	got := items[0]
+	if got.ID != item.ID || got.Kind != kindRichText || got.Text != "你好" || got.HTML != "<b>你好</b>" {
+		t.Errorf("读回的内容 = %+v，期望 %+v", got, item)
+	}
+	if !got.Favorite || got.Sync != syncStateSynced {
+		t.Errorf("读回的收藏/同步状态 = %v/%v，期望 true/%v", got.Favorite, got.Sync, syncStateSynced)
+	}
+	if len(got.Deliveries) != 1 || got.Deliveries[0].DeviceID != "preview-mac" || got.Deliveries[0].State != deliveryReceived {
+		t.Errorf("读回的投递记录 = %+v，期望一条 preview-mac/received", got.Deliveries)
 	}
 }
 
