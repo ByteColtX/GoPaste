@@ -621,29 +621,107 @@ func (a *application) filterRailNavButton(c *ui.Context, theme *ui.Theme, key st
 	}
 }
 
-// filterRailAppearanceButton 在侧栏底部循环切换外观：跟随系统 → 浅色 → 深色。
-// 它显示点击后会得到的那个模式——半填充圆是跟随系统，太阳是浅色，月亮是深色——
-// 与展开/收起按钮一样按「动作」表达，提示里也写明目标模式。设置页的「模式」
-// 分段控件仍是明确挑选某一个的入口。
+// filterRailAppearanceButton 是侧栏底部的外观入口：点击在按钮上方弹出气泡，
+// 气泡里列出跟随系统 / 浅色 / 深色三个模式。按钮图标与气泡里的勾选都表示当前
+// 模式——它现在是一个选择器，不再按「点一下会变成什么」循环。设置页的「模式」
+// 分段控件是同一批模式的另一个入口，两处读写同一个字段。
 func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme) {
-	next := nextAppearance(a.appearance)
-	label := a.appearanceSwitchLabel(next)
-	icon := appearanceIcon(next)
 	size := controlHeightSize(c, theme, compactHeight)
+	label := a.t(msgSettingsAppearance)
+	tooltip := a.tf(msgSettingsCurrentAppearance, a.appearanceModeLabel(a.appearance))
 	button := ui.ButtonBase(c.Key("filter-rail-appearance")).
 		Size(size, size).Shrink(0).Center().
 		Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
-		TextColor(secondaryText(theme)).Label(label).Tooltip(label).Role(ui.RoleButton).Transition(motionColors)
-	if button.Hovered() {
+		TextColor(secondaryText(theme)).Label(label).Tooltip(tooltip).
+		Role(ui.RolePopUpButton).Expanded(a.appearancePopoverOpen).
+		Value(a.appearanceModeLabel(a.appearance)).Transition(motionColors)
+	switch {
+	case a.appearancePopoverOpen:
+		button.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
+	case button.Hovered():
 		button.Background(hoverFill(theme))
-	} else {
+	default:
 		button.Background(ui.Transparent)
 	}
+	iconColor := secondaryText(theme)
+	if a.appearancePopoverOpen {
+		iconColor = accentColor(theme)
+	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(secondaryText(theme))
+		ui.Icon(c, appearanceIcon(a.appearance)).Size(space(theme, 4.5), space(theme, 4.5)).
+			Shrink(0).TextColor(iconColor)
 	})
 	if button.Clicked() {
-		a.cycleAppearance()
+		a.appearancePopoverOpen = !a.appearancePopoverOpen
+	}
+	// 按钮贴着窗口下缘，气泡没有向下的空间，PopoverBase 会自动翻到按钮上方；
+	// 右对齐到按钮右缘，气泡因此盖在侧栏上，而不是伸进右侧的内容区。
+	ui.PopoverBase(c, button, &a.appearancePopoverOpen, func(panel ui.Element) {
+		panel.AttachTo(button, ui.AnchorBottomEnd, ui.AnchorTopEnd).
+			MinWidth(space(theme, 46)).Padding(space(theme, 1)).
+			Radius(radius(theme, cardRadius)).
+			Background(theme.Background).Border(1, borderColor(theme)).
+			Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
+			Margin(0, 0, space(theme, 1), 0).
+			Transition(ui.ElementTransition{
+				Duration: 140 * time.Millisecond,
+				Ease:     ui.EaseOut,
+				Enter:    &ui.Motion{Opacity: 0, Scale: 0.98, Y: 4},
+			})
+		a.appearancePopoverContent(c, theme)
+	})
+}
+
+// appearancePopoverContent 是气泡里的模式列表：一个标题加三个单选项，当前
+// 模式打勾。顺序与设置页「模式」分段控件一致。
+func (a *application) appearancePopoverContent(c *ui.Context, theme *ui.Theme) {
+	ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
+		ui.Text(c, a.t(msgSettingsAppearance)).FontSize(font(theme, fontMeta)).FontWeight(600).
+			TextColor(secondaryText(theme)).Padding(space(theme, 0.5), space(theme, 1.5)).
+			Role(ui.RoleHeading).SingleLine()
+		for _, mode := range appearanceModes {
+			a.appearancePopoverItem(c, theme, mode)
+		}
+	})
+}
+
+// appearancePopoverItem 是气泡里的一个模式：图标、名称，以及当前模式的勾选。
+// 点选后立即应用并收起气泡。
+func (a *application) appearancePopoverItem(c *ui.Context, theme *ui.Theme, mode int) {
+	selected := a.appearance == mode
+	label := a.appearanceModeLabel(mode)
+	item := ui.ButtonBase(c.Key("filter-rail-appearance-"+appearanceModeName(mode))).
+		FillWidth().Shrink(0).Height(controlHeightSize(c, theme, compactHeight)).
+		Padding(0, space(theme, 1.5)).Gap(space(theme, 1.5)).
+		Radius(radius(theme, controlRadius)).Label(label).
+		Role(ui.RoleMenuItemRadio).Checked(selected).FocusRing(true)
+	switch {
+	case item.Pressed():
+		item.Background(theme.SurfacePressed)
+	case item.Hovered():
+		item.Background(hoverFill(theme))
+	default:
+		item.Background(ui.Transparent)
+	}
+	iconColor := secondaryText(theme)
+	if selected {
+		iconColor = accentColor(theme)
+	}
+	item.Children(func() {
+		ui.Icon(c, appearanceIcon(mode)).Size(space(theme, 4), space(theme, 4)).
+			Shrink(0).TextColor(iconColor)
+		ui.Text(c, label).Grow(1).MinWidth(0).FontSize(font(theme, fontControl)).
+			TextColor(primaryText(theme)).SingleLine()
+		// 勾选标记只出现在当前模式上，位置固定在最右侧；其余行不占位，
+		// 文字一律左对齐，列表不会随选择左右跳动。
+		if selected {
+			ui.Icon(c, icons.check).Size(space(theme, 3.5), space(theme, 3.5)).
+				Shrink(0).TextColor(accentColor(theme))
+		}
+	})
+	if item.Clicked() {
+		a.setAppearance(mode)
+		a.appearancePopoverOpen = false
 	}
 }
 
@@ -659,15 +737,27 @@ func appearanceIcon(mode int) *ui.SVG {
 	}
 }
 
-// appearanceSwitchLabel 返回「切换到某个外观」的提示文案。
-func (a *application) appearanceSwitchLabel(mode int) string {
+// appearanceModeName 返回外观模式的稳定英文名，用作控件 key 的一部分。
+func appearanceModeName(mode int) string {
 	switch mode {
 	case appearanceLight:
-		return a.t(msgAppearanceSwitchLight)
+		return "light"
 	case appearanceDark:
-		return a.t(msgAppearanceSwitchDark)
+		return "dark"
 	default:
-		return a.t(msgAppearanceSwitchSystem)
+		return "system"
+	}
+}
+
+// appearanceModeLabel 返回某个外观模式在列表里的短名称：跟随系统 / 浅色 / 深色。
+func (a *application) appearanceModeLabel(mode int) string {
+	switch mode {
+	case appearanceLight:
+		return a.t(msgSettingsThemeLight)
+	case appearanceDark:
+		return a.t(msgSettingsThemeDark)
+	default:
+		return a.t(msgSettingsThemeSystem)
 	}
 }
 

@@ -158,23 +158,16 @@ func (a *application) applyAppearance() {
 	}
 }
 
-// appearanceModes 是外观的循环顺序，与设置页「模式」分段控件的顺序一致。
+// appearanceModes 是外观模式的展示顺序，与设置页「模式」分段控件的顺序一致。
 var appearanceModes = [...]int{appearanceSystem, appearanceLight, appearanceDark}
 
-// nextAppearance 返回循环中的下一个外观。
-func nextAppearance(current int) int {
-	for index, mode := range appearanceModes {
-		if mode == current {
-			return appearanceModes[(index+1)%len(appearanceModes)]
-		}
+// setAppearance 选中某个外观并立即应用。侧栏气泡与设置页的模式分段控件都走
+// 这里，两处入口因此始终落在同一个模式上。
+func (a *application) setAppearance(mode int) {
+	if a.appearance == mode {
+		return
 	}
-	return appearanceSystem
-}
-
-// cycleAppearance 按「跟随系统 → 浅色 → 深色 → 跟随系统」循环并立即应用。
-// 侧栏按钮是快捷入口，设置页的模式分段控件仍是明确选择某一个的方式。
-func (a *application) cycleAppearance() {
-	a.appearance = nextAppearance(a.appearance)
+	a.appearance = mode
 	a.applyAppearance()
 }
 

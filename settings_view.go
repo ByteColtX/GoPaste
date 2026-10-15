@@ -109,9 +109,9 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 	settingsGroup(c, theme, "settings-appearance-group", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsMode), a.t(msgSettingsModeDesc), func() {
 			control := segmentedField(c, theme, "settings-appearance", &a.appearance, a.t(msgSettingsAppearance), []string{
-				a.t(msgSettingsThemeSystem),
-				a.t(msgSettingsThemeLight),
-				a.t(msgSettingsThemeDark),
+				a.appearanceModeLabel(appearanceSystem),
+				a.appearanceModeLabel(appearanceLight),
+				a.appearanceModeLabel(appearanceDark),
 			}).Height(controlHeightSize(c, theme, controlHeight))
 			if a.compactDetailLayout(c, theme) {
 				control.FillWidth()

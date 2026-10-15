@@ -50,22 +50,19 @@ const (
 	msgFilterFavorites messageKey = "filter.favorites"
 
 	// Filter rail sections and their facet choices.
-	msgFilterSectionType      messageKey = "filter.section.type"
-	msgFilterSectionTag       messageKey = "filter.section.tag"
-	msgFilterSectionSource    messageKey = "filter.section.source"
-	msgFilterSectionTime      messageKey = "filter.section.time"
-	msgFilterSourceAll        messageKey = "filter.source.all"
-	msgFilterTimeAll          messageKey = "filter.time.all"
-	msgFilterTimeToday        messageKey = "filter.time.today"
-	msgFilterTimeYesterday    messageKey = "filter.time.yesterday"
-	msgFilterTimeLast7        messageKey = "filter.time.last7"
-	msgFilterTimeLast30       messageKey = "filter.time.last30"
-	msgFilterRailCollapse     messageKey = "filter.rail.collapse"
-	msgFilterRailExpand       messageKey = "filter.rail.expand"
-	msgAppearanceSwitchDark   messageKey = "appearance.switchDark"
-	msgAppMenuSettings        messageKey = "app.menu.settings"
-	msgAppearanceSwitchSystem messageKey = "appearance.switchSystem"
-	msgAppearanceSwitchLight  messageKey = "appearance.switchLight"
+	msgFilterSectionType   messageKey = "filter.section.type"
+	msgFilterSectionTag    messageKey = "filter.section.tag"
+	msgFilterSectionSource messageKey = "filter.section.source"
+	msgFilterSectionTime   messageKey = "filter.section.time"
+	msgFilterSourceAll     messageKey = "filter.source.all"
+	msgFilterTimeAll       messageKey = "filter.time.all"
+	msgFilterTimeToday     messageKey = "filter.time.today"
+	msgFilterTimeYesterday messageKey = "filter.time.yesterday"
+	msgFilterTimeLast7     messageKey = "filter.time.last7"
+	msgFilterTimeLast30    messageKey = "filter.time.last30"
+	msgFilterRailCollapse  messageKey = "filter.rail.collapse"
+	msgFilterRailExpand    messageKey = "filter.rail.expand"
+	msgAppMenuSettings     messageKey = "app.menu.settings"
 
 	// History list, search, empty states, and preview.
 	msgHistoryRecent             messageKey = "history.recent"
@@ -311,22 +308,19 @@ var simplifiedChineseCatalog = catalog{
 	msgFilterAll:       "所有",
 	msgFilterFavorites: "收藏",
 
-	msgFilterSectionType:      "类型",
-	msgFilterSectionTag:       "标签",
-	msgFilterSectionSource:    "来源",
-	msgFilterSectionTime:      "时间",
-	msgFilterSourceAll:        "所有来源",
-	msgFilterTimeAll:          "所有时间",
-	msgFilterTimeToday:        "今天",
-	msgFilterTimeYesterday:    "昨天",
-	msgFilterTimeLast7:        "近 7 天",
-	msgFilterTimeLast30:       "近 30 天",
-	msgFilterRailCollapse:     "收起侧栏",
-	msgFilterRailExpand:       "展开侧栏",
-	msgAppearanceSwitchDark:   "切换到深色外观",
-	msgAppMenuSettings:        "设置…",
-	msgAppearanceSwitchSystem: "切换到跟随系统",
-	msgAppearanceSwitchLight:  "切换到浅色外观",
+	msgFilterSectionType:   "类型",
+	msgFilterSectionTag:    "标签",
+	msgFilterSectionSource: "来源",
+	msgFilterSectionTime:   "时间",
+	msgFilterSourceAll:     "所有来源",
+	msgFilterTimeAll:       "所有时间",
+	msgFilterTimeToday:     "今天",
+	msgFilterTimeYesterday: "昨天",
+	msgFilterTimeLast7:     "近 7 天",
+	msgFilterTimeLast30:    "近 30 天",
+	msgFilterRailCollapse:  "收起侧栏",
+	msgFilterRailExpand:    "展开侧栏",
+	msgAppMenuSettings:     "设置…",
 
 	msgHistoryRecent:             "历史记录",
 	msgHistoryCount:              "%d 条记录",
@@ -556,22 +550,19 @@ var englishCatalog = catalog{
 	msgFilterAll:       "All",
 	msgFilterFavorites: "Favorites",
 
-	msgFilterSectionType:      "Type",
-	msgFilterSectionTag:       "Tag",
-	msgFilterSectionSource:    "Source",
-	msgFilterSectionTime:      "Time",
-	msgFilterSourceAll:        "All sources",
-	msgFilterTimeAll:          "All time",
-	msgFilterTimeToday:        "Today",
-	msgFilterTimeYesterday:    "Yesterday",
-	msgFilterTimeLast7:        "Last 7 days",
-	msgFilterTimeLast30:       "Last 30 days",
-	msgFilterRailCollapse:     "Collapse sidebar",
-	msgFilterRailExpand:       "Expand sidebar",
-	msgAppearanceSwitchDark:   "Switch to dark appearance",
-	msgAppMenuSettings:        "Settings…",
-	msgAppearanceSwitchSystem: "Switch to follow system",
-	msgAppearanceSwitchLight:  "Switch to light appearance",
+	msgFilterSectionType:   "Type",
+	msgFilterSectionTag:    "Tag",
+	msgFilterSectionSource: "Source",
+	msgFilterSectionTime:   "Time",
+	msgFilterSourceAll:     "All sources",
+	msgFilterTimeAll:       "All time",
+	msgFilterTimeToday:     "Today",
+	msgFilterTimeYesterday: "Yesterday",
+	msgFilterTimeLast7:     "Last 7 days",
+	msgFilterTimeLast30:    "Last 30 days",
+	msgFilterRailCollapse:  "Collapse sidebar",
+	msgFilterRailExpand:    "Expand sidebar",
+	msgAppMenuSettings:     "Settings…",
 
 	msgHistoryRecent:             "History",
 	msgHistoryCount:              "%d records",

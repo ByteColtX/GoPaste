@@ -229,6 +229,7 @@ type application struct {
 	launchAtLogin            bool
 	language                 language
 	appearance               int
+	appearancePopoverOpen    bool // 侧栏底部外观气泡是否展开：按钮点击切换，点外部或 Esc 收起
 	settingsArea             settingsArea
 	confirmDangerousAction   bool
 	pendingDangerousAction   dangerousAction
