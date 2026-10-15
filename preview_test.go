@@ -14,7 +14,7 @@ import (
 // 恒为 360 字节（每个汉字 3 字节）。时间取本地时区的固定日期，显示文本不随
 // 机器时区变化。
 const (
-	previewCharLabel = "120 字符"
+	previewCharLabel = "120 个字符"
 	previewSizeLabel = "360 B"
 	previewStamp     = "2020年3月4日 05:06"
 )

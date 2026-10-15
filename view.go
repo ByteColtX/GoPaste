@@ -1649,7 +1649,8 @@ func (a *application) filePathList(c *ui.Context, theme *ui.Theme, item history.
 			a.filePathRow(c, theme, item, index, path)
 		}
 		if extra := len(paths) - len(shown); extra > 0 {
-			ui.Text(c, a.tf(msgHistoryFileMoreFormat, extra)).FontSize(font(theme, fontCaption)).
+			ui.Text(c, a.l10n().pluralFormat(extra, msgHistoryFileMoreFormatOne, msgHistoryFileMoreFormat, extra)).
+				FontSize(font(theme, fontCaption)).
 				TextColor(secondaryText(theme)).Padding(0, space(theme, 2)).SingleLine()
 		}
 	})

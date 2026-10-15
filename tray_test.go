@@ -105,8 +105,9 @@ func TestTrayDeviceSyncSubmenuEmptyState(t *testing.T) {
 	if !submenu[0].Disabled {
 		t.Errorf("占位项应是禁用的")
 	}
-	if submenu[0].Label != "暂无已配对设备" {
-		t.Errorf("占位项文案 = %q，想要 %q", submenu[0].Label, "暂无已配对设备")
+	placeholder := newLocalizer(languageSimplifiedChinese).text(msgTrayNoDevices)
+	if submenu[0].Label != placeholder {
+		t.Errorf("占位项文案 = %q，想要 %q", submenu[0].Label, placeholder)
 	}
 }
 
