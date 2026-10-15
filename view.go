@@ -430,8 +430,11 @@ func (a *application) sidebarHistoryFilters(c *ui.Context, theme *ui.Theme) {
 func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 	a.localDeviceEntry(c, theme)
 
+	// 标题行的高度就是刷新按钮的高度，两者相等。上方的 12 DIP 留白必须写成
+	// Margin 而不是 Padding：Padding 会从固定高度里扣掉它，内容盒只剩 24 DIP，
+	// 36 DIP 的按钮居中后会上下各溢出 6 DIP，压住下面第一台设备的高亮。
 	ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
-		Padding(space(theme, 3), 0, 0, 0).Children(func() {
+		Margin(space(theme, 3), 0, 0, 0).Children(func() {
 		ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
