@@ -23,13 +23,14 @@ go run .
 
 ## 本地预览数据
 
-界面走查用的剪贴板历史由 `scripts/mockdb` 生成到 `resources/mock/history.db`。
-数据库和 `resources/mock/` 里的图片一样是本地素材，已被 .gitignore 忽略；生成器
-每次重建目标文件。
+界面走查用的剪贴板历史由 `scripts/mockdb` 生成到 `.preview/history.db`（已被
+.gitignore 忽略，生成器每次重建目标文件）。它故意不放在 `resources/` 下：
+mygo dev 递归监视那个目录，应用运行时的每次写入都会让它重建并重启，
+`resources/` 里的东西也会被打进应用包。
 
 ```sh
 go run ./scripts/mockdb
-GOFLAGS='-tags=preview' GOPASTE_HISTORY_DB=resources/mock/history.db go tool mygo dev
+GOFLAGS='-tags=preview' GOPASTE_HISTORY_DB=.preview/history.db go tool mygo dev
 ```
 
 `GOPASTE_HISTORY_DB`（或 `go run . -db PATH`）让应用读写指定的数据库文件，

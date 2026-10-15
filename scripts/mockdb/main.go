@@ -23,8 +23,10 @@ import (
 )
 
 const (
-	// defaultOutputPath 是默认输出文件；resources/mock 已在 .gitignore 里忽略。
-	defaultOutputPath = "resources/mock/history.db"
+	// defaultOutputPath 是默认输出文件。它故意不放在 resources/ 下：mygo dev
+	// 递归监视那个目录，应用运行时的每次写入都会让它重建并重启；resources/ 里
+	// 的东西也会被打进应用包。.preview 已被 .gitignore 忽略，两者都不沾。
+	defaultOutputPath = ".preview/history.db"
 	// defaultImagesDir 是默认的预览图片目录，里面的 PNG 就是预览数据用的图片。
 	defaultImagesDir = "resources/mock"
 	// previewIDPrefix 是每条预览记录 ID 的前缀，用来把它们和真实记录区分开。
@@ -747,6 +749,10 @@ func run() error {
 	outPath, err := filepath.Abs(*out)
 	if err != nil {
 		return fmt.Errorf("无法解析输出路径 %s: %w", *out, err)
+	}
+	// 输出目录可能还不存在，按应用自己的做法建出来：目录只给当前用户。
+	if err := os.MkdirAll(filepath.Dir(outPath), 0o700); err != nil {
+		return fmt.Errorf("无法创建输出目录 %s: %w", filepath.Dir(outPath), err)
 	}
 	// 每次运行都删掉旧文件，重新生成一份全新的数据库。
 	if err := os.Remove(outPath); err != nil && !os.IsNotExist(err) {

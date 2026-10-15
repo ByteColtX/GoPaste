@@ -9,3 +9,4 @@ mygo_windows_*.syso
 /mock_data.go
 /local_preview_data.go
 /resources/mock/
+/.preview/
