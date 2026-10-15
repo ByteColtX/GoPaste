@@ -1120,12 +1120,12 @@ func (a *application) historyRowTile(c *ui.Context, theme *ui.Theme, item histor
 	})
 }
 
-// rowIcon 返回一条记录在列表行里用的图标与颜色。文件按识别出的文件类型取图标，
+// rowIcon 返回一条记录在列表行里用的图标与颜色。文件按识别出的文件格式取图标，
 // 其余类型按内容子类型取；两者共用同一套着色，列表因此一屏就能读出记录的种类。
 func (a *application) rowIcon(theme *ui.Theme, item history.Item) (ui.Color, *ui.SVG) {
 	if item.Kind == kindFile {
-		kind := a.fileKind(item)
-		return colorForFileType(theme, kind), iconForFileType(kind)
+		format := a.fileFormat(item)
+		return colorForFileKind(theme, format.Kind()), iconForFormat(format)
 	}
 	return colorForKind(theme, item.Kind), iconForKind(item.Kind)
 }
@@ -1217,17 +1217,17 @@ func (a *application) contentTag(item history.Item) string {
 	}
 }
 
-// fileKind classifies a file item's first path. A copy can carry several files,
-// one path per line; the first names the group.
-func (a *application) fileKind(item history.Item) filetype.Kind {
+// fileFormat classifies a file item's first path. A copy can carry several
+// files, one path per line; the first names the group.
+func (a *application) fileFormat(item history.Item) filetype.Format {
 	return filetype.Detect(firstFilePath(item.Text))
 }
 
-// fileTypeLabel names a file item's detected type, falling back to the
+// fileTypeLabel names a file item's detected format, falling back to the
 // uppercased extension for an unrecognised format and to "" when the name has
-// neither a known type nor an extension.
+// neither a known format nor an extension.
 func (a *application) fileTypeLabel(item history.Item) string {
-	if label := a.l10n().fileTypeLabel(a.fileKind(item)); label != "" {
+	if label := a.l10n().fileFormatLabel(a.fileFormat(item)); label != "" {
 		return label
 	}
 	if extension := filetype.Extension(firstFilePath(item.Text)); extension != "" {
@@ -1526,14 +1526,14 @@ func (a *application) filePreview(c *ui.Context, theme *ui.Theme, item history.I
 // fileIdentityCard names a file item above its preview: the file's type icon
 // and name, and a line with the extension, file count and size.
 func (a *application) fileIdentityCard(c *ui.Context, theme *ui.Theme, item history.Item) {
-	kind := a.fileKind(item)
-	kindColor := colorForFileType(theme, kind)
+	format := a.fileFormat(item)
+	kindColor := colorForFileKind(theme, format.Kind())
 	ui.Row(c).FillWidth().Gap(space(theme, 2.5)).AlignItems(ui.Center).
 		Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
 		Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
 		ui.Box(c).Size(space(theme, 9), space(theme, 9)).Shrink(0).
 			Radius(radius(theme, controlRadius)).Background(kindColor.Alpha(0.14)).Center().Children(func() {
-			ui.Icon(c, iconForFileType(kind)).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
+			ui.Icon(c, iconForFormat(format)).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
 		})
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
 			ui.Text(c, a.fileDisplayName(item)).FontSize(font(theme, fontBody)).FontWeight(600).
@@ -2156,11 +2156,13 @@ func colorForKind(theme *ui.Theme, kind contentKind) ui.Color {
 	}
 }
 
-// colorForFileType colors a detected file type. The palette is derived from the
-// same semantic roles as the rest of the interface, so a PDF reads as a
-// warning-red document and a spreadsheet as a green sheet in both appearances
-// instead of each type carrying its own hard-coded brand color.
-func colorForFileType(theme *ui.Theme, kind filetype.Kind) ui.Color {
+// colorForFileKind colors a file format's coarse family. The palette is derived
+// from the same semantic roles as the rest of the interface, so a PDF reads as
+// a warning-red document and a spreadsheet as a green sheet in both appearances
+// instead of each format carrying its own hard-coded brand color. The format's
+// icon carries the specificity; one palette keeps the list from turning into a
+// color wheel.
+func colorForFileKind(theme *ui.Theme, kind filetype.Kind) ui.Color {
 	switch kind {
 	case filetype.KindPDF:
 		return theme.Danger

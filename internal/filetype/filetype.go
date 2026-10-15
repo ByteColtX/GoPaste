@@ -1,15 +1,20 @@
 // Package filetype classifies a copied file by its name so the interface can
-// choose a matching icon and a preview strategy. It is pure: it never touches
-// the filesystem, the clipboard or any UI type, so classification is cheap
-// enough to run on every frame and is tested without a fixture on disk.
+// choose a matching icon, colour and label. It is pure: it never touches the
+// filesystem, the clipboard or any UI type, so classification is cheap enough
+// to run on every frame and is tested without a fixture on disk.
+//
+// Classification has two levels. A Format is the specific thing the file is —
+// Markdown, JSON, Go, PNG — and earns its own icon. A Kind is the coarse
+// family that format belongs to — text, code, image — and drives the label and
+// the colour. Keeping them apart lets the table grow to many formats without
+// the label and colour vocabulary growing with it.
 package filetype
 
 import "strings"
 
-// Kind is a coarse file category, chosen so each one earns a distinct icon and
-// a distinct colour. It is deliberately not a MIME type: the interface needs a
-// handful of visually separable groups, not a complete registry, and an
-// unknown format is better left generic than guessed at.
+// Kind is the coarse family a file format belongs to. It is deliberately not a
+// MIME type: the interface needs a handful of visually separable groups, not a
+// complete registry.
 type Kind uint8
 
 const (
@@ -32,145 +37,263 @@ const (
 	KindExecutable
 )
 
-// byExtension maps a lowercase extension without its dot to its category.
-// The table is the whole implementation: one entry per extension the interface
-// can name, and everything absent stays KindUnknown.
-var byExtension = map[string]Kind{
-	// Plain text.
-	"txt": KindText, "text": KindText, "log": KindText, "nfo": KindText,
-	"md": KindText, "markdown": KindText, "rst": KindText, "adoc": KindText,
-	"org": KindText, "tex": KindText, "srt": KindText, "vtt": KindText,
-	"rtf": KindDocument, "csv": KindSpreadsheet, "tsv": KindSpreadsheet,
+// Format is a specific file format, fine-grained enough to earn its own icon.
+type Format uint8
 
-	// Word-processor and e-book documents.
-	"doc": KindDocument, "docx": KindDocument, "docm": KindDocument,
-	"odt": KindDocument, "pages": KindDocument, "epub": KindDocument,
-	"mobi": KindDocument, "azw3": KindDocument, "djvu": KindDocument,
+const (
+	FormatUnknown Format = iota
+
+	// Text and documents.
+	FormatText
+	FormatMarkdown
+	FormatLog
+	FormatRTF
+	FormatDocument
+	FormatSpreadsheet
+	FormatXLS
+	FormatCSV
+	FormatPresentation
+	FormatPDF
+
+	// Media.
+	FormatImage
+	FormatPNG
+	FormatJPEG
+	FormatBMP
+	FormatSVG
+	FormatVideo
+	FormatAudio
+
+	// Archives and disk images.
+	FormatArchive
+
+	// Source and markup.
+	FormatCode
+	FormatGo
+	FormatPython
+	FormatJavaScript
+	FormatTypeScript
+	FormatVue
+	FormatSvelte
+	FormatRust
+	FormatPHP
+	FormatShell
+	FormatSQL
+	FormatHTML
+	FormatCSS
+	FormatSass
+	FormatXML
+	FormatJSON
+	FormatYAML
+	FormatConfig
+	FormatDockerfile
+
+	// Everything else.
+	FormatFont
+	FormatDatabase
+	FormatDesign
+	FormatFigma
+	FormatBlender
+	FormatExecutable
+)
+
+// Kind returns the coarse family a format belongs to.
+func (f Format) Kind() Kind {
+	switch f {
+	case FormatText, FormatMarkdown, FormatLog:
+		return KindText
+	case FormatRTF, FormatDocument:
+		return KindDocument
+	case FormatSpreadsheet, FormatXLS, FormatCSV:
+		return KindSpreadsheet
+	case FormatPresentation:
+		return KindPresentation
+	case FormatPDF:
+		return KindPDF
+	case FormatImage, FormatPNG, FormatJPEG, FormatBMP, FormatSVG:
+		return KindImage
+	case FormatVideo:
+		return KindVideo
+	case FormatAudio:
+		return KindAudio
+	case FormatArchive:
+		return KindArchive
+	case FormatCode, FormatGo, FormatPython, FormatJavaScript, FormatTypeScript,
+		FormatVue, FormatSvelte, FormatRust, FormatPHP, FormatShell, FormatSQL,
+		FormatHTML, FormatCSS, FormatSass, FormatXML, FormatJSON, FormatYAML,
+		FormatConfig, FormatDockerfile:
+		return KindCode
+	case FormatFont:
+		return KindFont
+	case FormatDatabase:
+		return KindDatabase
+	case FormatDesign, FormatFigma, FormatBlender:
+		return KindDesign
+	case FormatExecutable:
+		return KindExecutable
+	default:
+		return KindUnknown
+	}
+}
+
+// byExtension maps a lowercase extension without its dot to its format. The
+// table is the whole implementation: one entry per extension the interface can
+// name, and everything absent stays FormatUnknown.
+var byExtension = map[string]Format{
+	// Plain text.
+	"txt": FormatText, "text": FormatText, "nfo": FormatText, "srt": FormatText,
+	"vtt": FormatText, "rst": FormatText, "adoc": FormatText, "org": FormatText,
+	"tex": FormatText,
+	"log": FormatLog,
+	"md":  FormatMarkdown, "markdown": FormatMarkdown, "mdx": FormatMarkdown,
+
+	// Word-processor documents and e-books.
+	"rtf": FormatRTF,
+	"doc": FormatDocument, "docx": FormatDocument, "docm": FormatDocument,
+	"odt": FormatDocument, "pages": FormatDocument, "epub": FormatDocument,
+	"mobi": FormatDocument, "azw3": FormatDocument, "djvu": FormatDocument,
 
 	// Spreadsheets.
-	"xls": KindSpreadsheet, "xlsx": KindSpreadsheet, "xlsm": KindSpreadsheet,
-	"ods": KindSpreadsheet, "numbers": KindSpreadsheet,
+	"csv": FormatCSV, "tsv": FormatCSV,
+	"xls": FormatXLS, "xlsx": FormatXLS, "xlsm": FormatXLS,
+	"ods": FormatSpreadsheet, "numbers": FormatSpreadsheet,
 
 	// Slide decks.
-	"ppt": KindPresentation, "pptx": KindPresentation, "pps": KindPresentation,
-	"ppsx": KindPresentation, "odp": KindPresentation, "key": KindPresentation,
+	"ppt": FormatPresentation, "pptx": FormatPresentation, "pps": FormatPresentation,
+	"ppsx": FormatPresentation, "odp": FormatPresentation, "key": FormatPresentation,
 
 	// Portable documents.
-	"pdf": KindPDF,
+	"pdf": FormatPDF,
 
 	// Raster and vector images.
-	"png": KindImage, "jpg": KindImage, "jpeg": KindImage, "gif": KindImage,
-	"webp": KindImage, "bmp": KindImage, "tif": KindImage, "tiff": KindImage,
-	"heic": KindImage, "heif": KindImage, "avif": KindImage, "svg": KindImage,
-	"ico": KindImage, "icns": KindImage, "raw": KindImage, "cr2": KindImage,
-	"nef": KindImage, "dng": KindImage,
+	"png": FormatPNG,
+	"jpg": FormatJPEG, "jpeg": FormatJPEG,
+	"bmp": FormatBMP,
+	"svg": FormatSVG,
+	"gif": FormatImage, "webp": FormatImage, "tif": FormatImage, "tiff": FormatImage,
+	"heic": FormatImage, "heif": FormatImage, "avif": FormatImage, "ico": FormatImage,
+	"icns": FormatImage, "raw": FormatImage, "cr2": FormatImage, "nef": FormatImage,
+	"dng": FormatImage,
 
 	// Video. "ts" stays code: a TypeScript file is far more likely on a
 	// developer's clipboard than an MPEG transport stream, and the transport
 	// stream keeps its explicit "mts" and "m2ts" names.
-	"mp4": KindVideo, "m4v": KindVideo, "mov": KindVideo, "avi": KindVideo,
-	"mkv": KindVideo, "webm": KindVideo, "wmv": KindVideo, "flv": KindVideo,
-	"mpg": KindVideo, "mpeg": KindVideo, "3gp": KindVideo, "mts": KindVideo,
-	"m2ts": KindVideo,
+	"mp4": FormatVideo, "m4v": FormatVideo, "mov": FormatVideo, "avi": FormatVideo,
+	"mkv": FormatVideo, "webm": FormatVideo, "wmv": FormatVideo, "flv": FormatVideo,
+	"mpg": FormatVideo, "mpeg": FormatVideo, "3gp": FormatVideo, "mts": FormatVideo,
+	"m2ts": FormatVideo,
 
 	// Audio.
-	"mp3": KindAudio, "wav": KindAudio, "flac": KindAudio, "aac": KindAudio,
-	"ogg": KindAudio, "oga": KindAudio, "opus": KindAudio, "m4a": KindAudio,
-	"wma": KindAudio, "aiff": KindAudio, "aif": KindAudio, "mid": KindAudio,
-	"midi": KindAudio, "amr": KindAudio,
+	"mp3": FormatAudio, "wav": FormatAudio, "flac": FormatAudio, "aac": FormatAudio,
+	"ogg": FormatAudio, "oga": FormatAudio, "opus": FormatAudio, "m4a": FormatAudio,
+	"wma": FormatAudio, "aiff": FormatAudio, "aif": FormatAudio, "mid": FormatAudio,
+	"midi": FormatAudio, "amr": FormatAudio,
 
 	// Archives and disk images.
-	"zip": KindArchive, "rar": KindArchive, "7z": KindArchive, "tar": KindArchive,
-	"gz": KindArchive, "tgz": KindArchive, "bz2": KindArchive, "xz": KindArchive,
-	"zst": KindArchive, "lz": KindArchive, "lzma": KindArchive, "cab": KindArchive,
-	"iso": KindArchive, "dmg": KindArchive, "jar": KindArchive, "war": KindArchive,
+	"zip": FormatArchive, "rar": FormatArchive, "7z": FormatArchive, "tar": FormatArchive,
+	"gz": FormatArchive, "tgz": FormatArchive, "bz2": FormatArchive, "xz": FormatArchive,
+	"zst": FormatArchive, "lz": FormatArchive, "lzma": FormatArchive, "cab": FormatArchive,
+	"iso": FormatArchive, "dmg": FormatArchive, "jar": FormatArchive, "war": FormatArchive,
 
-	// Source and markup.
-	"go": KindCode, "js": KindCode, "mjs": KindCode, "cjs": KindCode,
-	"jsx": KindCode, "ts": KindCode, "tsx": KindCode, "vue": KindCode,
-	"svelte": KindCode, "py": KindCode, "pyw": KindCode, "rb": KindCode,
-	"rs": KindCode, "java": KindCode, "kt": KindCode, "kts": KindCode,
-	"scala": KindCode, "swift": KindCode, "m": KindCode, "mm": KindCode,
-	"c": KindCode, "h": KindCode, "cc": KindCode, "cpp": KindCode,
-	"cxx": KindCode, "hpp": KindCode, "hh": KindCode, "cs": KindCode,
-	"php": KindCode, "pl": KindCode, "pm": KindCode, "lua": KindCode,
-	"r": KindCode, "dart": KindCode, "ex": KindCode, "exs": KindCode,
-	"erl": KindCode, "hrl": KindCode, "hs": KindCode, "clj": KindCode,
-	"cljs": KindCode, "fs": KindCode, "fsx": KindCode, "sh": KindCode,
-	"bash": KindCode, "zsh": KindCode, "fish": KindCode, "ksh": KindCode,
-	"ps1": KindCode, "psm1": KindCode, "bat": KindCode, "cmd": KindCode,
-	"sql": KindCode, "html": KindCode, "htm": KindCode, "xhtml": KindCode,
-	"css": KindCode, "scss": KindCode, "sass": KindCode, "less": KindCode,
-	"json": KindCode, "jsonc": KindCode, "json5": KindCode, "yaml": KindCode,
-	"yml": KindCode, "toml": KindCode, "ini": KindCode, "cfg": KindCode,
-	"conf": KindCode, "properties": KindCode, "env": KindCode, "xml": KindCode,
-	"xsl": KindCode, "xslt": KindCode, "plist": KindCode, "proto": KindCode,
-	"graphql": KindCode, "gql": KindCode, "tf": KindCode, "hcl": KindCode,
-	"gradle": KindCode, "cmake": KindCode, "mk": KindCode, "asm": KindCode,
-	"sol": KindCode, "zig": KindCode, "nim": KindCode, "cr": KindCode,
+	// Languages and markup with an icon of their own.
+	"go": FormatGo,
+	"py": FormatPython, "pyw": FormatPython,
+	"js": FormatJavaScript, "mjs": FormatJavaScript, "cjs": FormatJavaScript, "jsx": FormatJavaScript,
+	"ts": FormatTypeScript, "tsx": FormatTypeScript,
+	"vue":    FormatVue,
+	"svelte": FormatSvelte,
+	"rs":     FormatRust,
+	"php":    FormatPHP,
+	"sh":     FormatShell, "bash": FormatShell, "zsh": FormatShell, "fish": FormatShell,
+	"ksh": FormatShell, "ps1": FormatShell, "psm1": FormatShell, "bat": FormatShell,
+	"cmd":  FormatShell,
+	"sql":  FormatSQL,
+	"html": FormatHTML, "htm": FormatHTML, "xhtml": FormatHTML,
+	"css":  FormatCSS,
+	"scss": FormatSass, "sass": FormatSass, "less": FormatSass,
+	"xml": FormatXML, "xsl": FormatXML, "xslt": FormatXML, "plist": FormatXML,
+	"json": FormatJSON, "jsonc": FormatJSON, "json5": FormatJSON,
+	"yaml": FormatYAML, "yml": FormatYAML,
+	"toml": FormatConfig, "ini": FormatConfig, "cfg": FormatConfig, "conf": FormatConfig,
+	"properties": FormatConfig, "env": FormatConfig,
+
+	// Remaining source languages share the generic code icon.
+	"rb": FormatCode, "java": FormatCode, "kt": FormatCode, "kts": FormatCode,
+	"scala": FormatCode, "swift": FormatCode, "m": FormatCode, "mm": FormatCode,
+	"c": FormatCode, "h": FormatCode, "cc": FormatCode, "cpp": FormatCode,
+	"cxx": FormatCode, "hpp": FormatCode, "hh": FormatCode, "cs": FormatCode,
+	"pl": FormatCode, "pm": FormatCode, "lua": FormatCode, "r": FormatCode,
+	"dart": FormatCode, "ex": FormatCode, "exs": FormatCode, "erl": FormatCode,
+	"hrl": FormatCode, "hs": FormatCode, "clj": FormatCode, "cljs": FormatCode,
+	"fs": FormatCode, "fsx": FormatCode, "proto": FormatCode, "graphql": FormatCode,
+	"gql": FormatCode, "tf": FormatCode, "hcl": FormatCode, "gradle": FormatCode,
+	"cmake": FormatCode, "mk": FormatCode, "asm": FormatCode, "sol": FormatCode,
+	"zig": FormatCode, "nim": FormatCode, "cr": FormatCode,
 
 	// Fonts.
-	"ttf": KindFont, "otf": KindFont, "ttc": KindFont, "woff": KindFont,
-	"woff2": KindFont, "eot": KindFont, "pfb": KindFont, "pfm": KindFont,
+	"ttf": FormatFont, "otf": FormatFont, "ttc": FormatFont, "woff": FormatFont,
+	"woff2": FormatFont, "eot": FormatFont, "pfb": FormatFont, "pfm": FormatFont,
 
 	// Databases and dumps.
-	"db": KindDatabase, "db3": KindDatabase, "sqlite": KindDatabase,
-	"sqlite3": KindDatabase, "mdb": KindDatabase, "accdb": KindDatabase,
-	"dbf": KindDatabase, "dump": KindDatabase,
+	"db": FormatDatabase, "db3": FormatDatabase, "sqlite": FormatDatabase,
+	"sqlite3": FormatDatabase, "mdb": FormatDatabase, "accdb": FormatDatabase,
+	"dbf": FormatDatabase, "dump": FormatDatabase,
 
 	// Design and 3D assets.
-	"psd": KindDesign, "psb": KindDesign, "ai": KindDesign, "eps": KindDesign,
-	"indd": KindDesign, "idml": KindDesign, "sketch": KindDesign, "fig": KindDesign,
-	"xd": KindDesign, "afdesign": KindDesign, "afphoto": KindDesign,
-	"afpub": KindDesign, "blend": KindDesign, "obj": KindDesign, "fbx": KindDesign,
-	"stl": KindDesign, "gltf": KindDesign, "glb": KindDesign, "3ds": KindDesign,
-	"dae": KindDesign, "dwg": KindDesign, "dxf": KindDesign, "cdr": KindDesign,
-	"xcf": KindDesign, "kra": KindDesign,
+	"fig":   FormatFigma,
+	"blend": FormatBlender, "obj": FormatBlender, "fbx": FormatBlender,
+	"stl": FormatBlender, "gltf": FormatBlender, "glb": FormatBlender,
+	"3ds": FormatBlender, "dae": FormatBlender,
+	"psd": FormatDesign, "psb": FormatDesign, "ai": FormatDesign, "eps": FormatDesign,
+	"indd": FormatDesign, "idml": FormatDesign, "sketch": FormatDesign, "xd": FormatDesign,
+	"afdesign": FormatDesign, "afphoto": FormatDesign, "afpub": FormatDesign,
+	"dwg": FormatDesign, "dxf": FormatDesign, "cdr": FormatDesign, "xcf": FormatDesign,
+	"kra": FormatDesign,
 
 	// Executables and installers.
-	"exe": KindExecutable, "msi": KindExecutable, "msp": KindExecutable,
-	"app": KindExecutable, "apk": KindExecutable, "ipa": KindExecutable,
-	"deb": KindExecutable, "rpm": KindExecutable, "pkg": KindExecutable,
-	"bin": KindExecutable, "run": KindExecutable, "dll": KindExecutable,
-	"so": KindExecutable, "dylib": KindExecutable, "com": KindExecutable,
-	"scr": KindExecutable,
+	"exe": FormatExecutable, "msi": FormatExecutable, "msp": FormatExecutable,
+	"app": FormatExecutable, "apk": FormatExecutable, "ipa": FormatExecutable,
+	"deb": FormatExecutable, "rpm": FormatExecutable, "pkg": FormatExecutable,
+	"bin": FormatExecutable, "run": FormatExecutable, "dll": FormatExecutable,
+	"so": FormatExecutable, "dylib": FormatExecutable, "com": FormatExecutable,
+	"scr": FormatExecutable,
 }
 
-// byName maps an extension-less file name to its category. These are the
+// byName maps an extension-less file name to its format. These are the
 // well-known names whose whole identity is the name, such as Dockerfile.
-var byName = map[string]Kind{
-	"dockerfile":  KindCode,
-	"makefile":    KindCode,
-	"gnumakefile": KindCode,
-	"rakefile":    KindCode,
-	"gemfile":     KindCode,
-	"procfile":    KindCode,
-	"brewfile":    KindCode,
-	"vagrantfile": KindCode,
-	"justfile":    KindCode,
-	"license":     KindText,
-	"readme":      KindText,
-	"changelog":   KindText,
+var byName = map[string]Format{
+	"dockerfile":  FormatDockerfile,
+	"makefile":    FormatCode,
+	"gnumakefile": FormatCode,
+	"rakefile":    FormatCode,
+	"gemfile":     FormatCode,
+	"procfile":    FormatCode,
+	"brewfile":    FormatCode,
+	"vagrantfile": FormatCode,
+	"justfile":    FormatCode,
+	"license":     FormatText,
+	"readme":      FormatText,
+	"changelog":   FormatText,
 }
 
 // Detect classifies a file name by its extension, falling back to a few
 // well-known extension-less names. The comparison ignores case, and a name
-// with no extension or an unrecognised one is KindUnknown.
+// with no extension or an unrecognised one is FormatUnknown.
 //
 // The name may be a full path; only its last element is classified.
-func Detect(name string) Kind {
+func Detect(name string) Format {
 	base := strings.ToLower(BaseName(name))
-	if kind, ok := byName[base]; ok {
-		return kind
+	if format, ok := byName[base]; ok {
+		return format
 	}
 	extension := extensionOf(base)
 	if extension == "" {
-		return KindUnknown
+		return FormatUnknown
 	}
-	if kind, ok := byExtension[extension]; ok {
-		return kind
+	if format, ok := byExtension[extension]; ok {
+		return format
 	}
-	return KindUnknown
+	return FormatUnknown
 }
 
 // Extension returns a file name's lowercase extension without its dot, or ""

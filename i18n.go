@@ -121,6 +121,36 @@ const (
 	msgFileTypeDesign       messageKey = "fileType.design"
 	msgFileTypeExecutable   messageKey = "fileType.executable"
 
+	// File format names. A format with an icon of its own gets its own name;
+	// most are proper nouns, so both catalogs carry the same text.
+	msgFileFormatMarkdown   messageKey = "fileFormat.markdown"
+	msgFileFormatLog        messageKey = "fileFormat.log"
+	msgFileFormatCSV        messageKey = "fileFormat.csv"
+	msgFileFormatPNG        messageKey = "fileFormat.png"
+	msgFileFormatJPEG       messageKey = "fileFormat.jpeg"
+	msgFileFormatBMP        messageKey = "fileFormat.bmp"
+	msgFileFormatSVG        messageKey = "fileFormat.svg"
+	msgFileFormatGo         messageKey = "fileFormat.go"
+	msgFileFormatPython     messageKey = "fileFormat.python"
+	msgFileFormatJavaScript messageKey = "fileFormat.javascript"
+	msgFileFormatTypeScript messageKey = "fileFormat.typescript"
+	msgFileFormatVue        messageKey = "fileFormat.vue"
+	msgFileFormatSvelte     messageKey = "fileFormat.svelte"
+	msgFileFormatRust       messageKey = "fileFormat.rust"
+	msgFileFormatPHP        messageKey = "fileFormat.php"
+	msgFileFormatShell      messageKey = "fileFormat.shell"
+	msgFileFormatSQL        messageKey = "fileFormat.sql"
+	msgFileFormatHTML       messageKey = "fileFormat.html"
+	msgFileFormatCSS        messageKey = "fileFormat.css"
+	msgFileFormatSass       messageKey = "fileFormat.sass"
+	msgFileFormatXML        messageKey = "fileFormat.xml"
+	msgFileFormatJSON       messageKey = "fileFormat.json"
+	msgFileFormatYAML       messageKey = "fileFormat.yaml"
+	msgFileFormatConfig     messageKey = "fileFormat.config"
+	msgFileFormatDockerfile messageKey = "fileFormat.dockerfile"
+	msgFileFormatFigma      messageKey = "fileFormat.figma"
+	msgFileFormatBlender    messageKey = "fileFormat.blender"
+
 	// Favorites.
 	msgFavorite      messageKey = "favorite.add"
 	msgFavoriteAdded messageKey = "favorite.added"
@@ -394,6 +424,34 @@ var simplifiedChineseCatalog = catalog{
 	msgFileTypeDesign:       "设计文件",
 	msgFileTypeExecutable:   "可执行文件",
 
+	msgFileFormatMarkdown:   "Markdown",
+	msgFileFormatLog:        "日志",
+	msgFileFormatCSV:        "CSV",
+	msgFileFormatPNG:        "PNG",
+	msgFileFormatJPEG:       "JPEG",
+	msgFileFormatBMP:        "BMP",
+	msgFileFormatSVG:        "SVG",
+	msgFileFormatGo:         "Go",
+	msgFileFormatPython:     "Python",
+	msgFileFormatJavaScript: "JavaScript",
+	msgFileFormatTypeScript: "TypeScript",
+	msgFileFormatVue:        "Vue",
+	msgFileFormatSvelte:     "Svelte",
+	msgFileFormatRust:       "Rust",
+	msgFileFormatPHP:        "PHP",
+	msgFileFormatShell:      "Shell",
+	msgFileFormatSQL:        "SQL",
+	msgFileFormatHTML:       "HTML",
+	msgFileFormatCSS:        "CSS",
+	msgFileFormatSass:       "Sass",
+	msgFileFormatXML:        "XML",
+	msgFileFormatJSON:       "JSON",
+	msgFileFormatYAML:       "YAML",
+	msgFileFormatConfig:     "配置",
+	msgFileFormatDockerfile: "Dockerfile",
+	msgFileFormatFigma:      "Figma",
+	msgFileFormatBlender:    "Blender",
+
 	msgFavorite:      "收藏",
 	msgFavoriteAdded: "已收藏",
 
@@ -652,6 +710,34 @@ var englishCatalog = catalog{
 	msgFileTypeDatabase:     "Database",
 	msgFileTypeDesign:       "Design",
 	msgFileTypeExecutable:   "Application",
+
+	msgFileFormatMarkdown:   "Markdown",
+	msgFileFormatLog:        "Log",
+	msgFileFormatCSV:        "CSV",
+	msgFileFormatPNG:        "PNG",
+	msgFileFormatJPEG:       "JPEG",
+	msgFileFormatBMP:        "BMP",
+	msgFileFormatSVG:        "SVG",
+	msgFileFormatGo:         "Go",
+	msgFileFormatPython:     "Python",
+	msgFileFormatJavaScript: "JavaScript",
+	msgFileFormatTypeScript: "TypeScript",
+	msgFileFormatVue:        "Vue",
+	msgFileFormatSvelte:     "Svelte",
+	msgFileFormatRust:       "Rust",
+	msgFileFormatPHP:        "PHP",
+	msgFileFormatShell:      "Shell",
+	msgFileFormatSQL:        "SQL",
+	msgFileFormatHTML:       "HTML",
+	msgFileFormatCSS:        "CSS",
+	msgFileFormatSass:       "Sass",
+	msgFileFormatXML:        "XML",
+	msgFileFormatJSON:       "JSON",
+	msgFileFormatYAML:       "YAML",
+	msgFileFormatConfig:     "Config",
+	msgFileFormatDockerfile: "Dockerfile",
+	msgFileFormatFigma:      "Figma",
+	msgFileFormatBlender:    "Blender",
 
 	msgFavorite:      "Favorite",
 	msgFavoriteAdded: "Favorited",
@@ -967,10 +1053,74 @@ func (l localizer) smartTag(kind contentKind) string {
 	}
 }
 
-// fileTypeLabel names a detected file type for display. A text, image or code
-// file reuses the content kind's name, so a file and a bare payload of the
-// same content read the same; every other type has its own name.
-func (l localizer) fileTypeLabel(kind filetype.Kind) string {
+// fileFormatLabel names a detected file format for display. A format with a
+// name of its own — mostly proper nouns such as Markdown, JSON or Go — uses
+// that name; every other format falls back to its family's label.
+func (l localizer) fileFormatLabel(format filetype.Format) string {
+	switch format {
+	case filetype.FormatMarkdown:
+		return l.text(msgFileFormatMarkdown)
+	case filetype.FormatLog:
+		return l.text(msgFileFormatLog)
+	case filetype.FormatCSV:
+		return l.text(msgFileFormatCSV)
+	case filetype.FormatPNG:
+		return l.text(msgFileFormatPNG)
+	case filetype.FormatJPEG:
+		return l.text(msgFileFormatJPEG)
+	case filetype.FormatBMP:
+		return l.text(msgFileFormatBMP)
+	case filetype.FormatSVG:
+		return l.text(msgFileFormatSVG)
+	case filetype.FormatGo:
+		return l.text(msgFileFormatGo)
+	case filetype.FormatPython:
+		return l.text(msgFileFormatPython)
+	case filetype.FormatJavaScript:
+		return l.text(msgFileFormatJavaScript)
+	case filetype.FormatTypeScript:
+		return l.text(msgFileFormatTypeScript)
+	case filetype.FormatVue:
+		return l.text(msgFileFormatVue)
+	case filetype.FormatSvelte:
+		return l.text(msgFileFormatSvelte)
+	case filetype.FormatRust:
+		return l.text(msgFileFormatRust)
+	case filetype.FormatPHP:
+		return l.text(msgFileFormatPHP)
+	case filetype.FormatShell:
+		return l.text(msgFileFormatShell)
+	case filetype.FormatSQL:
+		return l.text(msgFileFormatSQL)
+	case filetype.FormatHTML:
+		return l.text(msgFileFormatHTML)
+	case filetype.FormatCSS:
+		return l.text(msgFileFormatCSS)
+	case filetype.FormatSass:
+		return l.text(msgFileFormatSass)
+	case filetype.FormatXML:
+		return l.text(msgFileFormatXML)
+	case filetype.FormatJSON:
+		return l.text(msgFileFormatJSON)
+	case filetype.FormatYAML:
+		return l.text(msgFileFormatYAML)
+	case filetype.FormatConfig:
+		return l.text(msgFileFormatConfig)
+	case filetype.FormatDockerfile:
+		return l.text(msgFileFormatDockerfile)
+	case filetype.FormatFigma:
+		return l.text(msgFileFormatFigma)
+	case filetype.FormatBlender:
+		return l.text(msgFileFormatBlender)
+	default:
+		return l.fileKindLabel(format.Kind())
+	}
+}
+
+// fileKindLabel names a format's coarse family for display. A text, image or
+// code file reuses the content kind's name, so a file and a bare payload of
+// the same content read the same; every other family has its own name.
+func (l localizer) fileKindLabel(kind filetype.Kind) string {
 	switch kind {
 	case filetype.KindText:
 		return l.kindLabel(kindText)

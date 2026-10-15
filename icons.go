@@ -51,11 +51,38 @@ type iconSet struct {
 	fileSheet    *ui.SVG
 	fileSlides   *ui.SVG
 	filePDF      *ui.SVG
+	fileCode     *ui.SVG
+	spreadsheet  *ui.SVG
+	csv          *ui.SVG
+	markdown     *ui.SVG
+	json         *ui.SVG
+	config       *ui.SVG
+	shell        *ui.SVG
+	sql          *ui.SVG
+	xml          *ui.SVG
+	svg          *ui.SVG
+	png          *ui.SVG
+	jpg          *ui.SVG
+	bmp          *ui.SVG
 	archive      *ui.SVG
 	audio        *ui.SVG
 	video        *ui.SVG
 	font         *ui.SVG
 	executable   *ui.SVG
+	brandGo      *ui.SVG
+	brandPython  *ui.SVG
+	brandJS      *ui.SVG
+	brandTS      *ui.SVG
+	brandVue     *ui.SVG
+	brandSvelte  *ui.SVG
+	brandRust    *ui.SVG
+	brandPHP     *ui.SVG
+	brandHTML    *ui.SVG
+	brandCSS     *ui.SVG
+	brandSass    *ui.SVG
+	brandDocker  *ui.SVG
+	brandFigma   *ui.SVG
+	brandBlender *ui.SVG
 	copy         *ui.SVG
 	trash        *ui.SVG
 	check        *ui.SVG
@@ -101,11 +128,38 @@ func mustLoadIconSet() iconSet {
 		fileSheet:    mustLoadIcon("file-type-xls.svg"),
 		fileSlides:   mustLoadIcon("file-type-ppt.svg"),
 		filePDF:      mustLoadIcon("file-type-pdf.svg"),
+		fileCode:     mustLoadIcon("file-code.svg"),
+		spreadsheet:  mustLoadIcon("file-spreadsheet.svg"),
+		csv:          mustLoadIcon("file-type-csv.svg"),
+		markdown:     mustLoadIcon("markdown.svg"),
+		json:         mustLoadIcon("json.svg"),
+		config:       mustLoadIcon("file-settings.svg"),
+		shell:        mustLoadIcon("terminal-2.svg"),
+		sql:          mustLoadIcon("file-type-sql.svg"),
+		xml:          mustLoadIcon("file-type-xml.svg"),
+		svg:          mustLoadIcon("file-type-svg.svg"),
+		png:          mustLoadIcon("file-type-png.svg"),
+		jpg:          mustLoadIcon("file-type-jpg.svg"),
+		bmp:          mustLoadIcon("file-type-bmp.svg"),
 		archive:      mustLoadIcon("file-type-zip.svg"),
 		audio:        mustLoadIcon("file-music.svg"),
 		video:        mustLoadIcon("movie.svg"),
 		font:         mustLoadIcon("letter-case.svg"),
 		executable:   mustLoadIcon("binary.svg"),
+		brandGo:      mustLoadIcon("brand-golang.svg"),
+		brandPython:  mustLoadIcon("brand-python.svg"),
+		brandJS:      mustLoadIcon("brand-javascript.svg"),
+		brandTS:      mustLoadIcon("brand-typescript.svg"),
+		brandVue:     mustLoadIcon("brand-vue.svg"),
+		brandSvelte:  mustLoadIcon("brand-svelte.svg"),
+		brandRust:    mustLoadIcon("brand-rust.svg"),
+		brandPHP:     mustLoadIcon("brand-php.svg"),
+		brandHTML:    mustLoadIcon("brand-html5.svg"),
+		brandCSS:     mustLoadIcon("brand-css3.svg"),
+		brandSass:    mustLoadIcon("brand-sass.svg"),
+		brandDocker:  mustLoadIcon("brand-docker.svg"),
+		brandFigma:   mustLoadIcon("brand-figma.svg"),
+		brandBlender: mustLoadIcon("brand-blender.svg"),
 		copy:         mustLoadIcon("copy.svg"),
 		trash:        mustLoadIcon("trash.svg"),
 		check:        mustLoadIcon("check.svg"),
@@ -143,38 +197,92 @@ func iconForKind(kind contentKind) *ui.SVG {
 	}
 }
 
-// iconForFileType picks the icon for a file payload's detected type, so the
+// iconForFormat picks the icon for a file payload's detected format, so the
 // list and the preview show what a file is without the reader parsing its
-// extension. An unrecognised type keeps the generic file icon.
-func iconForFileType(kind filetype.Kind) *ui.SVG {
-	switch kind {
-	case filetype.KindText:
+// extension. An unrecognised format keeps the generic file icon.
+func iconForFormat(format filetype.Format) *ui.SVG {
+	switch format {
+	case filetype.FormatText, filetype.FormatLog:
 		return icons.text
-	case filetype.KindDocument:
+	case filetype.FormatMarkdown:
+		return icons.markdown
+	case filetype.FormatRTF, filetype.FormatDocument:
 		return icons.fileDoc
-	case filetype.KindSpreadsheet:
+	case filetype.FormatSpreadsheet:
+		return icons.spreadsheet
+	case filetype.FormatXLS:
 		return icons.fileSheet
-	case filetype.KindPresentation:
+	case filetype.FormatCSV:
+		return icons.csv
+	case filetype.FormatPresentation:
 		return icons.fileSlides
-	case filetype.KindPDF:
+	case filetype.FormatPDF:
 		return icons.filePDF
-	case filetype.KindImage:
+	case filetype.FormatImage:
 		return icons.image
-	case filetype.KindVideo:
+	case filetype.FormatPNG:
+		return icons.png
+	case filetype.FormatJPEG:
+		return icons.jpg
+	case filetype.FormatBMP:
+		return icons.bmp
+	case filetype.FormatSVG:
+		return icons.svg
+	case filetype.FormatVideo:
 		return icons.video
-	case filetype.KindAudio:
+	case filetype.FormatAudio:
 		return icons.audio
-	case filetype.KindArchive:
+	case filetype.FormatArchive:
 		return icons.archive
-	case filetype.KindCode:
-		return icons.code
-	case filetype.KindFont:
+	case filetype.FormatCode:
+		return icons.fileCode
+	case filetype.FormatGo:
+		return icons.brandGo
+	case filetype.FormatPython:
+		return icons.brandPython
+	case filetype.FormatJavaScript:
+		return icons.brandJS
+	case filetype.FormatTypeScript:
+		return icons.brandTS
+	case filetype.FormatVue:
+		return icons.brandVue
+	case filetype.FormatSvelte:
+		return icons.brandSvelte
+	case filetype.FormatRust:
+		return icons.brandRust
+	case filetype.FormatPHP:
+		return icons.brandPHP
+	case filetype.FormatShell:
+		return icons.shell
+	case filetype.FormatSQL:
+		return icons.sql
+	case filetype.FormatHTML:
+		return icons.brandHTML
+	case filetype.FormatCSS:
+		return icons.brandCSS
+	case filetype.FormatSass:
+		return icons.brandSass
+	case filetype.FormatXML:
+		return icons.xml
+	case filetype.FormatJSON:
+		return icons.json
+	case filetype.FormatYAML:
+		return icons.config
+	case filetype.FormatConfig:
+		return icons.settings
+	case filetype.FormatDockerfile:
+		return icons.brandDocker
+	case filetype.FormatFont:
 		return icons.font
-	case filetype.KindDatabase:
+	case filetype.FormatDatabase:
 		return icons.storage
-	case filetype.KindDesign:
+	case filetype.FormatDesign:
 		return icons.appearance
-	case filetype.KindExecutable:
+	case filetype.FormatFigma:
+		return icons.brandFigma
+	case filetype.FormatBlender:
+		return icons.brandBlender
+	case filetype.FormatExecutable:
 		return icons.executable
 	default:
 		return icons.file

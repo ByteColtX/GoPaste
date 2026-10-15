@@ -2,33 +2,61 @@ package filetype
 
 import "testing"
 
-// TestDetectClassifiesByExtension covers each category with a representative
-// name, plus the case and path handling Detect promises.
+// TestDetectClassifiesByExtension covers the formats that have an icon of their
+// own, plus the case and path handling Detect promises.
 func TestDetectClassifiesByExtension(t *testing.T) {
 	cases := []struct {
 		name string
-		want Kind
+		want Format
 	}{
-		{"notes.txt", KindText},
-		{"README.md", KindText},
-		{"report.docx", KindDocument},
-		{"budget.xlsx", KindSpreadsheet},
-		{"quarterly.pptx", KindPresentation},
-		{"manual.pdf", KindPDF},
-		{"screenshot.png", KindImage},
-		{"clip.mov", KindVideo},
-		{"voice-memo.m4a", KindAudio},
-		{"release.zip", KindArchive},
-		{"main.go", KindCode},
-		{"App.tsx", KindCode},
-		{"Inter.ttf", KindFont},
-		{"history.sqlite3", KindDatabase},
-		{"mockup.fig", KindDesign},
-		{"installer.dmg", KindArchive},
-		{"setup.exe", KindExecutable},
-		{"Dockerfile", KindCode},
-		{"unknown.qqq", KindUnknown},
-		{"no-extension", KindUnknown},
+		{"notes.txt", FormatText},
+		{"README.md", FormatMarkdown},
+		{"changes.markdown", FormatMarkdown},
+		{"component.mdx", FormatMarkdown},
+		{"server.log", FormatLog},
+		{"manual.rtf", FormatRTF},
+		{"report.docx", FormatDocument},
+		{"budget.xlsx", FormatXLS},
+		{"sheet.ods", FormatSpreadsheet},
+		{"export.csv", FormatCSV},
+		{"quarterly.pptx", FormatPresentation},
+		{"manual.pdf", FormatPDF},
+		{"screenshot.png", FormatPNG},
+		{"holiday.JPG", FormatJPEG},
+		{"logo.bmp", FormatBMP},
+		{"icon.svg", FormatSVG},
+		{"animation.gif", FormatImage},
+		{"clip.mov", FormatVideo},
+		{"voice-memo.m4a", FormatAudio},
+		{"release.zip", FormatArchive},
+		{"main.go", FormatGo},
+		{"app.py", FormatPython},
+		{"index.mjs", FormatJavaScript},
+		{"App.tsx", FormatTypeScript},
+		{"Widget.vue", FormatVue},
+		{"App.svelte", FormatSvelte},
+		{"lib.rs", FormatRust},
+		{"index.php", FormatPHP},
+		{"deploy.sh", FormatShell},
+		{"query.sql", FormatSQL},
+		{"page.html", FormatHTML},
+		{"theme.css", FormatCSS},
+		{"theme.scss", FormatSass},
+		{"feed.xml", FormatXML},
+		{"package.json", FormatJSON},
+		{"ci.yml", FormatYAML},
+		{"Cargo.toml", FormatConfig},
+		{"Dockerfile", FormatDockerfile},
+		{"App.java", FormatCode},
+		{"Inter.ttf", FormatFont},
+		{"history.sqlite3", FormatDatabase},
+		{"mockup.fig", FormatFigma},
+		{"scene.blend", FormatBlender},
+		{"mockup.psd", FormatDesign},
+		{"installer.dmg", FormatArchive},
+		{"setup.exe", FormatExecutable},
+		{"unknown.qqq", FormatUnknown},
+		{"no-extension", FormatUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -39,18 +67,77 @@ func TestDetectClassifiesByExtension(t *testing.T) {
 	}
 }
 
+// TestFormatKindGroupsFormats checks the coarse family each format reports, so
+// the label and colour vocabulary stays independent of the icon table.
+func TestFormatKindGroupsFormats(t *testing.T) {
+	cases := []struct {
+		format Format
+		want   Kind
+	}{
+		{FormatText, KindText},
+		{FormatMarkdown, KindText},
+		{FormatLog, KindText},
+		{FormatRTF, KindDocument},
+		{FormatDocument, KindDocument},
+		{FormatSpreadsheet, KindSpreadsheet},
+		{FormatXLS, KindSpreadsheet},
+		{FormatCSV, KindSpreadsheet},
+		{FormatPresentation, KindPresentation},
+		{FormatPDF, KindPDF},
+		{FormatPNG, KindImage},
+		{FormatJPEG, KindImage},
+		{FormatBMP, KindImage},
+		{FormatSVG, KindImage},
+		{FormatImage, KindImage},
+		{FormatVideo, KindVideo},
+		{FormatAudio, KindAudio},
+		{FormatArchive, KindArchive},
+		{FormatGo, KindCode},
+		{FormatPython, KindCode},
+		{FormatJavaScript, KindCode},
+		{FormatTypeScript, KindCode},
+		{FormatVue, KindCode},
+		{FormatSvelte, KindCode},
+		{FormatRust, KindCode},
+		{FormatPHP, KindCode},
+		{FormatShell, KindCode},
+		{FormatSQL, KindCode},
+		{FormatHTML, KindCode},
+		{FormatCSS, KindCode},
+		{FormatSass, KindCode},
+		{FormatXML, KindCode},
+		{FormatJSON, KindCode},
+		{FormatYAML, KindCode},
+		{FormatConfig, KindCode},
+		{FormatDockerfile, KindCode},
+		{FormatCode, KindCode},
+		{FormatFont, KindFont},
+		{FormatDatabase, KindDatabase},
+		{FormatFigma, KindDesign},
+		{FormatBlender, KindDesign},
+		{FormatDesign, KindDesign},
+		{FormatExecutable, KindExecutable},
+		{FormatUnknown, KindUnknown},
+	}
+	for _, tc := range cases {
+		if got := tc.format.Kind(); got != tc.want {
+			t.Errorf("%v.Kind() = %v，期望 %v", tc.format, got, tc.want)
+		}
+	}
+}
+
 // TestDetectUsesOnlyThePathTail checks that a full path is classified by its
 // last element, whichever separator the path uses.
 func TestDetectUsesOnlyThePathTail(t *testing.T) {
 	cases := []struct {
 		name string
-		want Kind
+		want Format
 	}{
-		{"~/Documents/release-notes.md", KindText},
-		{"/tmp/dir.with.dots/photo.png", KindImage},
-		{`C:\Users\me\Desktop\report.pdf`, KindPDF},
-		{"/tmp/archive.tar.gz", KindArchive},
-		{"/tmp/trailing/", KindUnknown},
+		{"~/Documents/release-notes.md", FormatMarkdown},
+		{"/tmp/dir.with.dots/photo.png", FormatPNG},
+		{`C:\Users\me\Desktop\report.pdf`, FormatPDF},
+		{"/tmp/archive.tar.gz", FormatArchive},
+		{"/tmp/trailing/", FormatUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

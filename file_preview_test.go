@@ -68,32 +68,35 @@ func themeFor(t *testing.T) *ui.Theme {
 	return theme
 }
 
-// TestRowIconFollowsTheFileType checks the list row's icon and colour: a file
-// item is drawn from its detected type, while every other kind keeps the
+// TestRowIconFollowsTheFileFormat checks the list row's icon and colour: a file
+// item is drawn from its detected format, while every other kind keeps the
 // content-kind icon it had.
-func TestRowIconFollowsTheFileType(t *testing.T) {
+func TestRowIconFollowsTheFileFormat(t *testing.T) {
 	app := newApplication()
 	theme := themeFor(t)
 
 	cases := []struct {
-		name string
-		path string
-		want filetype.Kind
+		name   string
+		path   string
+		format filetype.Format
+		kind   filetype.Kind
 	}{
-		{"PDF 文档", "~/Documents/manual.pdf", filetype.KindPDF},
-		{"图片文件", "~/Pictures/photo.png", filetype.KindImage},
-		{"压缩包", "~/Desktop/design-export.zip", filetype.KindArchive},
-		{"表格", "~/Downloads/report.xlsx", filetype.KindSpreadsheet},
-		{"未知扩展名", "~/Downloads/thing.qqq", filetype.KindUnknown},
+		{"PDF 文档", "~/Documents/manual.pdf", filetype.FormatPDF, filetype.KindPDF},
+		{"Markdown", "~/Documents/notes.md", filetype.FormatMarkdown, filetype.KindText},
+		{"Go 源码", "~/code/main.go", filetype.FormatGo, filetype.KindCode},
+		{"PNG 图片", "~/Pictures/photo.png", filetype.FormatPNG, filetype.KindImage},
+		{"压缩包", "~/Desktop/design-export.zip", filetype.FormatArchive, filetype.KindArchive},
+		{"Excel 表格", "~/Downloads/report.xlsx", filetype.FormatXLS, filetype.KindSpreadsheet},
+		{"未知扩展名", "~/Downloads/thing.qqq", filetype.FormatUnknown, filetype.KindUnknown},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			item := fileItem("file", tc.path, 1024)
 			gotColor, gotIcon := app.rowIcon(theme, item)
-			wantColor := colorForFileType(theme, tc.want)
-			wantIcon := iconForFileType(tc.want)
+			wantColor := colorForFileKind(theme, tc.kind)
+			wantIcon := iconForFormat(tc.format)
 			if gotIcon != wantIcon {
-				t.Errorf("%s 的行图标不是该文件类型的图标", tc.name)
+				t.Errorf("%s 的行图标不是该文件格式的图标", tc.name)
 			}
 			if gotColor != wantColor {
 				t.Errorf("%s 的行图标颜色 = %v，期望 %v", tc.name, gotColor, wantColor)
@@ -104,14 +107,60 @@ func TestRowIconFollowsTheFileType(t *testing.T) {
 	// A non-file kind still uses its content-kind icon.
 	linkColor, linkIcon := app.rowIcon(theme, history.Item{ID: "l", Kind: kindLink, Text: "https://example.com"})
 	if linkIcon != iconForKind(kindLink) || linkColor != colorForKind(theme, kindLink) {
-		t.Errorf("链接行不应走文件类型图标")
+		t.Errorf("链接行不应走文件格式图标")
 	}
 }
 
-// TestFilePreviewNamesTheFileAndItsType checks the preview's naming card and
-// the type tag in the meta row: a reader should see the file's own name, its
-// detected type, its extension and its size without reading the full path.
-func TestFilePreviewNamesTheFileAndItsType(t *testing.T) {
+// TestMarkdownHasItsOwnIcon pins the case the format table exists for: a
+// Markdown file must not fall back to the generic text or file icon.
+func TestMarkdownHasItsOwnIcon(t *testing.T) {
+	markdown := iconForFormat(filetype.FormatMarkdown)
+	if markdown == iconForFormat(filetype.FormatText) {
+		t.Error("Markdown 应有独立图标，而不是回退到文本图标")
+	}
+	if markdown == iconForFormat(filetype.FormatUnknown) {
+		t.Error("Markdown 不应回退到通用文件图标")
+	}
+}
+
+// TestFormatsHaveDistinctIcons checks that every format the table calls out has
+// an icon of its own: two formats silently sharing one icon would leave the
+// list unable to tell them apart.
+func TestFormatsHaveDistinctIcons(t *testing.T) {
+	formats := []filetype.Format{
+		filetype.FormatText, filetype.FormatMarkdown,
+		filetype.FormatDocument, filetype.FormatSpreadsheet, filetype.FormatXLS,
+		filetype.FormatCSV, filetype.FormatPresentation, filetype.FormatPDF,
+		filetype.FormatImage, filetype.FormatPNG, filetype.FormatJPEG,
+		filetype.FormatBMP, filetype.FormatSVG,
+		filetype.FormatVideo, filetype.FormatAudio, filetype.FormatArchive,
+		filetype.FormatCode, filetype.FormatGo, filetype.FormatPython,
+		filetype.FormatJavaScript, filetype.FormatTypeScript, filetype.FormatVue,
+		filetype.FormatSvelte, filetype.FormatRust, filetype.FormatPHP,
+		filetype.FormatShell, filetype.FormatSQL, filetype.FormatHTML,
+		filetype.FormatCSS, filetype.FormatSass, filetype.FormatXML,
+		filetype.FormatJSON, filetype.FormatYAML, filetype.FormatConfig,
+		filetype.FormatDockerfile, filetype.FormatFont, filetype.FormatDatabase,
+		filetype.FormatDesign, filetype.FormatFigma, filetype.FormatBlender,
+		filetype.FormatExecutable,
+	}
+	seen := make(map[*ui.SVG]filetype.Format, len(formats))
+	for _, format := range formats {
+		icon := iconForFormat(format)
+		if icon == nil {
+			t.Fatalf("%v 没有图标", format)
+		}
+		if other, ok := seen[icon]; ok {
+			t.Errorf("%v 与 %v 共用了同一个图标", format, other)
+		}
+		seen[icon] = format
+	}
+}
+
+// TestFilePreviewNamesTheFileAndItsFormat checks the preview's naming card and
+// the format tag in the meta row: a reader should see the file's own name, its
+// detected format, its extension and its size without reading the full path.
+func TestFilePreviewNamesTheFileAndItsFormat(t *testing.T) {
 	app := fileApp(fileItem("file-report", "~/Documents/quarterly report.docx", 3482))
 	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
 	for _, want := range []string{
