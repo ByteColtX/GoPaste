@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"runtime"
 	"strings"
 
 	"github.com/egoist/mygo/ui"
@@ -12,8 +13,26 @@ import (
 //go:embed resources/icons/*.svg
 var embeddedIcons embed.FS
 
+// 应用图标取自 resources/icon.png：mygo 打包时用它生成 macOS 的 .icns、Windows 的
+// .ico 和 Linux 的 .png，这里也把它作为 Windows 和 Linux 的托盘图标嵌入。
+//
 //go:embed resources/icon.png
 var embeddedTrayIcon []byte
+
+// resources/tray-icon.png 是同一幅画的黑白模板版本：只有描边，背景透明。
+// macOS 菜单栏图标只取 alpha 通道并按菜单栏明暗着色，整幅彩色图当模板用会被
+// 涂成一整块实心方块，所以这里单独准备一张。
+//
+//go:embed resources/tray-icon.png
+var embeddedTrayTemplateIcon []byte
+
+// trayIcon 返回当前平台该用的托盘图标，以及它是否是 macOS 的模板图标。
+func trayIcon() (png []byte, template bool) {
+	if runtime.GOOS == "darwin" {
+		return embeddedTrayTemplateIcon, true
+	}
+	return embeddedTrayIcon, false
+}
 
 type iconSet struct {
 	history      *ui.SVG
