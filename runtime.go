@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"runtime"
 
@@ -31,6 +32,8 @@ type applicationRuntime struct {
 	viewZoomItems map[*mygo.MenuItem]messageKey
 	tray          *systemTray
 	quitting      bool
+	// captureCancel 结束剪贴板监听；为 nil 表示监听没有启动。
+	captureCancel context.CancelFunc
 }
 
 // mygoClipboardWriter is the production adapter for history.Store's local
@@ -95,6 +98,11 @@ func (r *applicationRuntime) ready() {
 		r.quitting = true
 	})
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
+		// 先停监听，再等写队列落盘，最后关掉数据库：退出时不会丢掉刚复制的记录。
+		r.stopCapture()
+		if r.app.persistence != nil {
+			r.app.persistence.Close()
+		}
 		if r.tray != nil {
 			r.tray.Destroy()
 		}
@@ -115,9 +123,14 @@ func (r *applicationRuntime) ready() {
 	})
 	if err != nil {
 		log.Printf("创建系统托盘失败，继续使用窗口模式: %v", err)
-		return
+	} else {
+		r.tray = tray
 	}
-	r.tray = tray
+
+	// 捕获的上下文在主线程上创建，退出时由 stopCapture 取消。
+	captureCtx, captureCancel := context.WithCancel(context.Background())
+	r.captureCancel = captureCancel
+	r.startHistoryPersistence(captureCtx)
 }
 
 // installAppMenu 安装应用菜单，并在其中加入 HIG › Settings 约定的「设置…」项

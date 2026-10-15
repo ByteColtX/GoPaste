@@ -1914,10 +1914,17 @@ func (a *application) copyToClipboard(c *ui.Context, id string) {
 		c.Toast(a.t(msgHistoryCopyFailed))
 		return
 	}
+	item, ok := a.history.Item(id)
+	if !ok {
+		c.Toast(a.t(msgHistoryCopyFailed))
+		return
+	}
 	if err := a.history.Copy(id, a.clipboard); err != nil {
 		c.Toast(a.t(msgHistoryCopyFailed))
 		return
 	}
+	// 记下写出去的内容，免得监听把这次写入当成用户新复制的内容。
+	a.recordClipboardWrite(item)
 	c.Toast(a.t(msgToastCopied))
 }
 
