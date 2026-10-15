@@ -50,6 +50,11 @@ var (
 		Enter:    &ui.Motion{Opacity: 0},
 		Exit:     &ui.Motion{Opacity: 0},
 	}
+
+	// motionSpinPeriod 是刷新按钮转一圈的时间，也是点击后的最短转圈时间。
+	// 取整圈而不是更短的固定值：图标停下来时正好回到静止角度，不会从半圈
+	// 突然跳回去；反过来，最短时间取整圈也保证后端再快，点击都看得见反馈。
+	motionSpinPeriod = 900 * time.Millisecond
 )
 
 // GoPaste 的原生界面使用一组共享的尺寸和颜色角色。页面可以有不同的

@@ -207,6 +207,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Fade when movement carries no meaning (HIG › Motion), as the page cross-fade does.
 - Pressed feedback is visible within 100–150 ms.
 - Skeletons and spinners run only for meaningful waits and stop when content is ready.
+- The device list's refresh button is the exception to that rule, and deliberately: it spins while discovery runs, and for one whole revolution after a click even when the backend answers at once. A refresh control that answers a click with nothing at all reads as broken, and one whole revolution is the shortest window that reads as a turn rather than a flicker. `ui.Loop` drives the angle, and the window is a whole period, so the glyph lands back on its resting angle instead of snapping back from half a turn. `Loop` ignores `ReduceMotion`, as MyGo's own `Spinner` does: an indeterminate wait still needs its indicator.
 - MyGo goes straight to the target when `ReduceMotion` is on, so transitions need no extra branch.
 
 ## Zoom

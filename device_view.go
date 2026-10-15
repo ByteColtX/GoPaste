@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -56,6 +58,9 @@ func (a *application) deviceErrorState(c *ui.Context, theme *ui.Theme) {
 }
 
 func (a *application) refreshDevices(c *ui.Context) {
+	// 无论后端是否可用都先起一段最短转圈：点击必须有回应，否则按钮看起来
+	// 像没接上。转圈本身不代表结果，结果仍由下面的状态与提示给出。
+	a.deviceRefreshSpinUntil = time.Now().Add(motionSpinPeriod)
 	if a.onRefreshDevices == nil {
 		c.Toast(a.t(msgToastDeviceDiscoveryUnavailable))
 		return
@@ -63,6 +68,12 @@ func (a *application) refreshDevices(c *ui.Context) {
 	a.deviceDiscovery = deviceDiscoveryLoading
 	a.deviceDiscoveryMessage = ""
 	a.onRefreshDevices()
+}
+
+// deviceRefreshSpinning 报告刷新按钮是否该转圈：发现仍在进行，或者上一次点击的
+// 最短转圈时间还没走完。后者让后端返回得再快，点击也看得见反馈。
+func (a *application) deviceRefreshSpinning() bool {
+	return a.deviceDiscovery == deviceDiscoveryLoading || time.Now().Before(a.deviceRefreshSpinUntil)
 }
 
 func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
@@ -106,7 +117,9 @@ func (a *application) openAddDeviceDialog() {
 
 // sidebarIconAction 是侧栏列表分组标题行里的小图标动作按钮（刷新）：与分区切换器
 // 同一套尺寸、圆角与悬停反馈，但没有选中态。文字放在提示与辅助技术标签里。
-func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, onClick func()) {
+//
+// spinning 让图标连续转圈，用于「正在进行」的动作（刷新）。
+func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, spinning bool, onClick func()) {
 	size := controlHeightSize(c, theme, controlHeight)
 	button := ui.ButtonBase(c.Key(key)).Size(size, size).Shrink(0).Center().
 		Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
@@ -115,7 +128,12 @@ func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key stri
 		button.Background(hoverFill(theme))
 	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(space(theme, 4), space(theme, 4))
+		glyph := ui.Icon(c, icon).Size(space(theme, 4), space(theme, 4))
+		if spinning {
+			// Loop 每帧重算进度并请求下一帧，图标因此连续转圈。key 让这段动画
+			// 只属于这个按钮：转圈期间重新构建视图不会把它从头开始。
+			glyph.Rotate(button.Loop("refresh-spin", motionSpinPeriod, ui.Linear) * 360)
+		}
 	})
 	if button.Clicked() {
 		onClick()

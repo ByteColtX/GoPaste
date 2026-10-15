@@ -222,6 +222,7 @@ type application struct {
 	deviceDiscovery          deviceDiscoveryState
 	deviceDiscoveryMessage   string
 	onRefreshDevices         func()
+	deviceRefreshSpinUntil   time.Time
 	selectedDeviceID         string
 	deviceInfoExpanded       bool
 	addDeviceDialog          bool
