@@ -311,7 +311,17 @@ func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.E
 	return button
 }
 
-// dangerConfirmDialog 提供统一的危险操作二次确认界面。
+// dangerDialogKeys 是二次确认框的按键配置：confirm 与 cancel 是要注册的覆盖层
+// 快捷键，confirmShown 是确认按钮上唯一画成键帽的那个。多出来的按键照常生效，
+// 只是不显示，免得按钮上挤满键帽。Escape 由 Modal 自己处理，不放进 cancel。
+type dangerDialogKeys struct {
+	confirm      []ui.Key
+	confirmShown ui.Key
+	cancel       []ui.Key
+}
+
+// dangerConfirmDialog 渲染危险操作的二次确认框，并在打开期间为 keys 里的按键
+// 注册覆盖层快捷键。Escape 由 Modal 自己处理：关闭即取消。
 func dangerConfirmDialog(
 	c *ui.Context,
 	theme *ui.Theme,
@@ -322,13 +332,14 @@ func dangerConfirmDialog(
 	confirmLabel string,
 	dontAskLabel string,
 	dontAsk *bool,
+	keys dangerDialogKeys,
 ) bool {
 	if !*open {
 		return false
 	}
 
 	confirmed := false
-	ui.Modal(c, open, func() {
+	panel := ui.Modal(c, open, func() {
 		ui.Column(c).Width(440).Shrink(0).
 			Padding(space(theme, 5), space(theme, 5)).Gap(space(theme, 3)).
 			Radius(radius(theme, cardRadius)).Background(theme.Background).
@@ -343,17 +354,24 @@ func dangerConfirmDialog(
 			}
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, 2)).Children(func() {
 				cancelLabel := l.text(msgDangerCancel)
-				cancel := neutralButton(c, theme, "danger-confirm-cancel", cancelLabel)
+				// 取消与确认按钮各自带上可用按键的键帽，与预览操作条同一套提示。
+				cancel := neutralButton(c, theme, "danger-confirm-cancel", cancelLabel).
+					Gap(space(theme, 1))
 				cancel.Children(func() {
 					ui.Text(c, cancelLabel).FontSize(font(theme, fontControl)).SingleLine()
+					keycap(c, theme, shortcutKeyLabel(ui.KeyEscape), primaryText(theme))
 				})
 				if cancel.Clicked() {
 					*open = false
 				}
 
-				confirm := dangerConfirmButton(c, theme, "danger-confirm-submit", confirmLabel)
+				confirm := dangerConfirmButton(c, theme, "danger-confirm-submit", confirmLabel).
+					Gap(space(theme, 1))
 				confirm.Children(func() {
 					ui.Text(c, confirmLabel).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+					if label := shortcutKeyLabel(keys.confirmShown); label != "" {
+						keycap(c, theme, label, theme.AccentText)
+					}
 				})
 				if confirm.Clicked() {
 					confirmed = true
@@ -362,6 +380,20 @@ func dangerConfirmDialog(
 			})
 		})
 	})
+
+	// 覆盖层快捷键在对话框子元素建完后登记：焦点落在「不再询问」之类的控件上时，
+	// 这些按键仍然生效。确认与点击确认按钮、取消与点击取消按钮各走同一条路径。
+	for _, key := range keys.confirm {
+		if panel.OverlayShortcut(0, key) {
+			confirmed = true
+			*open = false
+		}
+	}
+	for _, key := range keys.cancel {
+		if panel.OverlayShortcut(0, key) {
+			*open = false
+		}
+	}
 
 	return confirmed
 }
@@ -558,6 +590,20 @@ func listRow(
 func listRowTile(c *ui.Context, theme *ui.Theme, background ui.Color, body func()) ui.Element {
 	return ui.Box(c).Size(space(theme, listRowTileSize), space(theme, listRowTileSize)).Shrink(0).
 		Radius(radius(theme, controlRadius)).Background(background).Center().Children(body)
+}
+
+// shortcutKeyLabel 返回单键快捷键在键帽里的显示文本：字母与数字取键面字符，
+// Escape 这类按键取它自己的名字。返回空串表示这个键没有合适的键帽。
+func shortcutKeyLabel(key ui.Key) string {
+	switch {
+	case key >= ui.KeyA && key <= ui.KeyZ:
+		return string(rune('A' + (key - ui.KeyA)))
+	case key >= ui.Key0 && key <= ui.Key9:
+		return string(rune('0' + (key - ui.Key0)))
+	case key == ui.KeyEscape:
+		return "Esc"
+	}
+	return ""
 }
 
 // keycap 渲染单键快捷键提示：小圆角方块内一个字母，跟在按钮文字之后。fg 取按钮

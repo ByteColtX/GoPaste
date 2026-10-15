@@ -104,7 +104,7 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - One sidebar serves the whole window, and its content follows the current section: History shows the filter groups, Devices shows the device list, Settings shows the settings panes. A page never adds a second sidebar of its own, so the leading column never shows one section's controls while another section is displayed.
 - The sidebar carries no title line of its own: the switcher's selected item names the section. The history search field is its first item and appears only on History.
 - Each section's sidebar body carries its own key, so scroll position never carries across sections.
-- The section switcher sits at the bottom of the sidebar: icon-only History, Settings, and Devices at the left, the light/dark appearance toggle at the right, with labels in tooltips and accessible names. History must be present, because the contextual sidebar shows no filters on the other sections, so it is the only pointer route back. The left group reserves a fourth icon slot that is deliberately empty for now, so a future icon lands without moving the appearance toggle; the group stays left-aligned and the toggle stays at the trailing inset.
+- The section switcher sits at the bottom of the sidebar: icon-only History, Devices, and Settings at the left, in the same order as Cmd+1, Cmd+2, and Cmd+3, with the light/dark appearance toggle at the right, and labels in tooltips and accessible names. History must be present, because the contextual sidebar shows no filters on the other sections, so it is the only pointer route back. The left group reserves a fourth icon slot that is deliberately empty for now, so a future icon lands without moving the appearance toggle; the group stays left-aligned and the toggle stays at the trailing inset.
 - Known trade-off: HIG › Sidebars advises against critical actions at a sidebar's bottom edge, because a relocated window can hide it. The switcher stays there by product decision.
 - The history list header reads 历史记录, and the sidebar has no second title beside it.
 - The device list's refresh action sits in the list header row, beside the list it acts on. The sidebar's bottom row, above the section switcher, holds the informational online count on the left and a labelled, bordered add-device button on the right: the count is the list's summary and loses its meaning once it scrolls away, and the add action must not scroll out of reach on a long list. Known trade-off: the add action now shares the switcher's bottom-edge risk noted above.
@@ -171,7 +171,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Keep selected list row and preview synchronized by stable item ID.
 - Show the automatic content tag (链接, 代码) on the preview header's first line, beside the type label, so the type and its subtype read together and the tag never takes its own line. The list row carries the same subtype through its tile icon and colored metadata label instead of a separate tag line.
 - Keep the preview's item actions in a floating bar pinned to the bottom of the preview pane and centered horizontally over the content column: delete (destructive) sits on the left, separated by a divider from favorite and copy (the primary action, on the right). Let it float over scrolled content while the body reserves matching bottom space, so the last line never hides behind it.
-- Confirm deleting one record the same way as clearing all history, so no history action removes saved data in a single step.
+- Confirm deleting one record the same way as clearing all history, so no history action removes saved data in a single step. The confirmation offers a don't-ask-again option, and Settings › General's Confirm before deleting switch turns it back on, so the preference is never a one-way door.
 - Show sync state only for items captured on this machine. An item received from a paired device already arrived here, so it shows no sync status.
 - Show sync state as a compact chip in the preview metadata row, set beside the source device so the record's origin and its delivery read as one group: synced, partly synced, peer offline, or replaced. A partly synced item keeps the success visible instead of reading as a plain peer-offline failure. The chip costs no space while idle.
 - Open the sync chip's popover on hover: resting the pointer on the chip, or on the popover itself, keeps the delivery detail open so the pointer can move between them, and it closes once the pointer leaves both.
@@ -193,10 +193,21 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - History supports search focus, Up/Down, Home/End, Enter to copy, and Escape.
 - Tab order follows visual order: global navigation, page controls, content, actions.
 - Custom selected and disclosure controls expose `Selected` or `Expanded` state.
-- Dialogs trap focus, close with Escape, and restore focus to the opener.
+- Dialogs trap focus, close with Escape, and restore focus to the opener. The delete confirmation takes D or Y to confirm and N or Escape to cancel, and its buttons show only the keys that matter as keycaps (D on confirm, Esc on cancel) rather than listing every accepted key, so a keyboard user never has to reach for the mouse.
 - Use `c.Preferences()` for `ReduceMotion`, `HighContrast`, and `TextScale` behavior.
 - Maintain at least 4.5:1 contrast for normal text and 3:1 for meaningful icons and borders.
 - Disabled controls are semantically disabled, visually muted, and explained when scope matters.
+
+### Keyboard shortcuts
+
+- Cmd+1 / Cmd+2 / Cmd+3 switch to History, Devices, and Settings; Cmd+, opens Settings.
+- Cmd+K and Cmd+F focus the history search, expanding the sidebar first.
+- C / F / D on a selected record copy, favorite, and delete it; D opens the delete confirmation, where D or Y confirms and N or Escape cancels.
+- Cmd+Z undoes the most recent delete or unpair while its toast is still showing. On macOS the Edit menu's Undo item carries the shortcut and is enabled only while an undo is pending, so Cmd+Z still undoes text in a field when there is nothing else to undo.
+- Cmd+R refreshes the device list and Cmd+N opens the add-device dialog, both on the Devices page.
+- Cmd+Ctrl+S collapses or expands the sidebar (Ctrl+S on Windows and Linux, where Cmd and Ctrl are the same key).
+- Cmd+= / Cmd+- / Cmd+0 scale the interface; see Zoom.
+- Destructive actions that confirm through the dialog (clear history, unpair) keep Escape alone: a single confirm key is reserved for the delete action the user just asked for.
 
 ## Motion and feedback
 

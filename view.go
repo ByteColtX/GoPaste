@@ -92,6 +92,7 @@ func (a *application) view(c *ui.Context) {
 	theme := a.applyTheme(c)
 	a.globalShortcuts(c)
 	a.previewShortcuts(c)
+	a.deviceShortcuts(c)
 
 	ui.Column(c).Fill().Background(theme.Background).Children(func() {
 		ui.Row(c).Grow(1).FillWidth().MinHeight(0).Children(func() {
@@ -108,6 +109,7 @@ func (a *application) view(c *ui.Context) {
 	})
 	a.dangerousConfirmation(c, theme)
 	a.flushPendingToast(c)
+	a.flushPendingUndo(c)
 }
 
 // previewShortcuts 为预览区操作注册单键快捷键：C 复制、F 收藏、D 删除。它们只在
@@ -130,14 +132,24 @@ func (a *application) previewShortcuts(c *ui.Context) {
 	c.OnShortcut(0, ui.KeyD, func() { a.requestDeleteItem(c, item.ID) })
 }
 
-// requestDeleteItem 按“不再询问”偏好决定删除方式：已记住偏好就直接删除，
+// requestDeleteItem 按「删除前确认」偏好决定删除方式：偏好关闭就直接删除，
 // 否则先弹二次确认框。按钮点击与 D 快捷键共用这条路径。
 func (a *application) requestDeleteItem(c *ui.Context, id string) {
-	if a.suppressDeleteConfirmation {
+	if !a.confirmBeforeDelete {
 		a.deleteHistoryItem(c, id)
 		return
 	}
 	a.requestDangerousAction(dangerousActionDeleteItem, id)
+}
+
+// deviceShortcuts 为设备页的列表动作注册快捷键：Cmd+R 刷新、Cmd+N 新增设备。
+// 只在设备页生效，在历史页按下时不会撞上无反馈的隐藏动作。
+func (a *application) deviceShortcuts(c *ui.Context) {
+	if a.page != pageDevices {
+		return
+	}
+	c.OnShortcut(ui.Cmd, ui.KeyR, func() { a.refreshDevices(c) })
+	c.OnShortcut(ui.Cmd, ui.KeyN, a.openAddDeviceDialog)
 }
 
 // flushPendingToast 展示由回调产生的提示（例如撤销删除后的确认），只在下一次
@@ -148,6 +160,17 @@ func (a *application) flushPendingToast(c *ui.Context) {
 	}
 	c.Toast(a.pendingToast)
 	a.pendingToast = ""
+}
+
+// flushPendingUndo 消费 macOS 菜单排队的一次撤销。菜单回调拿不到构建帧的
+// ui.Context，无法直接关掉提示，所以先记一个标记，由下一帧在这里执行一次，
+// 与 flushPendingToast 同一套做法。
+func (a *application) flushPendingUndo(c *ui.Context) {
+	if !a.undoRequested {
+		return
+	}
+	a.undoRequested = false
+	a.undoLast(c)
 }
 
 // chromeHeight 返回窗口标题栏（macOS 红绿灯、Windows/Linux 窗口按钮）占用的高度。
@@ -199,6 +222,13 @@ func (a *application) globalShortcuts(c *ui.Context) {
 	c.OnShortcut(ui.Cmd|ui.Shift, ui.KeyEqual, func() { a.zoomIn() })
 	c.OnShortcut(ui.Cmd, ui.KeyMinus, func() { a.zoomOut() })
 	c.OnShortcut(ui.Cmd, ui.Key0, func() { a.resetZoom() })
+	// 撤销：删除或取消配对后，提示还开着的几秒内 Cmd+Z 与点击提示里的「撤销」等价。
+	// macOS 上 Cmd+Z 由编辑菜单的「撤销」项接管（见 runtime.installAppMenu），
+	// 这里供其他平台和没有菜单的构建使用。
+	c.OnShortcut(ui.Cmd, ui.KeyZ, func() { a.undoLast(c) })
+	// 侧栏展开/收起：Cmd+Ctrl+S 是 macOS 的「显示/隐藏边栏」惯例，其他平台上
+	// Cmd 与 Ctrl 同义，实际落到 Ctrl+S。
+	c.OnShortcut(ui.Cmd|ui.Ctrl, ui.KeyS, func() { a.filterRailOpen = !a.filterRailOpen })
 }
 
 // focusHistorySearch 在窗口级别响应搜索快捷键，使焦点位于预览区或其他区域时也能聚焦搜索框。
@@ -228,16 +258,22 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 	}
 
 	// 只有删除需要“不再询问”：勾选后本次确认即记住偏好，之后删除直接执行。
+	//
+	// 按键：D 与 Y 确认、N 取消；键帽只画 D 与 Esc，其余键照常生效但不显示，
+	// 免得按钮上挤满键帽。
 	dontAskLabel := ""
+	keys := dangerDialogKeys{cancel: []ui.Key{ui.KeyN}}
 	if action == dangerousActionDeleteItem {
 		dontAskLabel = a.t(msgDangerDontAskAgain)
+		keys.confirm = []ui.Key{ui.KeyD, ui.KeyY}
+		keys.confirmShown = ui.KeyD
 	}
 
-	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel, dontAskLabel, &a.dangerDontAskAgain) {
+	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel, dontAskLabel, &a.dangerDontAskAgain, keys) {
 		switch action {
 		case dangerousActionDeleteItem:
 			if a.dangerDontAskAgain {
-				a.suppressDeleteConfirmation = true
+				a.confirmBeforeDelete = false
 			}
 			a.deleteHistoryItem(c, a.pendingDangerousTargetID)
 		case dangerousActionUnpairDevice:
@@ -321,7 +357,8 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 }
 
 // sidebarNavigation 是侧栏最下方的全局导航，也就是主窗口的分区切换器：历史、
-// 设置、外观切换靠左，设备靠右。它不属于任何分区，切换分区时保持不动。
+// 设备、设置依次排列，外观切换在行尾。按钮顺序与 Cmd+1/2/3 的页面顺序一致，
+// 位置和快捷键读起来是同一件事。它不属于任何分区，切换分区时保持不动。
 //
 // 侧栏随分区切换内容，设备页与设置页不再显示筛选项，所以切换器必须自己带上
 // 「历史」入口，否则从这两页回到历史只剩快捷键。
@@ -341,8 +378,8 @@ func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
 	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), 0, 0).
 		Gap(spaceDIP(theme, navButtonGap)).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
 		a.filterRailNavButton(c, theme, "sidebar-history", pageHistory, icons.history, a.t(msgNavHistory))
-		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
 		a.filterRailNavButton(c, theme, "sidebar-devices", pageDevices, icons.devices, a.t(msgNavDevices))
+		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
 		// 第 5 个图标位暂时留空：占住一个按钮位，落地时布局不会跳动。
 		size := controlHeightSize(c, theme, compactHeight)
 		ui.Box(c.Key("sidebar-reserved-slot")).Size(size, size).Shrink(0)
@@ -606,7 +643,7 @@ func (a *application) filterItemButton(c *ui.Context, theme *ui.Theme, facet fil
 }
 
 // filterRailNavButton 是筛选栏底部的导航按钮：只有图标，文字放在提示与辅助
-// 技术标签里。设置在左、设备在右。历史记录是默认页面，由筛选栏本身直接呈现，
+// 技术标签里。按钮顺序与 Cmd+1/2/3 一致：历史、设备、设置。历史记录是默认页面，由筛选栏本身直接呈现，
 // 因此不再需要单独的历史入口。
 func (a *application) filterRailNavButton(c *ui.Context, theme *ui.Theme, key string, target page, icon *ui.SVG, label string) {
 	selected := a.page == target
