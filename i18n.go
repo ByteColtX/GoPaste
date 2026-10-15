@@ -95,6 +95,7 @@ const (
 	msgHistoryFilePreviewGone    messageKey = "history.filePreviewUnavailable"
 	msgHistoryFileCount          messageKey = "history.fileCount"
 	msgHistoryFileCountOne       messageKey = "history.fileCountOne"
+	msgHistoryFileMoreFormat     messageKey = "history.fileMoreFormat"
 	msgHistoryCopy               messageKey = "history.copy"
 	msgHistoryCopyFailed         messageKey = "history.copyFailed"
 	msgHistoryDelete             messageKey = "history.delete"
@@ -404,6 +405,7 @@ var simplifiedChineseCatalog = catalog{
 	msgHistoryFilePreviewGone:    "此文件没有可用的预览",
 	msgHistoryFileCount:          "%d 个文件",
 	msgHistoryFileCountOne:       "%d 个文件",
+	msgHistoryFileMoreFormat:     "另有 %d 个文件",
 	msgHistoryCopy:               "复制",
 	msgHistoryCopyFailed:         "复制失败",
 	msgHistoryDelete:             "删除",
@@ -694,6 +696,7 @@ var englishCatalog = catalog{
 	msgHistoryFilePreviewGone:    "No preview available for this file",
 	msgHistoryFileCount:          "%d files",
 	msgHistoryFileCountOne:       "%d file",
+	msgHistoryFileMoreFormat:     "%d more files",
 	msgHistoryCopy:               "Copy",
 	msgHistoryCopyFailed:         "Copy failed",
 	msgHistoryDelete:             "Delete",

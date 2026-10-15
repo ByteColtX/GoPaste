@@ -2,9 +2,11 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"strings"
 	"testing"
 	"time"
 
@@ -242,6 +244,138 @@ func TestFilePreviewNamesTheFirstOfSeveralFiles(t *testing.T) {
 	}
 	if hasExactText(texts, "second.png") {
 		t.Errorf("多文件预览不应把第二个文件当成主文件名，实际显示：%q", texts)
+	}
+}
+
+// TestTruncatePathMiddleKeepsBothEnds checks the shortening the clickable path
+// rows use: whole directory segments are dropped from the middle, so the root
+// and the file name both survive, and a path that already fits is left alone.
+func TestTruncatePathMiddleKeepsBothEnds(t *testing.T) {
+	const path = "~/Documents/GoPaste/design/reference/archive/quarterly-report.pdf"
+	var shortened, untouched, squeezed string
+	view := func(c *ui.Context) {
+		size := font(c.Theme(), fontCaption)
+		mono := func(value string) float32 {
+			width, _ := c.MeasureText(0, ui.Span{Text: value, Font: "monospace", Size: size})
+			return width
+		}
+		shortened = truncatePathMiddle(c, path, size, mono(path)-20)
+		untouched = truncatePathMiddle(c, path, size, mono(path)+1)
+		squeezed = truncatePathMiddle(c, path, size, mono("…/quarterly-report.pdf")-20)
+		ui.Text(c, "x")
+	}
+	ui.NewTester(view, defaultWindowWidth, 720)
+
+	if !strings.HasPrefix(shortened, "~/Documents/") {
+		t.Errorf("省略后应保留根路径，实际 %q", shortened)
+	}
+	if !strings.HasSuffix(shortened, "/quarterly-report.pdf") {
+		t.Errorf("省略后应保留文件名，实际 %q", shortened)
+	}
+	if !strings.Contains(shortened, "…/") {
+		t.Errorf("省略应以整段目录为单位，实际 %q", shortened)
+	}
+	if untouched != path {
+		t.Errorf("放得下的路径不应改动，实际 %q", untouched)
+	}
+	if squeezed == path || !strings.Contains(squeezed, "…") {
+		t.Errorf("连根路径都放不下时仍应省略，实际 %q", squeezed)
+	}
+}
+
+// recordingClipboard is a history.ClipboardWriter that records what a preview
+// action wrote, so a test can assert what copying a path produced.
+type recordingClipboard struct {
+	texts  []string
+	images [][]byte
+}
+
+func (r *recordingClipboard) WriteText(text string) { r.texts = append(r.texts, text) }
+
+func (r *recordingClipboard) WriteImage(png []byte) error {
+	r.images = append(r.images, png)
+	return nil
+}
+
+// longFilePath is longer than the list's text limit, so only the preview can
+// show it in full: the list row truncates it. That keeps the assertions below
+// about the preview from passing on the list row's text alone.
+const longFilePath = "~/Documents/GoPaste/design/reference/archive/quarterly-report-final-v3-2026-10-16-reviewed.docx"
+
+// TestFilePreviewShowsTheFullPath checks that a file preview names the file and
+// then shows its whole path, which is the payload a copied file actually
+// carries.
+func TestFilePreviewShowsTheFullPath(t *testing.T) {
+	app := fileApp(fileItem("file-report", longFilePath, 3482))
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
+	texts := tt.Texts()
+	if !hasExactText(texts, longFilePath) {
+		t.Errorf("文件预览应显示完整路径，实际显示：%q", texts)
+	}
+	if !hasExactText(texts, filetype.BaseName(longFilePath)) {
+		t.Errorf("文件预览应显示文件名，实际显示：%q", texts)
+	}
+}
+
+// TestFilePathClickCopiesThePath checks the click-to-copy affordance: clicking
+// the path writes exactly that path to the clipboard.
+func TestFilePathClickCopiesThePath(t *testing.T) {
+	app := fileApp(fileItem("file-report", longFilePath, 3482))
+	clipboard := &recordingClipboard{}
+	app.clipboard = clipboard
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
+	if err := tt.Click(longFilePath); err != nil {
+		t.Fatalf("点击路径失败: %v", err)
+	}
+	if len(clipboard.texts) != 1 || clipboard.texts[0] != longFilePath {
+		t.Errorf("点击路径后剪贴板内容 = %q，期望 [%q]", clipboard.texts, longFilePath)
+	}
+}
+
+// TestFilePathClickCopiesTheClickedPath checks a multi-file copy: every path is
+// its own clickable row, and clicking one copies that path alone.
+func TestFilePathClickCopiesTheClickedPath(t *testing.T) {
+	item := fileItem("file-many", "~/Desktop/first.png\n~/Desktop/second.png", 2048)
+	app := fileApp(item)
+	clipboard := &recordingClipboard{}
+	app.clipboard = clipboard
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
+	texts := tt.Texts()
+	for _, path := range []string{"~/Desktop/first.png", "~/Desktop/second.png"} {
+		if !hasExactText(texts, path) {
+			t.Errorf("多文件预览应逐条显示路径 %q，实际显示：%q", path, texts)
+		}
+	}
+	if err := tt.Click("~/Desktop/second.png"); err != nil {
+		t.Fatalf("点击第二条路径失败: %v", err)
+	}
+	if len(clipboard.texts) != 1 || clipboard.texts[0] != "~/Desktop/second.png" {
+		t.Errorf("点击第二条路径后剪贴板内容 = %q，期望 [%q]", clipboard.texts, "~/Desktop/second.png")
+	}
+}
+
+// TestFilePathListSummarizesTheRest checks the bound: a copy with more paths
+// than the preview lists shows the first ones and summarizes the remainder
+// instead of building a row per path every frame.
+func TestFilePathListSummarizesTheRest(t *testing.T) {
+	paths := make([]string, 0, filePathRowsLimit+2)
+	for index := 0; index < filePathRowsLimit+2; index++ {
+		paths = append(paths, fmt.Sprintf("~/Desktop/file-%02d.png", index))
+	}
+	app := fileApp(fileItem("file-many", strings.Join(paths, "\n"), 4096))
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
+	texts := tt.Texts()
+
+	if !hasExactText(texts, paths[0]) || !hasExactText(texts, paths[filePathRowsLimit-1]) {
+		t.Errorf("预览应列出前 %d 条路径，实际显示：%q", filePathRowsLimit, texts)
+	}
+	if hasExactText(texts, paths[filePathRowsLimit]) {
+		t.Errorf("超出上限的路径不应逐条渲染，实际显示：%q", texts)
+	}
+	if !hasExactText(texts, app.tf(msgHistoryFileMoreFormat, 2)) {
+		t.Errorf("预览应汇总剩余路径数量，实际显示：%q", texts)
 	}
 }
 

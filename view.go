@@ -1497,6 +1497,83 @@ func textWidth(c *ui.Context, value string, size float32, weight int) float32 {
 	return width
 }
 
+// truncatePathMiddle shortens a path to fit width, keeping both ends: the root
+// says where the file lives and the name says what it is. Whole directory
+// segments are dropped from the middle first, which is what makes the result
+// read as a path rather than a chopped string; only when even the root and the
+// name cannot fit does it fall back to cutting characters.
+//
+// It measures with the same monospace family the row renders with: a path is
+// drawn in monospace, which is wider than the proportional default, so
+// measuring with the default font would keep a string that then gets clipped
+// at the end, losing the file name the middle cut exists to preserve.
+func truncatePathMiddle(c *ui.Context, path string, size float32, width float32) string {
+	measure := func(value string) float32 {
+		measured, _ := c.MeasureText(0, ui.Span{Text: value, Font: "monospace", Size: size})
+		return measured
+	}
+	if width <= 0 || measure(path) <= width {
+		return path
+	}
+	// The file name must survive, so keep it and drop whole directory segments
+	// from the end of the prefix, which leaves the leading ones in place.
+	name := filetype.BaseName(path)
+	if name != "" && strings.HasSuffix(path, name) {
+		if dirs := pathDirs(strings.TrimSuffix(path, name)); len(dirs) > 0 {
+			for index := len(dirs) - 1; index >= 0; index-- {
+				candidate := strings.Join(dirs[:index], "") + "…/" + name
+				if measure(candidate) <= width {
+					return candidate
+				}
+			}
+		}
+	}
+	return truncateMiddleChars(measure, path, width)
+}
+
+// pathDirs splits a path prefix into its directory segments, each keeping the
+// separator that follows it, so joining a prefix reproduces the original text.
+func pathDirs(prefix string) []string {
+	var dirs []string
+	start := 0
+	for index, r := range prefix {
+		if r == '/' || r == '\\' {
+			dirs = append(dirs, prefix[start:index+1])
+			start = index + 1
+		}
+	}
+	if start < len(prefix) {
+		dirs = append(dirs, prefix[start:])
+	}
+	return dirs
+}
+
+// truncateMiddleChars cuts characters out of a path's middle when whole
+// segments do not fit, spending a third of the kept characters on the head so
+// the tail, which holds the file name, gets the larger share.
+func truncateMiddleChars(measure func(string) float32, path string, width float32) string {
+	const ellipsis = "…"
+	runes := []rune(path)
+	best := ""
+	low, high := 0, len(runes)
+	for low <= high {
+		keep := (low + high) / 2
+		head := keep / 3
+		tail := keep - head
+		candidate := string(runes[:head]) + ellipsis + string(runes[len(runes)-tail:])
+		if measure(candidate) <= width {
+			best = candidate
+			low = keep + 1
+		} else {
+			high = keep - 1
+		}
+	}
+	if best == "" {
+		return ellipsis
+	}
+	return best
+}
+
 func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item history.Item) {
 	content := ui.Scroll(c).Grow(1).MinHeight(0)
 	content.Children(func() {
@@ -1543,13 +1620,20 @@ func (a *application) imagePreview(c *ui.Context, theme *ui.Theme, image *histor
 	})
 }
 
-// filePreview renders a file item: a card naming the copied file, then the
-// preview the capture path materialised. An image file shows its picture, a
-// text-like file an excerpt, and a file with no payload keeps the naming card
-// plus a note, so the pane always says what the file is without pretending to
-// show content it does not have.
+// filePathRowsLimit bounds how many copied paths the preview lists. Selecting a
+// whole folder can carry hundreds of paths, and the preview builds one row per
+// path every frame, so past this bound the rest are summarized by a count.
+const filePathRowsLimit = 20
+
+// filePreview renders a file item: a card naming the copied file, the copied
+// path or paths as clickable rows, then the preview the capture path
+// materialised. An image file shows its picture, a text-like file an excerpt,
+// and a file with no payload keeps the naming card plus a note, so the pane
+// always says what the file is without pretending to show content it does not
+// have.
 func (a *application) filePreview(c *ui.Context, theme *ui.Theme, item history.Item) {
 	a.fileIdentityCard(c, theme, item)
+	a.filePathList(c, theme, item)
 	if preview := item.FilePreview; preview != nil {
 		if preview.Image != nil {
 			a.imagePreview(c, theme, preview.Image, a.filePreviewBitmap(item))
@@ -1563,6 +1647,88 @@ func (a *application) filePreview(c *ui.Context, theme *ui.Theme, item history.I
 		}
 	}
 	a.unavailablePreview(c, theme, a.t(msgHistoryFilePreviewGone))
+}
+
+// filePathList renders the copied paths as clickable rows. The full path is the
+// point of a copied file: it is what gets pasted into a terminal, an editor or
+// a chat, so the preview shows it in full rather than only the file name, and
+// clicking a row copies that path on its own.
+func (a *application) filePathList(c *ui.Context, theme *ui.Theme, item history.Item) {
+	paths := filePaths(item.Text)
+	if len(paths) == 0 {
+		return
+	}
+	shown := paths
+	if len(shown) > filePathRowsLimit {
+		shown = shown[:filePathRowsLimit]
+	}
+	ui.Column(c).FillWidth().Gap(space(theme, 0.5)).Children(func() {
+		for index, path := range shown {
+			a.filePathRow(c, theme, item, index, path)
+		}
+		if extra := len(paths) - len(shown); extra > 0 {
+			ui.Text(c, a.tf(msgHistoryFileMoreFormat, extra)).FontSize(font(theme, fontCaption)).
+				TextColor(secondaryText(theme)).Padding(0, space(theme, 2)).SingleLine()
+		}
+	})
+}
+
+// 文件路径行的几何：绘制与测量共用，因为路径要按可用宽度做中间省略，两处
+// 的数字必须一致。
+const (
+	filePathRowPadX  float32 = 2
+	filePathRowPadY  float32 = 1.5
+	filePathRowGap   float32 = 1.5
+	filePathIconSize float32 = 3
+	filePathBorder   float32 = 1
+)
+
+// filePathRow is one clickable path. The row is keyed by its index rather than
+// its path, so a path with separators or spaces cannot collide with another
+// row's key, and the accessible name stays the full path itself.
+func (a *application) filePathRow(c *ui.Context, theme *ui.Theme, item history.Item, index int, path string) {
+	row := ui.ButtonBase(c.Key(fmt.Sprintf("file-path-%s-%d", item.ID, index))).
+		FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, filePathRowGap)).
+		Padding(space(theme, filePathRowPadY), space(theme, filePathRowPadX)).
+		Radius(radius(theme, controlRadius)).Border(filePathBorder, borderColor(theme)).
+		Label(path).Role(ui.RoleButton).FocusRing(true).Transition(motionColors)
+	switch {
+	case row.Pressed():
+		row.Background(theme.SurfacePressed)
+	case row.Hovered():
+		row.Background(hoverFill(theme))
+	default:
+		row.Background(panelFill(theme))
+	}
+	// 行自身的占位：左右内边距、复制图标、图标与文字的间距、两侧描边，再留出
+	// 覆盖式滚动条的宽度，让省略后的文字不会被末尾裁掉而丢掉文件名。
+	textSize := font(theme, fontCaption)
+	pathWidth := a.previewContentWidth(c, theme) -
+		2*space(theme, filePathRowPadX) - space(theme, filePathIconSize) -
+		space(theme, filePathRowGap) - 2*filePathBorder - spaceDIP(theme, 8)
+	row.Children(func() {
+		ui.Icon(c, icons.copy).Size(space(theme, filePathIconSize), space(theme, filePathIconSize)).
+			Shrink(0).TextColor(secondaryText(theme))
+		ui.Text(c, truncatePathMiddle(c, path, textSize, pathWidth)).Grow(1).MinWidth(0).
+			Font("monospace").FontSize(textSize).TextColor(primaryText(theme)).SingleLine()
+	})
+	// 悬停提示给完整路径：行里显示的是中间省略后的版本，指针停留时能看到原样。
+	row.Tooltip(path)
+	if row.Clicked() {
+		a.copyFilePath(c, path)
+	}
+}
+
+// copyFilePath writes one copied path to the system clipboard as text. It is
+// the same payload the preview's copy action writes for a file item, narrowed
+// to the path the user clicked.
+func (a *application) copyFilePath(c *ui.Context, path string) {
+	if a.clipboard == nil {
+		c.Toast(a.t(msgHistoryCopyFailed))
+		return
+	}
+	a.clipboard.WriteText(path)
+	c.Toast(a.t(msgToastCopied))
 }
 
 // fileIdentityCard names a file item above its preview: the file's type icon
