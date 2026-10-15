@@ -22,6 +22,8 @@ import "context"
 //   - An item with no image and an item whose Image holds an empty PNG both
 //     load back with a nil Image, and an item with no deliveries loads back
 //     with nil Deliveries.
+//   - Text and HTML are stored verbatim and load back byte for byte, so a
+//     rich-text item keeps the markup beside its plain-text representation.
 //   - CreatedAt is stored with millisecond precision in UTC, so a loaded item
 //     compares equal in time but not necessarily in location or sub-millisecond
 //     offset. Kind, Sync and DeliveryState are stored as integers and are

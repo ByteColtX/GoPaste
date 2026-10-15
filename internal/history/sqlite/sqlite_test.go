@@ -128,6 +128,26 @@ func TestRoundTripStoresTextWithoutImage(t *testing.T) {
 	}
 }
 
+func TestRoundTripStoresRichTextMarkup(t *testing.T) {
+	repository := openMemory(t)
+	want := history.Item{
+		ID:        "rich-1",
+		Kind:      history.KindRichText,
+		Text:      "bold word",
+		HTML:      `<p><b>bold</b> word</p>`,
+		CreatedAt: time.UnixMilli(1_700_000_000_000).UTC(),
+	}
+	mustPut(t, repository, want)
+
+	got := mustLoad(t, repository)
+	if len(got) != 1 {
+		t.Fatalf("Load() returned %d items, want 1", len(got))
+	}
+	if !reflect.DeepEqual(normalized(got[0]), normalized(want)) {
+		t.Errorf("round trip lost the markup:\n got %#v\nwant %#v", normalized(got[0]), normalized(want))
+	}
+}
+
 func TestLoadOrdersNewestFirst(t *testing.T) {
 	repository := openMemory(t)
 	base := time.UnixMilli(1_700_000_000_000).UTC()
@@ -255,6 +275,82 @@ func TestOpenMigratesOnceAndReopensCleanly(t *testing.T) {
 		}
 		if err := repository.Close(); err != nil {
 			t.Fatalf("Close() attempt %d = %v", attempt+1, err)
+		}
+	}
+}
+
+func TestOpenMigratesVersionOneDatabase(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "v1.db")
+	ctx := context.Background()
+
+	// A database as the first schema step left it: no html column, so the
+	// markup a rich-text item carries has nowhere to go yet.
+	raw, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatalf("sql.Open() = %v", err)
+	}
+	if _, err := raw.ExecContext(ctx, `
+		CREATE TABLE history_items (
+			id               TEXT    PRIMARY KEY,
+			kind             INTEGER NOT NULL,
+			content          TEXT    NOT NULL DEFAULT '',
+			image_png        BLOB,
+			image_width      INTEGER NOT NULL DEFAULT 0,
+			image_height     INTEGER NOT NULL DEFAULT 0,
+			file_size        INTEGER NOT NULL DEFAULT 0,
+			source_device_id TEXT    NOT NULL DEFAULT '',
+			created_at_ms    INTEGER NOT NULL,
+			favorite         INTEGER NOT NULL DEFAULT 0,
+			sync_state       INTEGER NOT NULL DEFAULT 0
+		);
+		CREATE TABLE history_deliveries (
+			item_id   TEXT    NOT NULL REFERENCES history_items (id) ON DELETE CASCADE,
+			device_id TEXT    NOT NULL,
+			state     INTEGER NOT NULL,
+			position  INTEGER NOT NULL,
+			PRIMARY KEY (item_id, device_id)
+		);
+		INSERT INTO history_items (id, kind, content, created_at_ms)
+		VALUES ('legacy', 0, 'kept across the upgrade', 1700000000000);
+		PRAGMA user_version = 1;
+	`); err != nil {
+		t.Fatalf("seed a version 1 database: %v", err)
+	}
+	if err := raw.Close(); err != nil {
+		t.Fatalf("raw Close() = %v", err)
+	}
+
+	repository, err := sqlite.Open(ctx, path)
+	if err != nil {
+		t.Fatalf("Open() a version 1 database = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := repository.Close(); err != nil {
+			t.Errorf("Close() = %v", err)
+		}
+	})
+
+	got := mustLoad(t, repository)
+	if len(got) != 1 || got[0].ID != "legacy" || got[0].Text != "kept across the upgrade" {
+		t.Fatalf("Load() = %#v, want the row written before the upgrade", got)
+	}
+	if got[0].HTML != "" {
+		t.Errorf("legacy HTML = %q, want empty", got[0].HTML)
+	}
+
+	// The upgraded column has to be usable right away.
+	want := history.Item{
+		ID:        "rich-1",
+		Kind:      history.KindRichText,
+		Text:      "bold word",
+		HTML:      `<p><b>bold</b> word</p>`,
+		CreatedAt: time.UnixMilli(1_700_000_001_000).UTC(),
+	}
+	mustPut(t, repository, want)
+	got = mustLoad(t, repository)
+	for _, item := range got {
+		if item.ID == want.ID && item.HTML != want.HTML {
+			t.Errorf("HTML after the upgrade = %q, want %q", item.HTML, want.HTML)
 		}
 	}
 }

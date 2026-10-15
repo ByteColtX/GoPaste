@@ -61,6 +61,13 @@ CREATE TABLE history_deliveries (
 	PRIMARY KEY (item_id, device_id)
 );
 `,
+	// v2 adds the rich-text markup. The capture path files a rich-text copy as
+	// an item whose Text is the plain-text representation and whose HTML is the
+	// markup beside it, so a schema without this column would keep the copy but
+	// lose the formatting it was kept for.
+	`
+ALTER TABLE history_items ADD COLUMN html TEXT NOT NULL DEFAULT '';
+`,
 }
 
 // Repository is a history.Repository backed by a local SQLite database.
@@ -106,7 +113,7 @@ func Open(ctx context.Context, path string) (*Repository, error) {
 // Load implements history.Repository.
 func (r *Repository) Load(ctx context.Context) ([]history.Item, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, kind, content, image_png, image_width, image_height,
+		`SELECT id, kind, content, html, image_png, image_width, image_height,
 		        file_size, source_device_id, created_at_ms, favorite, sync_state
 		 FROM history_items
 		 ORDER BY created_at_ms DESC, rowid DESC`)
@@ -151,12 +158,13 @@ func (r *Repository) Put(ctx context.Context, items ...history.Item) error {
 
 	upsertItem, err := tx.PrepareContext(ctx, `
 		INSERT INTO history_items (
-			id, kind, content, image_png, image_width, image_height,
+			id, kind, content, html, image_png, image_width, image_height,
 			file_size, source_device_id, created_at_ms, favorite, sync_state
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
 			kind             = excluded.kind,
 			content          = excluded.content,
+			html             = excluded.html,
 			image_png        = excluded.image_png,
 			image_width      = excluded.image_width,
 			image_height     = excluded.image_height,
@@ -200,6 +208,7 @@ func (r *Repository) Put(ctx context.Context, items ...history.Item) error {
 			item.ID,
 			int(item.Kind),
 			item.Text,
+			item.HTML,
 			png,
 			width,
 			height,
@@ -396,6 +405,7 @@ func scanItem(rows *sql.Rows) (history.Item, error) {
 		&item.ID,
 		&kind,
 		&item.Text,
+		&item.HTML,
 		&png,
 		&width,
 		&height,
