@@ -345,17 +345,26 @@ func dangerConfirmDialog(
 			}
 			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, 2)).Children(func() {
 				cancelLabel := l.text(msgDangerCancel)
-				cancel := neutralButton(c, theme, "danger-confirm-cancel", cancelLabel)
+				// 取消与确认按钮各自带上可用按键的键帽，与预览操作条同一套提示。
+				cancel := neutralButton(c, theme, "danger-confirm-cancel", cancelLabel).
+					Gap(space(theme, 1))
 				cancel.Children(func() {
 					ui.Text(c, cancelLabel).FontSize(font(theme, fontControl)).SingleLine()
+					keycap(c, theme, shortcutKeyLabel(ui.KeyEscape), primaryText(theme))
 				})
 				if cancel.Clicked() {
 					*open = false
 				}
 
-				confirm := dangerConfirmButton(c, theme, "danger-confirm-submit", confirmLabel)
+				confirm := dangerConfirmButton(c, theme, "danger-confirm-submit", confirmLabel).
+					Gap(space(theme, 1))
 				confirm.Children(func() {
 					ui.Text(c, confirmLabel).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+					for _, key := range confirmKeys {
+						if label := shortcutKeyLabel(key); label != "" {
+							keycap(c, theme, label, theme.AccentText)
+						}
+					}
 				})
 				if confirm.Clicked() {
 					confirmed = true
@@ -569,6 +578,20 @@ func listRow(
 func listRowTile(c *ui.Context, theme *ui.Theme, background ui.Color, body func()) ui.Element {
 	return ui.Box(c).Size(space(theme, listRowTileSize), space(theme, listRowTileSize)).Shrink(0).
 		Radius(radius(theme, controlRadius)).Background(background).Center().Children(body)
+}
+
+// shortcutKeyLabel 返回单键快捷键在键帽里的显示文本：字母与数字取键面字符，
+// Escape 这类按键取它自己的名字。返回空串表示这个键没有合适的键帽。
+func shortcutKeyLabel(key ui.Key) string {
+	switch {
+	case key >= ui.KeyA && key <= ui.KeyZ:
+		return string(rune('A' + (key - ui.KeyA)))
+	case key >= ui.Key0 && key <= ui.Key9:
+		return string(rune('0' + (key - ui.Key0)))
+	case key == ui.KeyEscape:
+		return "Esc"
+	}
+	return ""
 }
 
 // keycap 渲染单键快捷键提示：小圆角方块内一个字母，跟在按钮文字之后。fg 取按钮

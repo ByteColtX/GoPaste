@@ -18,6 +18,65 @@ func historyIDs(app *application) []string {
 	return ids
 }
 
+// countText 报告一组文本里恰好等于 want 的个数。
+func countText(texts []string, want string) int {
+	count := 0
+	for _, text := range texts {
+		if text == want {
+			count++
+		}
+	}
+	return count
+}
+
+// TestShortcutKeyLabel 检查键帽文案：字母与数字取键面字符，Escape 取自己的名字。
+func TestShortcutKeyLabel(t *testing.T) {
+	cases := []struct {
+		key  ui.Key
+		want string
+	}{
+		{ui.KeyD, "D"},
+		{ui.KeyY, "Y"},
+		{ui.KeyZ, "Z"},
+		{ui.Key0, "0"},
+		{ui.Key9, "9"},
+		{ui.KeyEscape, "Esc"},
+		{ui.KeyEnter, ""},
+	}
+	for _, tc := range cases {
+		if got := shortcutKeyLabel(tc.key); got != tc.want {
+			t.Errorf("shortcutKeyLabel(%v) = %q，期望 %q", tc.key, got, tc.want)
+		}
+	}
+}
+
+// TestDeleteConfirmationShowsShortcutHints 检查二次确认框把可用按键画在按钮上：
+// 确认按钮显示 D 与 Y，取消按钮显示 Esc。预览操作条上本来就有个 D 键帽，所以
+// D 在打开对话框后应从一个变成两个。
+func TestDeleteConfirmationShowsShortcutHints(t *testing.T) {
+	app := previewApp("")
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	if got := countText(tt.Texts(), "D"); got != 1 {
+		t.Fatalf("预览操作条应有一个 D 键帽，实际 %d 个", got)
+	}
+
+	tt.Key(0, ui.KeyD)
+	if !app.confirmDangerousAction {
+		t.Fatalf("按 D 后应打开删除确认框，实际显示：%q", tt.Texts())
+	}
+
+	texts := tt.Texts()
+	if got := countText(texts, "D"); got != 2 {
+		t.Errorf("确认框应再显示一个 D 键帽，实际共 %d 个", got)
+	}
+	if got := countText(texts, "Y"); got != 1 {
+		t.Errorf("确认框应显示一个 Y 键帽，实际 %d 个", got)
+	}
+	if got := countText(texts, "Esc"); got != 1 {
+		t.Errorf("确认框应显示一个 Esc 键帽，实际 %d 个", got)
+	}
+}
+
 // TestDeleteConfirmationAcceptsConfirmKeys 检查删除二次确认框接受 D 与 Y：两者
 // 都应执行删除并关闭对话框，而不是只让确认按钮可点。
 func TestDeleteConfirmationAcceptsConfirmKeys(t *testing.T) {

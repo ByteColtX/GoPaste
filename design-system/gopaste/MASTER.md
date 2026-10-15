@@ -193,7 +193,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - History supports search focus, Up/Down, Home/End, Enter to copy, and Escape.
 - Tab order follows visual order: global navigation, page controls, content, actions.
 - Custom selected and disclosure controls expose `Selected` or `Expanded` state.
-- Dialogs trap focus, close with Escape, and restore focus to the opener. The delete confirmation also takes D or Y to confirm, so a keyboard user never has to reach for the mouse.
+- Dialogs trap focus, close with Escape, and restore focus to the opener. The delete confirmation takes D or Y to confirm, and both buttons carry the keys they accept as keycaps (D and Y on confirm, Esc on cancel), so a keyboard user never has to reach for the mouse.
 - Use `c.Preferences()` for `ReduceMotion`, `HighContrast`, and `TextScale` behavior.
 - Maintain at least 4.5:1 contrast for normal text and 3:1 for meaningful icons and borders.
 - Disabled controls are semantically disabled, visually muted, and explained when scope matters.
