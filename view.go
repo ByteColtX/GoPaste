@@ -257,15 +257,18 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 	}
 
 	// 只有删除需要“不再询问”：勾选后本次确认即记住偏好，之后删除直接执行。
+	//
+	// 按键：D 与 Y 确认、N 取消；键帽只画 D 与 Esc，其余键照常生效但不显示，
+	// 免得按钮上挤满键帽。
 	dontAskLabel := ""
-	confirmKeys := []ui.Key(nil)
+	keys := dangerDialogKeys{cancel: []ui.Key{ui.KeyN}}
 	if action == dangerousActionDeleteItem {
 		dontAskLabel = a.t(msgDangerDontAskAgain)
-		// D 是删除按钮上的键帽，Y 是「Yes」的习惯键位，两个都能确认。
-		confirmKeys = []ui.Key{ui.KeyD, ui.KeyY}
+		keys.confirm = []ui.Key{ui.KeyD, ui.KeyY}
+		keys.confirmShown = ui.KeyD
 	}
 
-	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel, dontAskLabel, &a.dangerDontAskAgain, confirmKeys...) {
+	if dangerConfirmDialog(c, theme, a.l10n(), &a.confirmDangerousAction, title, message, confirmLabel, dontAskLabel, &a.dangerDontAskAgain, keys) {
 		switch action {
 		case dangerousActionDeleteItem:
 			if a.dangerDontAskAgain {

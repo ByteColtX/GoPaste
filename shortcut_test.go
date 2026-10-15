@@ -50,9 +50,9 @@ func TestShortcutKeyLabel(t *testing.T) {
 	}
 }
 
-// TestDeleteConfirmationShowsShortcutHints 检查二次确认框把可用按键画在按钮上：
-// 确认按钮显示 D 与 Y，取消按钮显示 Esc。预览操作条上本来就有个 D 键帽，所以
-// D 在打开对话框后应从一个变成两个。
+// TestDeleteConfirmationShowsShortcutHints 检查二次确认框只画该画的键帽：确认
+// 按钮显示 D，取消按钮显示 Esc。Y 与 N 照常生效但不显示。预览操作条上本来就
+// 有个 D 键帽，所以 D 在打开对话框后应从一个变成两个。
 func TestDeleteConfirmationShowsShortcutHints(t *testing.T) {
 	app := previewApp("")
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
@@ -69,11 +69,13 @@ func TestDeleteConfirmationShowsShortcutHints(t *testing.T) {
 	if got := countText(texts, "D"); got != 2 {
 		t.Errorf("确认框应再显示一个 D 键帽，实际共 %d 个", got)
 	}
-	if got := countText(texts, "Y"); got != 1 {
-		t.Errorf("确认框应显示一个 Y 键帽，实际 %d 个", got)
-	}
 	if got := countText(texts, "Esc"); got != 1 {
-		t.Errorf("确认框应显示一个 Esc 键帽，实际 %d 个", got)
+		t.Errorf("取消按钮应显示一个 Esc 键帽，实际 %d 个", got)
+	}
+	for _, hidden := range []string{"Y", "N"} {
+		if got := countText(texts, hidden); got != 0 {
+			t.Errorf("未画键帽的按键 %q 不应出现，实际 %d 个", hidden, got)
+		}
 	}
 }
 
@@ -121,6 +123,26 @@ func TestDeleteConfirmationEscapeCancels(t *testing.T) {
 	tt.Key(0, ui.KeyEscape)
 	if app.confirmDangerousAction {
 		t.Error("Escape 应关闭确认框")
+	}
+	if got := len(app.history.Snapshot(app.historyQuery()).Items); got != 1 {
+		t.Errorf("取消后应保留 1 条记录，实际 %d 条", got)
+	}
+}
+
+// TestDeleteConfirmationAcceptsCancelKey 检查取消按钮也接受 N：与 Escape 一样只
+// 关闭确认框，不删除记录。
+func TestDeleteConfirmationAcceptsCancelKey(t *testing.T) {
+	app := previewApp("")
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+
+	tt.Key(0, ui.KeyD)
+	if !app.confirmDangerousAction {
+		t.Fatal("按 D 后应打开删除确认框")
+	}
+
+	tt.Key(0, ui.KeyN)
+	if app.confirmDangerousAction {
+		t.Error("N 应关闭确认框")
 	}
 	if got := len(app.history.Snapshot(app.historyQuery()).Items); got != 1 {
 		t.Errorf("取消后应保留 1 条记录，实际 %d 条", got)
