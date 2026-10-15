@@ -2081,9 +2081,17 @@ func (a *application) historySource(c *ui.Context, theme *ui.Theme, item history
 	})
 }
 
+// historyListText is the one-line title of a list row. An image names its
+// resolution, a file names the copied file itself, and everything else shows
+// its text. A file shows only its own name: a path is long enough to crowd the
+// row, and it already has a home in the preview, where it is shown in full and
+// can be copied.
 func (a *application) historyListText(item history.Item) string {
 	if item.Kind == kindImage {
 		return a.historyImageLabel(item)
+	}
+	if item.Kind == kindFile {
+		return a.fileDisplayName(item)
 	}
 	content := strings.TrimSpace(item.Text)
 	if content == "" {

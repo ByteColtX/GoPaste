@@ -317,6 +317,18 @@ func TestFilePreviewShowsTheFullPath(t *testing.T) {
 	}
 }
 
+// TestHistoryListShowsOnlyTheFileName checks the list row for a file: it names
+// the file itself, never the path, which the preview shows in full.
+func TestHistoryListShowsOnlyTheFileName(t *testing.T) {
+	app := newApplication()
+	if got, want := app.historyListText(fileItem("file-report", longFilePath, 3482)), filetype.BaseName(longFilePath); got != want {
+		t.Errorf("列表行标题 = %q，期望文件名 %q", got, want)
+	}
+	if got, want := app.historyListText(fileItem("file-many", "~/Desktop/first.png\n~/Desktop/second.png", 2048)), "first.png"; got != want {
+		t.Errorf("多文件列表行标题 = %q，期望第一个文件名 %q", got, want)
+	}
+}
+
 // TestFilePathClickCopiesThePath checks the click-to-copy affordance: clicking
 // the path writes exactly that path to the clipboard.
 func TestFilePathClickCopiesThePath(t *testing.T) {
