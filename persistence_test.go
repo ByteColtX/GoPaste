@@ -12,6 +12,8 @@ import (
 	"gopaste/internal/capture"
 	"gopaste/internal/history"
 	"gopaste/internal/history/sqlite"
+
+	"github.com/egoist/mygo/ui"
 )
 
 // recordingRepository 记录写操作的顺序，用来验证写队列串行且保序。
@@ -295,6 +297,42 @@ func TestHistoryPersistenceRoundTripsThroughSQLite(t *testing.T) {
 	}
 	if len(got.Deliveries) != 1 || got.Deliveries[0].DeviceID != "preview-mac" || got.Deliveries[0].State != deliveryReceived {
 		t.Errorf("读回的投递记录 = %+v，期望一条 preview-mac/received", got.Deliveries)
+	}
+}
+
+// TestHistoryLoadedFromTheRepositoryRenders 从仓库写到界面走一遍：数据库里的记录
+// 装载进 Store 之后真的出现在历史列表里，空状态随之消失。
+func TestHistoryLoadedFromTheRepositoryRenders(t *testing.T) {
+	const text = "预览用的文本记录"
+
+	ctx := context.Background()
+	repository, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "history.db"))
+	if err != nil {
+		t.Fatalf("打开仓库出错: %v", err)
+	}
+	item, ok := capture.Snapshot{Kind: kindText, Text: text, At: time.Now()}.Item()
+	if !ok {
+		t.Fatal("读数没有生成记录")
+	}
+	if err := repository.Put(ctx, item); err != nil {
+		t.Fatalf("写入记录出错: %v", err)
+	}
+	items, err := repository.Load(ctx)
+	if err != nil {
+		t.Fatalf("读取记录出错: %v", err)
+	}
+	_ = repository.Close()
+
+	app := newApplication()
+	app.installHistory(items, nil)
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	tt.Frame()
+
+	if !tt.HasText(text) {
+		t.Errorf("列表里没有装载的记录 %q，实际显示：%q", text, tt.Texts())
+	}
+	if tt.HasText(app.t(msgHistoryEmptyFirstTitle)) {
+		t.Error("装载之后仍然显示空状态")
 	}
 }
 
