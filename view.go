@@ -356,7 +356,8 @@ func (a *application) filterRail(c *ui.Context, theme *ui.Theme) {
 }
 
 // sidebarNavigation 是侧栏最下方的全局导航，也就是主窗口的分区切换器：历史、
-// 设置、外观切换靠左，设备靠右。它不属于任何分区，切换分区时保持不动。
+// 设备、设置依次排列，外观切换在行尾。按钮顺序与 Cmd+1/2/3 的页面顺序一致，
+// 位置和快捷键读起来是同一件事。它不属于任何分区，切换分区时保持不动。
 //
 // 侧栏随分区切换内容，设备页与设置页不再显示筛选项，所以切换器必须自己带上
 // 「历史」入口，否则从这两页回到历史只剩快捷键。
@@ -376,8 +377,8 @@ func (a *application) sidebarNavigation(c *ui.Context, theme *ui.Theme) {
 	ui.Row(c).FillWidth().Shrink(0).Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), 0, 0).
 		Gap(spaceDIP(theme, navButtonGap)).Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
 		a.filterRailNavButton(c, theme, "sidebar-history", pageHistory, icons.history, a.t(msgNavHistory))
-		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
 		a.filterRailNavButton(c, theme, "sidebar-devices", pageDevices, icons.devices, a.t(msgNavDevices))
+		a.filterRailNavButton(c, theme, "sidebar-settings", pageSettings, icons.settings, a.t(msgNavSettings))
 		// 第 5 个图标位暂时留空：占住一个按钮位，落地时布局不会跳动。
 		size := controlHeightSize(c, theme, compactHeight)
 		ui.Box(c.Key("sidebar-reserved-slot")).Size(size, size).Shrink(0)
@@ -641,7 +642,7 @@ func (a *application) filterItemButton(c *ui.Context, theme *ui.Theme, facet fil
 }
 
 // filterRailNavButton 是筛选栏底部的导航按钮：只有图标，文字放在提示与辅助
-// 技术标签里。设置在左、设备在右。历史记录是默认页面，由筛选栏本身直接呈现，
+// 技术标签里。按钮顺序与 Cmd+1/2/3 一致：历史、设备、设置。历史记录是默认页面，由筛选栏本身直接呈现，
 // 因此不再需要单独的历史入口。
 func (a *application) filterRailNavButton(c *ui.Context, theme *ui.Theme, key string, target page, icon *ui.SVG, label string) {
 	selected := a.page == target
