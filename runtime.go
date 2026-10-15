@@ -167,17 +167,14 @@ func (r *applicationRuntime) installAppMenu() {
 		},
 	}
 	// 刷新只在设备页有可见反馈（侧栏的设备列表与转圈图标），所以离开设备页即
-	// 置灰，与窗口快捷键的作用范围一致。菜单回调没有 ui.Context，提示排队到
-	// 下一帧。
+	// 置灰，与窗口快捷键的作用范围一致。
 	r.viewRefreshItem = &mygo.MenuItem{
 		ID:          "view-refresh-devices",
 		Label:       r.app.t(msgDevicesRefresh),
 		Accelerator: "Cmd+R",
 		Disabled:    r.app.page != pageDevices,
 		Click: func(*mygo.MenuItem, *mygo.Window) {
-			if message := r.app.startDeviceRefresh(); message != "" {
-				r.app.pendingToast = message
-			}
+			r.app.requestDeviceRefresh()
 			r.invalidate()
 		},
 	}

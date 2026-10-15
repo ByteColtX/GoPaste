@@ -79,6 +79,14 @@ func (a *application) refreshDevices(c *ui.Context) {
 	}
 }
 
+// requestDeviceRefresh 由 macOS 菜单项调用：菜单回调没有构建帧的 ui.Context，
+// 无法直接提示，所以把文案排队到下一帧，与撤销的排队同一套做法。
+func (a *application) requestDeviceRefresh() {
+	if message := a.startDeviceRefresh(); message != "" {
+		a.pendingToast = message
+	}
+}
+
 // deviceRefreshSpinning 报告刷新按钮是否该转圈：发现仍在进行，或者上一次点击的
 // 最短转圈时间还没走完。后者让后端返回得再快，点击也看得见反馈。
 func (a *application) deviceRefreshSpinning() bool {
