@@ -311,7 +311,8 @@ func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.E
 	return button
 }
 
-// dangerConfirmDialog 提供统一的危险操作二次确认界面。
+// dangerConfirmDialog 渲染危险操作的二次确认框，并在打开期间为 confirmKeys
+// 注册覆盖层快捷键（delete 用 D 与 Y）。Escape 由 Modal 自己处理：关闭即取消。
 func dangerConfirmDialog(
 	c *ui.Context,
 	theme *ui.Theme,
@@ -322,13 +323,14 @@ func dangerConfirmDialog(
 	confirmLabel string,
 	dontAskLabel string,
 	dontAsk *bool,
+	confirmKeys ...ui.Key,
 ) bool {
 	if !*open {
 		return false
 	}
 
 	confirmed := false
-	ui.Modal(c, open, func() {
+	panel := ui.Modal(c, open, func() {
 		ui.Column(c).Width(440).Shrink(0).
 			Padding(space(theme, 5), space(theme, 5)).Gap(space(theme, 3)).
 			Radius(radius(theme, cardRadius)).Background(theme.Background).
@@ -362,6 +364,15 @@ func dangerConfirmDialog(
 			})
 		})
 	})
+
+	// 覆盖层快捷键在对话框子元素建完后登记：焦点落在「不再询问」之类的控件上时，
+	// D 与 Y 仍能确认。确认与点击确认按钮走同一条路径，*open 一起落下。
+	for _, key := range confirmKeys {
+		if panel.OverlayShortcut(0, key) {
+			confirmed = true
+			*open = false
+		}
+	}
 
 	return confirmed
 }

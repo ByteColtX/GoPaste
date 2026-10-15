@@ -235,6 +235,7 @@ const (
 	msgSettingsZoomIn                messageKey = "settings.zoomIn"
 	msgSettingsZoomReset             messageKey = "settings.zoomReset"
 	msgMenuView                      messageKey = "menu.view"
+	msgMenuUndo                      messageKey = "menu.undo"
 	msgMenuZoomIn                    messageKey = "menu.zoomIn"
 	msgMenuZoomOut                   messageKey = "menu.zoomOut"
 	msgMenuZoomReset                 messageKey = "menu.zoomReset"
@@ -487,6 +488,7 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsZoomIn:                "放大",
 	msgSettingsZoomReset:             "实际大小",
 	msgMenuView:                      "视图",
+	msgMenuUndo:                      "撤销",
 	msgMenuZoomIn:                    "放大",
 	msgMenuZoomOut:                   "缩小",
 	msgMenuZoomReset:                 "实际大小",
@@ -731,6 +733,7 @@ var englishCatalog = catalog{
 	msgSettingsZoomIn:                "Zoom in",
 	msgSettingsZoomReset:             "Actual size",
 	msgMenuView:                      "View",
+	msgMenuUndo:                      "Undo",
 	msgMenuZoomIn:                    "Zoom in",
 	msgMenuZoomOut:                   "Zoom out",
 	msgMenuZoomReset:                 "Actual size",

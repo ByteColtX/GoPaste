@@ -29,8 +29,11 @@ type applicationRuntime struct {
 	// 只改标签。
 	viewMenu      *mygo.MenuItem
 	viewZoomItems map[*mygo.MenuItem]messageKey
-	tray          *systemTray
-	quitting      bool
+	// editUndo 是编辑菜单里的「撤销」项。GoPaste 自己的撤销优先于输入框的文本
+	// 撤销，没有可撤销的操作时置灰，Cmd+Z 于是落回输入框自身。
+	editUndo *mygo.MenuItem
+	tray     *systemTray
+	quitting bool
 }
 
 // mygoClipboardWriter is the production adapter for history.Store's local
@@ -69,6 +72,7 @@ func (r *applicationRuntime) ready() {
 	r.app.onSyncStateChanged = r.syncStateChanged
 	r.app.onLanguageChanged = r.languageChanged
 	r.app.onDevicesChanged = r.devicesChanged
+	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
 	r.app.clipboard = mygoClipboardWriter{}
@@ -155,6 +159,34 @@ func (r *applicationRuntime) installAppMenu() {
 		zoomOut:   msgMenuZoomOut,
 		zoomReset: msgMenuZoomReset,
 	}
+	// 编辑菜单自己搭，只为把「撤销」换成 GoPaste 自己的撤销：默认的 RoleUndo 走
+	// 响应链，只认得输入框里的文本撤销，会先把 Cmd+Z 吃掉。其余项沿用系统角色，
+	// 剪贴板、选择与重做行为不变（系统朗读子菜单不适用于本应用，故不再列出）。
+	r.editUndo = &mygo.MenuItem{
+		ID:          "edit-undo",
+		Label:       r.app.t(msgMenuUndo),
+		Accelerator: "Cmd+Z",
+		Disabled:    true,
+		Click: func(*mygo.MenuItem, *mygo.Window) {
+			r.app.requestUndo()
+			r.invalidate()
+		},
+	}
+	editMenu := &mygo.MenuItem{
+		Role: mygo.RoleEditMenu,
+		Submenu: []*mygo.MenuItem{
+			r.editUndo,
+			{Role: mygo.RoleRedo},
+			mygo.Separator(),
+			{Role: mygo.RoleCut},
+			{Role: mygo.RoleCopy},
+			{Role: mygo.RolePaste},
+			{Role: mygo.RolePasteAndMatchStyle},
+			{Role: mygo.RoleDelete},
+			mygo.Separator(),
+			{Role: mygo.RoleSelectAll},
+		},
+	}
 	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
 		{Role: mygo.RoleAppMenu, Submenu: []*mygo.MenuItem{
 			{Role: mygo.RoleAbout},
@@ -170,7 +202,7 @@ func (r *applicationRuntime) installAppMenu() {
 			{Role: mygo.RoleQuit},
 		}},
 		{Role: mygo.RoleFileMenu},
-		{Role: mygo.RoleEditMenu},
+		editMenu,
 		r.viewMenu,
 		{Role: mygo.RoleWindowMenu},
 	}))
@@ -242,9 +274,21 @@ func (r *applicationRuntime) languageChanged() {
 	for item, key := range r.viewZoomItems {
 		item.SetLabel(r.app.t(key))
 	}
+	if r.editUndo != nil {
+		r.editUndo.SetLabel(r.app.t(msgMenuUndo))
+	}
 	if r.window != nil {
 		r.window.Invalidate()
 	}
+}
+
+// undoAvailabilityChanged 让编辑菜单里的「撤销」跟着撤销栈启用或置灰：置灰时
+// Cmd+Z 没有菜单项接手，会落回窗口，输入框仍能自己撤销文本。
+func (r *applicationRuntime) undoAvailabilityChanged() {
+	if r.editUndo == nil {
+		return
+	}
+	r.editUndo.SetEnabled(len(r.app.pendingUndos) > 0)
 }
 
 // devicesChanged 在已配对设备增删后重建托盘菜单，让「设备同步」子菜单跟上列表。

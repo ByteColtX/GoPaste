@@ -55,13 +55,18 @@ func localPlatformName() string {
 	}
 }
 
-// searchShortcutLabel 返回聚焦搜索框的快捷键显示文本，
-// macOS 使用 Command 符号，其他平台使用 Control 名称。
-func searchShortcutLabel() string {
+// commandShortcutLabel 返回带平台修饰键的快捷键显示文本：macOS 用 ⌘，其他平台
+// 用 Ctrl+，让提示与系统习惯一致。
+func commandShortcutLabel(key string) string {
 	if runtime.GOOS == "darwin" {
-		return "⌘K"
+		return "⌘" + key
 	}
-	return "Ctrl+K"
+	return "Ctrl+" + key
+}
+
+// searchShortcutLabel 返回聚焦搜索框的快捷键显示文本。
+func searchShortcutLabel() string {
+	return commandShortcutLabel("K")
 }
 
 func truncateSingleLine(value string, limit int) string {
@@ -247,6 +252,89 @@ func (a *application) executeDangerousAction(action dangerousAction, targetID st
 // undoWindow 是危险操作后可撤销的时间窗口：提示在这么久之后关闭，撤销机会随之结束。
 const undoWindow = 5 * time.Second
 
+// pendingUndo 是一次限时撤销：restore 放回被移除的内容，toastID 指向提供「撤销」
+// 按钮的提示。提示一关（超时、点了撤销、或 Cmd+Z 已经撤销过），这次机会就作废。
+// 撤销栈按操作先后排列，栈顶是最近一次，Cmd+Z 因此撤销最近一次操作。
+type pendingUndo struct {
+	toastID string
+	restore func()
+}
+
+// addUndoToast 显示带「撤销」按钮的限时提示，并把这次撤销压入栈顶。提示按钮与
+// Cmd+Z 都经 takePendingUndo 取用同一条恢复路径，因此不会重复恢复。
+//
+// 提示 ID 由 AddToast 逐次生成，快速连续操作时各自的撤销互不覆盖。
+func (a *application) addUndoToast(c *ui.Context, title string, restore func()) {
+	var toastID string
+	toastID = c.AddToast(ui.Toast{
+		Title:   title,
+		Timeout: undoWindow,
+		// 按钮上带着快捷键，与预览操作条的键帽同一套做法，撤销因此不必先发现。
+		Action:   shortcutHint(a.t(msgToastUndo), commandShortcutLabel("Z")),
+		OnAction: func() { a.undoByToast(toastID) },
+		OnClose:  func() { a.dropPendingUndo(toastID) },
+	})
+	a.pendingUndos = append(a.pendingUndos, pendingUndo{toastID: toastID, restore: restore})
+	a.undoAvailabilityChanged()
+}
+
+// undoByToast 是提示里「撤销」按钮触发的恢复。它先取出机会再恢复，随后提示关闭
+// 触发的 dropPendingUndo 找不到它，不会重复处理。
+func (a *application) undoByToast(toastID string) {
+	entry, ok := a.takePendingUndo(toastID)
+	if !ok {
+		return
+	}
+	entry.restore()
+}
+
+// undoLast 撤销最近一次仍在窗口内的操作，并关掉对应的提示；没有可撤销的操作时
+// 什么都不做。窗口快捷键与 macOS 菜单项都走这里。
+func (a *application) undoLast(c *ui.Context) {
+	if len(a.pendingUndos) == 0 {
+		return
+	}
+	toastID := a.pendingUndos[len(a.pendingUndos)-1].toastID
+	entry, ok := a.takePendingUndo(toastID)
+	if !ok {
+		return
+	}
+	c.CloseToast(toastID)
+	entry.restore()
+}
+
+// takePendingUndo 取出并移除一条撤销机会，同时通知可用性变化。
+func (a *application) takePendingUndo(toastID string) (pendingUndo, bool) {
+	for index := range a.pendingUndos {
+		if a.pendingUndos[index].toastID != toastID {
+			continue
+		}
+		entry := a.pendingUndos[index]
+		a.pendingUndos = append(a.pendingUndos[:index], a.pendingUndos[index+1:]...)
+		a.undoAvailabilityChanged()
+		return entry, true
+	}
+	return pendingUndo{}, false
+}
+
+// dropPendingUndo 在提示关闭后作废对应的撤销机会。
+func (a *application) dropPendingUndo(toastID string) {
+	a.takePendingUndo(toastID)
+}
+
+// requestUndo 由 macOS 的编辑菜单调用：菜单回调不在构建帧里，拿不到 ui.Context，
+// 因此只排队一次撤销，交给下一帧的 flushPendingUndo 执行。
+func (a *application) requestUndo() {
+	a.undoRequested = true
+}
+
+// undoAvailabilityChanged 通知外部撤销机会的有无发生了变化。
+func (a *application) undoAvailabilityChanged() {
+	if a.onUndoAvailabilityChanged != nil {
+		a.onUndoAvailabilityChanged()
+	}
+}
+
 // deleteHistoryItem 删除一条记录，并弹出限时可撤销的提示。撤销会把记录放回原
 // 有顺序并重新选中；超过 undoWindow 未撤销，删除即成为最终结果。
 func (a *application) deleteHistoryItem(c *ui.Context, id string) {
@@ -258,13 +346,7 @@ func (a *application) deleteHistoryItem(c *ui.Context, id string) {
 		return
 	}
 	delete(a.historyBitmaps, id)
-	// 每次删除使用独立的 toast ID，快速连续删除时各自的撤销互不覆盖。
-	c.AddToast(ui.Toast{
-		Title:    a.t(msgToastDeleted),
-		Timeout:  undoWindow,
-		Action:   a.t(msgToastUndo),
-		OnAction: func() { a.restoreHistoryItem(item) },
-	})
+	a.addUndoToast(c, a.t(msgToastDeleted), func() { a.restoreHistoryItem(item) })
 }
 
 // restoreHistoryItem 把撤销窗口内删除的记录放回历史记录，并安排下一帧提示。
@@ -282,13 +364,7 @@ func (a *application) unpairDeviceWithUndo(c *ui.Context, id string) {
 	if !ok {
 		return
 	}
-	// 每次取消配对使用独立的 toast，快速连续操作时各自的撤销互不覆盖。
-	c.AddToast(ui.Toast{
-		Title:    a.t(msgToastUnpaired),
-		Timeout:  undoWindow,
-		Action:   a.t(msgToastUndo),
-		OnAction: func() { a.restorePairedDevice(index, device) },
-	})
+	a.addUndoToast(c, a.t(msgToastUnpaired), func() { a.restorePairedDevice(index, device) })
 }
 
 // removePairedDevice 从已配对设备中移除一台并清空选中，返回它原来的下标，供撤销

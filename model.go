@@ -243,6 +243,14 @@ type application struct {
 	suppressDeleteConfirmation bool
 	// pendingToast 暂存需要在下一帧展示的提示，用于撤销删除等回调场景。
 	pendingToast string
+	// pendingUndos 保存仍可撤销的破坏性操作，栈顶是最近一次；Cmd+Z 撤销栈顶。
+	pendingUndos []pendingUndo
+	// undoRequested 是 macOS 菜单排队的一次撤销请求，由下一帧消费；菜单回调
+	// 不在构建帧里，拿不到 ui.Context，无法直接关掉提示。
+	undoRequested bool
+	// onUndoAvailabilityChanged 在撤销机会由无到有或相反时触发，让 macOS 菜单项
+	// 同步启用状态。
+	onUndoAvailabilityChanged func()
 
 	// theme 是收敛后的当前帧主题，跨帧复用同一份存储以避免每帧分配。
 	theme ui.Theme

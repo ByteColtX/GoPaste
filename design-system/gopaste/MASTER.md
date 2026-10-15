@@ -193,10 +193,21 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - History supports search focus, Up/Down, Home/End, Enter to copy, and Escape.
 - Tab order follows visual order: global navigation, page controls, content, actions.
 - Custom selected and disclosure controls expose `Selected` or `Expanded` state.
-- Dialogs trap focus, close with Escape, and restore focus to the opener.
+- Dialogs trap focus, close with Escape, and restore focus to the opener. The delete confirmation also takes D or Y to confirm, so a keyboard user never has to reach for the mouse.
 - Use `c.Preferences()` for `ReduceMotion`, `HighContrast`, and `TextScale` behavior.
 - Maintain at least 4.5:1 contrast for normal text and 3:1 for meaningful icons and borders.
 - Disabled controls are semantically disabled, visually muted, and explained when scope matters.
+
+### Keyboard shortcuts
+
+- Cmd+1 / Cmd+2 / Cmd+3 switch to History, Devices, and Settings; Cmd+, opens Settings.
+- Cmd+K and Cmd+F focus the history search, expanding the sidebar first.
+- C / F / D on a selected record copy, favorite, and delete it; D opens the delete confirmation, where D or Y confirms and Escape cancels.
+- Cmd+Z undoes the most recent delete or unpair while its toast is still showing. On macOS the Edit menu's Undo item carries the shortcut and is enabled only while an undo is pending, so Cmd+Z still undoes text in a field when there is nothing else to undo.
+- Cmd+R refreshes the device list and Cmd+N opens the add-device dialog, both on the Devices page.
+- Cmd+Ctrl+S collapses or expands the sidebar (Ctrl+S on Windows and Linux, where Cmd and Ctrl are the same key).
+- Cmd+= / Cmd+- / Cmd+0 scale the interface; see Zoom.
+- Destructive actions that confirm through the dialog (clear history, unpair) keep Escape alone: a single confirm key is reserved for the delete action the user just asked for.
 
 ## Motion and feedback
 
