@@ -93,8 +93,6 @@ const (
 	msgHistoryImageLabel         messageKey = "history.imageLabel"
 	msgHistoryImageShort         messageKey = "history.imageShort"
 	msgHistoryFilePreviewGone    messageKey = "history.filePreviewUnavailable"
-	msgHistoryFileCount          messageKey = "history.fileCount"
-	msgHistoryFileCountOne       messageKey = "history.fileCountOne"
 	msgHistoryFileMoreFormat     messageKey = "history.fileMoreFormat"
 	msgHistoryCopy               messageKey = "history.copy"
 	msgHistoryCopyFailed         messageKey = "history.copyFailed"
@@ -403,8 +401,6 @@ var simplifiedChineseCatalog = catalog{
 	msgHistoryImageLabel:         "图片（%dx%d）",
 	msgHistoryImageShort:         "图片",
 	msgHistoryFilePreviewGone:    "此文件没有可用的预览",
-	msgHistoryFileCount:          "%d 个文件",
-	msgHistoryFileCountOne:       "%d 个文件",
 	msgHistoryFileMoreFormat:     "另有 %d 个文件",
 	msgHistoryCopy:               "复制",
 	msgHistoryCopyFailed:         "复制失败",
@@ -694,8 +690,6 @@ var englishCatalog = catalog{
 	msgHistoryImageLabel:         "Image (%d×%d)",
 	msgHistoryImageShort:         "Image",
 	msgHistoryFilePreviewGone:    "No preview available for this file",
-	msgHistoryFileCount:          "%d files",
-	msgHistoryFileCountOne:       "%d file",
 	msgHistoryFileMoreFormat:     "%d more files",
 	msgHistoryCopy:               "Copy",
 	msgHistoryCopyFailed:         "Copy failed",
@@ -1010,11 +1004,6 @@ func (l localizer) recordCount(count, total int, filtered bool) string {
 // charCount describes the length of a text record.
 func (l localizer) charCount(n int) string {
 	return l.pluralFormat(n, msgHistoryCharCountOne, msgHistoryCharCount, n)
-}
-
-// fileCount describes how many files one copied file list holds.
-func (l localizer) fileCount(n int) string {
-	return l.pluralFormat(n, msgHistoryFileCountOne, msgHistoryFileCount, n)
 }
 
 // storageRecord describes the number of stored records.

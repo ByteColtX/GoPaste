@@ -1308,22 +1308,6 @@ func (a *application) fileDisplayName(item history.Item) string {
 	return filetype.BaseName(path)
 }
 
-// fileMetaLine describes a file item under its name: the extension, how many
-// files were copied, and the total size, dropping whatever is unknown.
-func (a *application) fileMetaLine(item history.Item) string {
-	parts := make([]string, 0, 3)
-	if extension := filetype.Extension(firstFilePath(item.Text)); extension != "" {
-		parts = append(parts, strings.ToUpper(extension))
-	}
-	if count := len(filePaths(item.Text)); count > 1 {
-		parts = append(parts, a.l10n().fileCount(count))
-	}
-	if size := historySizeLabel(item); size != "" {
-		parts = append(parts, size)
-	}
-	return strings.Join(parts, " · ")
-}
-
 func (a *application) historyPreview(c *ui.Context, theme *ui.Theme, view history.View) {
 	pane := ui.Column(c).Grow(1).FillHeight().
 		MinWidth(paneMinWidth(theme, minPreviewPaneWidth)).Background(theme.Background)
@@ -1625,14 +1609,12 @@ func (a *application) imagePreview(c *ui.Context, theme *ui.Theme, image *histor
 // path every frame, so past this bound the rest are summarized by a count.
 const filePathRowsLimit = 20
 
-// filePreview renders a file item: a card naming the copied file, the copied
-// path or paths as clickable rows, then the preview the capture path
-// materialised. An image file shows its picture, a text-like file an excerpt,
-// and a file with no payload keeps the naming card plus a note, so the pane
-// always says what the file is without pretending to show content it does not
-// have.
+// filePreview renders a file item: the copied path or paths as clickable rows,
+// then the preview the capture path materialised. An image file shows its
+// picture, a text-like file an excerpt, and a file with no payload shows a
+// note. The preview header already names the type and size, and a path ends in
+// the file's own name, so nothing repeats them above the path.
 func (a *application) filePreview(c *ui.Context, theme *ui.Theme, item history.Item) {
-	a.fileIdentityCard(c, theme, item)
 	a.filePathList(c, theme, item)
 	if preview := item.FilePreview; preview != nil {
 		if preview.Image != nil {
@@ -1729,29 +1711,6 @@ func (a *application) copyFilePath(c *ui.Context, path string) {
 	}
 	a.clipboard.WriteText(path)
 	c.Toast(a.t(msgToastCopied))
-}
-
-// fileIdentityCard names a file item above its preview: the file's type icon
-// and name, and a line with the extension, file count and size.
-func (a *application) fileIdentityCard(c *ui.Context, theme *ui.Theme, item history.Item) {
-	format := a.fileFormat(item)
-	kindColor := colorForFileKind(theme, format.Kind())
-	ui.Row(c).FillWidth().Gap(space(theme, 2.5)).AlignItems(ui.Center).
-		Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
-		Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
-		ui.Box(c).Size(space(theme, 9), space(theme, 9)).Shrink(0).
-			Radius(radius(theme, controlRadius)).Background(kindColor.Alpha(0.14)).Center().Children(func() {
-			ui.Icon(c, iconForFormat(format)).Size(space(theme, 4.5), space(theme, 4.5)).TextColor(kindColor)
-		})
-		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
-			ui.Text(c, a.fileDisplayName(item)).FontSize(font(theme, fontBody)).FontWeight(600).
-				TextColor(primaryText(theme)).SingleLine()
-			if meta := a.fileMetaLine(item); meta != "" {
-				ui.Text(c, meta).FontSize(font(theme, fontCaption)).
-					TextColor(secondaryText(theme)).SingleLine()
-			}
-		})
-	})
 }
 
 // unavailablePreview is the shared card for a preview that cannot be drawn.

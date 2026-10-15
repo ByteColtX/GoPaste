@@ -159,16 +159,15 @@ func TestFormatsHaveDistinctIcons(t *testing.T) {
 	}
 }
 
-// TestFilePreviewNamesTheFileAndItsFormat checks the preview's naming card and
-// the format tag in the meta row: a reader should see the file's own name, its
-// detected format, its extension and its size without reading the full path.
+// TestFilePreviewNamesTheFileAndItsFormat checks that the preview carries the
+// file's identity without a separate naming card: the path ends in the file's
+// own name, and the header names the detected format and the size.
 func TestFilePreviewNamesTheFileAndItsFormat(t *testing.T) {
 	app := fileApp(fileItem("file-report", "~/Documents/quarterly report.docx", 3482))
 	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
 	for _, want := range []string{
-		"quarterly report.docx",
+		"~/Documents/quarterly report.docx",
 		app.t(msgFileTypeDocument),
-		"DOCX",
 		"3.4 KB",
 	} {
 		if !tt.HasText(want) {
@@ -186,11 +185,11 @@ func TestFilePreviewRendersAnImagePayload(t *testing.T) {
 
 	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
 	texts := tt.Texts()
-	if !hasExactText(texts, "photo.png") {
-		t.Errorf("文件预览缺少文件名，实际显示：%q", texts)
+	if !hasExactText(texts, "~/Pictures/photo.png") {
+		t.Errorf("文件预览缺少路径，实际显示：%q", texts)
 	}
-	if !hasExactText(texts, "PNG · 4.0 KB") {
-		t.Errorf("文件预览缺少类型与大小，实际显示：%q", texts)
+	if !tt.HasText(app.t(msgFileFormatPNG)) || !tt.HasText("4.0 KB") {
+		t.Errorf("文件预览缺少格式与大小，实际显示：%q", texts)
 	}
 	if tt.HasText(app.t(msgHistoryFilePreviewGone)) {
 		t.Errorf("带图片预览的文件不应显示“无预览”提示，实际显示：%q", texts)
@@ -225,25 +224,6 @@ func TestFilePreviewFallsBackToANote(t *testing.T) {
 		if !tt.HasText(want) {
 			t.Errorf("文件预览缺少 %q，实际显示：%q", want, tt.Texts())
 		}
-	}
-}
-
-// TestFilePreviewNamesTheFirstOfSeveralFiles checks a multi-file copy: the
-// preview names the first file and reports how many were copied.
-func TestFilePreviewNamesTheFirstOfSeveralFiles(t *testing.T) {
-	item := fileItem("file-many", "~/Desktop/first.png\n~/Desktop/second.png", 2048)
-	app := fileApp(item)
-
-	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
-	texts := tt.Texts()
-	if !hasExactText(texts, "first.png") {
-		t.Errorf("多文件预览应显示第一个文件名，实际显示：%q", texts)
-	}
-	if !tt.HasText(app.l10n().fileCount(2)) {
-		t.Errorf("多文件预览应显示文件数量，实际显示：%q", texts)
-	}
-	if hasExactText(texts, "second.png") {
-		t.Errorf("多文件预览不应把第二个文件当成主文件名，实际显示：%q", texts)
 	}
 }
 
