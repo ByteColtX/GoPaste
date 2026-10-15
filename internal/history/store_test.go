@@ -196,3 +196,39 @@ func TestRichTextBaseKind(t *testing.T) {
 		t.Fatalf("link base kind = %v, want text", got)
 	}
 }
+
+// TestStoreOwnsFilePreviews checks the store deep-copies a file preview: the
+// caller that supplied the payload can mutate its slice, struct and image
+// afterwards without changing what the store holds.
+func TestStoreOwnsFilePreviews(t *testing.T) {
+	payload := []byte{1, 2, 3}
+	preview := &FilePreview{
+		Image: &Image{PNG: payload, Width: 2, Height: 3},
+		Text:  "excerpt",
+	}
+	store := New([]Item{{
+		ID:          "file",
+		Kind:        KindFile,
+		Text:        "photo.png",
+		FilePreview: preview,
+		CreatedAt:   time.Now(),
+	}})
+
+	payload[0] = 9
+	preview.Text = "changed"
+	preview.Image.Width = 99
+
+	stored, ok := store.Item("file")
+	if !ok {
+		t.Fatal("stored item not found")
+	}
+	if got := stored.FilePreview.Image.PNG[0]; got != 1 {
+		t.Errorf("存储的预览负载 = %d，期望 1（store 应深拷贝）", got)
+	}
+	if got := stored.FilePreview.Text; got != "excerpt" {
+		t.Errorf("存储的预览文本 = %q，期望 %q", got, "excerpt")
+	}
+	if got := stored.FilePreview.Image.Width; got != 2 {
+		t.Errorf("存储的预览宽度 = %d，期望 2", got)
+	}
+}

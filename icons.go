@@ -4,6 +4,8 @@ import (
 	"embed"
 	"strings"
 
+	"gopaste/internal/filetype"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -45,6 +47,15 @@ type iconSet struct {
 	code         *ui.SVG
 	image        *ui.SVG
 	file         *ui.SVG
+	fileDoc      *ui.SVG
+	fileSheet    *ui.SVG
+	fileSlides   *ui.SVG
+	filePDF      *ui.SVG
+	archive      *ui.SVG
+	audio        *ui.SVG
+	video        *ui.SVG
+	font         *ui.SVG
+	executable   *ui.SVG
 	copy         *ui.SVG
 	trash        *ui.SVG
 	check        *ui.SVG
@@ -86,6 +97,15 @@ func mustLoadIconSet() iconSet {
 		code:         mustLoadIcon("code.svg"),
 		image:        mustLoadIcon("photo.svg"),
 		file:         mustLoadIcon("file.svg"),
+		fileDoc:      mustLoadIcon("file-type-doc.svg"),
+		fileSheet:    mustLoadIcon("file-type-xls.svg"),
+		fileSlides:   mustLoadIcon("file-type-ppt.svg"),
+		filePDF:      mustLoadIcon("file-type-pdf.svg"),
+		archive:      mustLoadIcon("file-type-zip.svg"),
+		audio:        mustLoadIcon("file-music.svg"),
+		video:        mustLoadIcon("movie.svg"),
+		font:         mustLoadIcon("letter-case.svg"),
+		executable:   mustLoadIcon("binary.svg"),
 		copy:         mustLoadIcon("copy.svg"),
 		trash:        mustLoadIcon("trash.svg"),
 		check:        mustLoadIcon("check.svg"),
@@ -120,6 +140,44 @@ func iconForKind(kind contentKind) *ui.SVG {
 		return icons.richText
 	default:
 		return icons.text
+	}
+}
+
+// iconForFileType picks the icon for a file payload's detected type, so the
+// list and the preview show what a file is without the reader parsing its
+// extension. An unrecognised type keeps the generic file icon.
+func iconForFileType(kind filetype.Kind) *ui.SVG {
+	switch kind {
+	case filetype.KindText:
+		return icons.text
+	case filetype.KindDocument:
+		return icons.fileDoc
+	case filetype.KindSpreadsheet:
+		return icons.fileSheet
+	case filetype.KindPresentation:
+		return icons.fileSlides
+	case filetype.KindPDF:
+		return icons.filePDF
+	case filetype.KindImage:
+		return icons.image
+	case filetype.KindVideo:
+		return icons.video
+	case filetype.KindAudio:
+		return icons.audio
+	case filetype.KindArchive:
+		return icons.archive
+	case filetype.KindCode:
+		return icons.code
+	case filetype.KindFont:
+		return icons.font
+	case filetype.KindDatabase:
+		return icons.storage
+	case filetype.KindDesign:
+		return icons.appearance
+	case filetype.KindExecutable:
+		return icons.executable
+	default:
+		return icons.file
 	}
 }
 

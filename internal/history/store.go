@@ -110,15 +110,31 @@ type Image struct {
 	Height int
 }
 
+// FilePreview is an optional, already-materialised preview of a file payload.
+// The file's own bytes stay on disk: the capture path fills this in only when
+// it can produce a preview without a filesystem read at render time, so drawing
+// a frame never touches the disk. A nil FilePreview, or one with neither field
+// set, means the item has no preview to show.
+type FilePreview struct {
+	// Image is a downscaled PNG rendering of an image file.
+	Image *Image
+	// Text is a short excerpt of a text-like file.
+	Text string
+}
+
 // Item is the data owned by the history module. Image carries an inline PNG
 // payload, while FileSize carries the byte size of a file payload whose
-// content stays on disk, so rendering never touches the filesystem.
+// content stays on disk, so rendering never touches the filesystem. A file
+// item may carry a FilePreview alongside that on-disk content.
 type Item struct {
 	ID       string
 	Kind     Kind
 	Text     string
 	Image    *Image
 	FileSize int64
+	// FilePreview is an optional preview of a file payload, nil for every
+	// other kind and for a file whose content has no preview.
+	FilePreview *FilePreview
 	// SourceDeviceID is the stable ID of the paired device the item arrived
 	// from, the same ID the device list uses. It is empty when the item was
 	// captured on this machine. The device name is never stored: the preview
@@ -501,13 +517,25 @@ func cloneItem(item Item) Item {
 	if len(item.Deliveries) > 0 {
 		item.Deliveries = append([]DeviceDelivery(nil), item.Deliveries...)
 	}
-	if item.Image == nil {
-		return item
+	if item.Image != nil {
+		item.Image = cloneImage(item.Image)
 	}
-	image := *item.Image
-	image.PNG = append([]byte(nil), item.Image.PNG...)
-	item.Image = &image
+	if item.FilePreview != nil {
+		preview := *item.FilePreview
+		if preview.Image != nil {
+			preview.Image = cloneImage(preview.Image)
+		}
+		item.FilePreview = &preview
+	}
 	return item
+}
+
+// cloneImage copies an image payload so a store never shares its PNG bytes
+// with the caller that supplied them.
+func cloneImage(image *Image) *Image {
+	cloned := *image
+	cloned.PNG = append([]byte(nil), image.PNG...)
+	return &cloned
 }
 
 // sortItemsNewestFirst orders items from newest to oldest, keeping the
