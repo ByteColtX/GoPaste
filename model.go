@@ -175,6 +175,9 @@ type application struct {
 	onLanguageChanged  func()
 	// onDevicesChanged 在已配对设备增删后触发，让托盘「设备同步」子菜单重建。
 	onDevicesChanged func()
+	// onFilterRailToggled 在侧栏展开/收起后触发，让 macOS 视图菜单里的
+	// 「收起/展开侧栏」项跟上文案。
+	onFilterRailToggled func()
 	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
 	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
 	onZoomChanged func(zoom float32)

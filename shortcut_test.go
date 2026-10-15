@@ -296,6 +296,9 @@ func TestUndoMenuRequestRestoresDeletedItem(t *testing.T) {
 // TestSidebarToggleShortcut 检查 Cmd+Ctrl+S 折叠与展开筛选栏。
 func TestSidebarToggleShortcut(t *testing.T) {
 	app := previewApp("")
+	toggles := 0
+	app.onFilterRailToggled = func() { toggles++ }
+
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 
 	if !app.filterRailOpen {
@@ -308,6 +311,30 @@ func TestSidebarToggleShortcut(t *testing.T) {
 	tt.Key(ui.Cmd|ui.Ctrl, ui.KeyS)
 	if !app.filterRailOpen {
 		t.Error("再按一次应展开侧栏")
+	}
+	if toggles != 2 {
+		t.Errorf("每次切换都应通知外部（macOS 菜单文案据此更新），实际通知 %d 次", toggles)
+	}
+}
+
+// TestSetFilterRailOpenNotifiesOnlyOnChange 检查侧栏状态的变更通知只在真的变化时
+// 发出：状态没变就不通知，免得菜单文案做无用功。
+func TestSetFilterRailOpenNotifiesOnlyOnChange(t *testing.T) {
+	app := newApplication()
+	toggles := 0
+	app.onFilterRailToggled = func() { toggles++ }
+
+	app.setFilterRailOpen(true) // 默认已展开
+	if toggles != 0 {
+		t.Errorf("状态未变化时不应通知，实际通知 %d 次", toggles)
+	}
+	app.setFilterRailOpen(false)
+	if toggles != 1 {
+		t.Errorf("收起后应通知 1 次，实际 %d 次", toggles)
+	}
+	app.toggleFilterRail()
+	if !app.filterRailOpen || toggles != 2 {
+		t.Errorf("toggle 后应展开并通知 2 次，实际展开=%v 通知 %d 次", app.filterRailOpen, toggles)
 	}
 }
 
