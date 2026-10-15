@@ -29,6 +29,9 @@ type applicationRuntime struct {
 	// 只改标签。
 	viewMenu      *mygo.MenuItem
 	viewZoomItems map[*mygo.MenuItem]messageKey
+	// viewFilterRailItem 是视图菜单里的「收起/展开侧栏」项。它的文案随侧栏展开
+	// 状态变化，所以不能放进 viewZoomItems 的固定文案表。
+	viewFilterRailItem *mygo.MenuItem
 	// editUndo 是编辑菜单里的「撤销」项。GoPaste 自己的撤销优先于输入框的文本
 	// 撤销，没有可撤销的操作时置灰，Cmd+Z 于是落回输入框自身。
 	editUndo *mygo.MenuItem
@@ -72,6 +75,7 @@ func (r *applicationRuntime) ready() {
 	r.app.onSyncStateChanged = r.syncStateChanged
 	r.app.onLanguageChanged = r.languageChanged
 	r.app.onDevicesChanged = r.devicesChanged
+	r.app.onFilterRailToggled = r.filterRailToggled
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
@@ -145,10 +149,23 @@ func (r *applicationRuntime) installAppMenu() {
 		Click: func(*mygo.MenuItem, *mygo.Window) { r.app.zoomOut(); r.invalidate() }}
 	zoomReset := &mygo.MenuItem{ID: "view-zoom-reset", Label: r.app.t(msgMenuZoomReset), Accelerator: "Cmd+0",
 		Click: func(*mygo.MenuItem, *mygo.Window) { r.app.resetZoom(); r.invalidate() }}
+	// 侧栏项与标题栏按钮、Cmd+Ctrl+S 走同一条路径；文案随状态在「收起」与
+	// 「展开」之间切换，与 macOS 的 Show/Hide Sidebar 一致。
+	r.viewFilterRailItem = &mygo.MenuItem{
+		ID:          "view-filter-rail",
+		Label:       r.app.t(r.filterRailMenuKey()),
+		Accelerator: "Ctrl+Cmd+S",
+		Click: func(*mygo.MenuItem, *mygo.Window) {
+			r.app.toggleFilterRail()
+			r.invalidate()
+		},
+	}
 	r.viewMenu = &mygo.MenuItem{
 		ID:    "view-menu",
 		Label: r.app.t(msgMenuView),
 		Submenu: []*mygo.MenuItem{
+			r.viewFilterRailItem,
+			mygo.Separator(),
 			zoomIn, zoomOut, zoomReset,
 			mygo.Separator(),
 			{Role: mygo.RoleToggleFullScreen},
@@ -274,12 +291,34 @@ func (r *applicationRuntime) languageChanged() {
 	for item, key := range r.viewZoomItems {
 		item.SetLabel(r.app.t(key))
 	}
+	r.updateFilterRailItem()
 	if r.editUndo != nil {
 		r.editUndo.SetLabel(r.app.t(msgMenuUndo))
 	}
 	if r.window != nil {
 		r.window.Invalidate()
 	}
+}
+
+// filterRailMenuKey 返回侧栏菜单项当前的文案：展开时说「收起」，收起时说「展开」。
+func (r *applicationRuntime) filterRailMenuKey() messageKey {
+	if r.app.filterRailOpen {
+		return msgFilterRailCollapse
+	}
+	return msgFilterRailExpand
+}
+
+// updateFilterRailItem 让侧栏菜单项的文案跟上展开状态与界面语言。
+func (r *applicationRuntime) updateFilterRailItem() {
+	if r.viewFilterRailItem == nil {
+		return
+	}
+	r.viewFilterRailItem.SetLabel(r.app.t(r.filterRailMenuKey()))
+}
+
+// filterRailToggled 在侧栏被标题栏按钮、快捷键或菜单项切换后更新菜单文案。
+func (r *applicationRuntime) filterRailToggled() {
+	r.updateFilterRailItem()
 }
 
 // undoAvailabilityChanged 让编辑菜单里的「撤销」跟着撤销栈启用或置灰：置灰时

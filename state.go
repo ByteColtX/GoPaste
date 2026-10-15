@@ -89,6 +89,23 @@ func (a *application) setPage(next page) {
 	a.page = next
 }
 
+// setFilterRailOpen 设置筛选栏的展开状态，并通知外部。标题栏按钮、Cmd+Ctrl+S
+// 与 macOS 视图菜单里的「收起/展开侧栏」项都经过这里，菜单文案因此总能跟上。
+func (a *application) setFilterRailOpen(open bool) {
+	if a.filterRailOpen == open {
+		return
+	}
+	a.filterRailOpen = open
+	if a.onFilterRailToggled != nil {
+		a.onFilterRailToggled()
+	}
+}
+
+// toggleFilterRail 翻转筛选栏的展开状态。
+func (a *application) toggleFilterRail() {
+	a.setFilterRailOpen(!a.filterRailOpen)
+}
+
 // historyFiltered 报告筛选栏当前是否收窄了历史列表（不含搜索词）。
 func (a *application) historyFiltered() bool {
 	return a.filterKind != kindFilterAny || a.filterTag != tagFilterAny ||

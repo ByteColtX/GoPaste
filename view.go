@@ -227,15 +227,16 @@ func (a *application) globalShortcuts(c *ui.Context) {
 	// 这里供其他平台和没有菜单的构建使用。
 	c.OnShortcut(ui.Cmd, ui.KeyZ, func() { a.undoLast(c) })
 	// 侧栏展开/收起：Cmd+Ctrl+S 是 macOS 的「显示/隐藏边栏」惯例，其他平台上
-	// Cmd 与 Ctrl 同义，实际落到 Ctrl+S。
-	c.OnShortcut(ui.Cmd|ui.Ctrl, ui.KeyS, func() { a.filterRailOpen = !a.filterRailOpen })
+	// Cmd 与 Ctrl 同义，实际落到 Ctrl+S。macOS 上视图菜单里的同名项也带这个
+	// 快捷键（见 runtime.installAppMenu），菜单栏因此看得到。
+	c.OnShortcut(ui.Cmd|ui.Ctrl, ui.KeyS, a.toggleFilterRail)
 }
 
 // focusHistorySearch 在窗口级别响应搜索快捷键，使焦点位于预览区或其他区域时也能聚焦搜索框。
 // 搜索框在筛选栏顶部：栏已收起时先展开，从其他页面触发时先回到历史页。
 func (a *application) focusHistorySearch(c *ui.Context) {
 	changed := !a.filterRailOpen || a.page != pageHistory
-	a.filterRailOpen = true
+	a.setFilterRailOpen(true)
 	a.setPage(pageHistory)
 	if changed {
 		c.Invalidate()
@@ -842,7 +843,7 @@ func (a *application) titleBarToggle(c *ui.Context, theme *ui.Theme) {
 			ui.Icon(c, icon).Size(space(theme, 4.25), space(theme, 4.25)).TextColor(secondaryText(theme))
 		})
 		if button.Clicked() {
-			a.filterRailOpen = !a.filterRailOpen
+			a.toggleFilterRail()
 		}
 	})
 }
