@@ -425,7 +425,8 @@ func (a *application) sidebarHistoryFilters(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-// sidebarDevices 是设备分区的列表：本机条目、已配对设备（含刷新）与发现状态。
+// sidebarDevices 是设备分区的列表：本机条目、已配对设备（刷新在分组标题行）与
+// 发现状态。新增设备不在这一列里，见 sidebarFooter。
 func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 	a.localDeviceEntry(c, theme)
 
@@ -434,10 +435,9 @@ func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 		ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
-		a.sidebarIconAction(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), func() {
+		a.sidebarIconAction(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), controlHeight, func() {
 			a.refreshDevices(c)
 		})
-		a.sidebarIconAction(c, theme, "add-paired-device", icons.deviceAdd, a.t(msgDevicesAdd), a.openAddDeviceDialog)
 	})
 
 	switch a.deviceDiscovery {
@@ -466,9 +466,14 @@ func (a *application) sidebarSettings(c *ui.Context, theme *ui.Theme) {
 	}
 }
 
-// sidebarFooter 是侧栏在滚动区下方的分区专属状态。目前只有设备分区有：在线
-// 台数。它是信息而不是操作——HIG › Sidebars 反对把关键操作放在侧栏底部，所以
-// 「新增设备」已经移到设备列表头部的「+」。
+// sidebarFooter 是侧栏在滚动区下方的分区专属底栏。目前只有设备分区有：左侧是
+// 在线台数，右侧是「新增设备」。两者都必须常驻——在线数是列表的汇总，随列表
+// 一起滚走就失去意义；新增是这一页的主操作，长列表下不能滚出视野。
+//
+// 刷新留在列表分组标题行：它作用于列表本身，和列表挨着读才顺。
+//
+// 已知取舍：HIG › Sidebars 反对把关键操作放在侧栏底部（窗口被挪到屏幕下缘之外
+// 时可能被遮住）。这里与分区切换器同一决定，按产品要求仍放在底部。
 func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 	if a.page != pageDevices {
 		return
@@ -479,8 +484,10 @@ func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 		onlineColor = theme.Success
 	}
 	ui.Row(c).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), space(theme, 0.5), 0).Children(func() {
+		Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), space(theme, 0.5), 0).
+		Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
 		deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
+		a.sidebarIconAction(c, theme, "add-paired-device", icons.deviceAdd, a.t(msgDevicesAdd), compactHeight, a.openAddDeviceDialog)
 	})
 }
 

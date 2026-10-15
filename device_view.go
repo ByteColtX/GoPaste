@@ -96,8 +96,8 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 	}
 }
 
-// openAddDeviceDialog 打开配对对话框，并清掉上一次尝试留下的状态。设备列表头
-// 部的「+」与托盘入口共用这条路径。
+// openAddDeviceDialog 打开配对对话框，并清掉上一次尝试留下的状态。侧栏底栏的
+// 「+」是当前唯一的入口。
 func (a *application) openAddDeviceDialog() {
 	a.addDeviceDialog = true
 	a.pairingPending = false
@@ -106,8 +106,11 @@ func (a *application) openAddDeviceDialog() {
 
 // sidebarIconAction 是侧栏里的小图标动作按钮（刷新、新增设备）：与分区切换器
 // 同一套尺寸、圆角与悬停反馈，但没有选中态。文字放在提示与辅助技术标签里。
-func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, onClick func()) {
-	size := controlHeightSize(c, theme, controlHeight)
+//
+// height 由调用方给出：列表分组标题行是 controlHeight，底栏与分区切换器同高，
+// 用 compactHeight，两行按钮的图标中心才会落在同一条竖线上。
+func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, height float32, onClick func()) {
+	size := controlHeightSize(c, theme, height)
 	button := ui.ButtonBase(c.Key(key)).Size(size, size).Shrink(0).Center().
 		Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
 		Label(label).Tooltip(label).Transition(motionColors)
