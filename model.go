@@ -238,9 +238,10 @@ type application struct {
 	pendingDangerousAction   dangerousAction
 	pendingDangerousTargetID string
 	// dangerDontAskAgain 是当前危险操作弹窗里“不再询问”的勾选状态；
-	// suppressDeleteConfirmation 在勾选确认后生效，让后续删除跳过二次确认。
-	dangerDontAskAgain         bool
-	suppressDeleteConfirmation bool
+	// confirmBeforeDelete 是删除单条记录前是否先弹二次确认，默认开启。勾选
+	// “不再询问”会把它关掉，设置页的「删除前确认」开关可以再打开。
+	dangerDontAskAgain  bool
+	confirmBeforeDelete bool
 	// pendingToast 暂存需要在下一帧展示的提示，用于撤销删除等回调场景。
 	pendingToast string
 	// pendingUndos 保存仍可撤销的破坏性操作，栈顶是最近一次；Cmd+Z 撤销栈顶。

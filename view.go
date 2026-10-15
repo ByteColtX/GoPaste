@@ -131,10 +131,10 @@ func (a *application) previewShortcuts(c *ui.Context) {
 	c.OnShortcut(0, ui.KeyD, func() { a.requestDeleteItem(c, item.ID) })
 }
 
-// requestDeleteItem 按“不再询问”偏好决定删除方式：已记住偏好就直接删除，
+// requestDeleteItem 按「删除前确认」偏好决定删除方式：偏好关闭就直接删除，
 // 否则先弹二次确认框。按钮点击与 D 快捷键共用这条路径。
 func (a *application) requestDeleteItem(c *ui.Context, id string) {
-	if a.suppressDeleteConfirmation {
+	if !a.confirmBeforeDelete {
 		a.deleteHistoryItem(c, id)
 		return
 	}
@@ -272,7 +272,7 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 		switch action {
 		case dangerousActionDeleteItem:
 			if a.dangerDontAskAgain {
-				a.suppressDeleteConfirmation = true
+				a.confirmBeforeDelete = false
 			}
 			a.deleteHistoryItem(c, a.pendingDangerousTargetID)
 		case dangerousActionUnpairDevice:

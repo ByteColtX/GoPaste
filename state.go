@@ -29,6 +29,9 @@ func newApplication() *application {
 		appearance:        appearanceSystem,
 		settingsArea:      settingsGeneral,
 		zoom:              1,
+		// 删除单条记录默认先弹二次确认；勾选弹窗里的「不再询问」可关掉，
+		// 设置页的「删除前确认」开关可以再打开。
+		confirmBeforeDelete: true,
 	}
 	app.sortPairedDevices()
 	return app

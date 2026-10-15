@@ -100,6 +100,13 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 				a.applyLanguage()
 			}
 		})
+		settingsRule(c, theme)
+		// 「不再询问」的回头路：弹窗里勾选后删除不再确认，这个开关把它打开。
+		// 它只管单条记录的删除，清空历史与取消配对始终确认。
+		a.settingsRow(c, theme, a.t(msgSettingsConfirmDelete), a.t(msgSettingsConfirmDeleteDesc), func() {
+			ui.Switch(c.Key("settings-confirm-delete"), &a.confirmBeforeDelete).
+				Shrink(0).Label(a.t(msgSettingsConfirmDelete))
+		})
 	})
 }
 

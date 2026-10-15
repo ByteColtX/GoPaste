@@ -129,6 +129,66 @@ func TestDeleteConfirmationEscapeCancels(t *testing.T) {
 	}
 }
 
+// TestDeleteConfirmationCanBeTurnedBackOn 检查「不再询问」不是单向开关：勾选后
+// 删除立即执行，设置页的「删除前确认」开关能把它重新打开。
+func TestDeleteConfirmationCanBeTurnedBackOn(t *testing.T) {
+	older := previewItem("")
+	older.ID = "older"
+	newer := previewItem("")
+	newer.ID = "newer"
+
+	app := newApplication()
+	app.history = history.New([]history.Item{older, newer})
+	app.pairedDevices = nil
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+
+	// 勾选「不再询问」再确认：记录删除，偏好关掉。
+	tt.Key(0, ui.KeyD)
+	if !app.confirmDangerousAction {
+		t.Fatalf("按 D 后应打开删除确认框，实际显示：%q", tt.Texts())
+	}
+	if err := tt.Click(app.t(msgDangerDontAskAgain)); err != nil {
+		t.Fatalf("点击「%s」失败：%v", app.t(msgDangerDontAskAgain), err)
+	}
+	tt.Key(0, ui.KeyD)
+	if app.confirmBeforeDelete {
+		t.Fatal("勾选「不再询问」后应跳过后续确认")
+	}
+	if got := len(app.history.Snapshot(app.historyQuery()).Items); got != 1 {
+		t.Fatalf("确认后应剩 1 条记录，实际 %d 条", got)
+	}
+
+	// 偏好关闭时再删一条：不再弹确认框。
+	tt.Key(0, ui.KeyD)
+	if app.confirmDangerousAction {
+		t.Fatal("偏好关闭时不应再弹确认框")
+	}
+	if got := len(app.history.Snapshot(app.historyQuery()).Items); got != 0 {
+		t.Fatalf("直接删除后历史应为空，实际 %d 条", got)
+	}
+
+	// 设置页的开关把它重新打开。开关在行尾，与标题同名，测试器按文字定位只能
+	// 拿到标题，因此按行内几何点它：描述列占满剩余宽度，控件紧跟在它后面一个
+	// Row gap。
+	app.setPage(pageSettings)
+	tt.Frame()
+	title, ok := tt.Find(app.t(msgSettingsConfirmDelete))
+	if !ok {
+		t.Fatalf("设置页应显示「%s」，实际显示：%q", app.t(msgSettingsConfirmDelete), tt.Texts())
+	}
+	desc, ok := tt.Find(app.t(msgSettingsConfirmDeleteDesc))
+	if !ok {
+		t.Fatalf("设置页应显示「%s」的说明", app.t(msgSettingsConfirmDelete))
+	}
+	x := desc.X + desc.W + space(&app.theme, 4.5) + 8
+	y := (title.Y + desc.Y + desc.H) / 2
+	tt.ClickAt(x, y)
+	if !app.confirmBeforeDelete {
+		t.Fatal("设置页开关应重新打开删除确认")
+	}
+}
+
 // TestDeleteConfirmationAcceptsCancelKey 检查取消按钮也接受 N：与 Escape 一样只
 // 关闭确认框，不删除记录。
 func TestDeleteConfirmationAcceptsCancelKey(t *testing.T) {
@@ -154,7 +214,7 @@ func TestDeleteConfirmationAcceptsCancelKey(t *testing.T) {
 func TestUndoShortcutRestoresDeletedItem(t *testing.T) {
 	app := previewApp("")
 	// 模拟用户已经勾选「不再询问」，直接删除，省去确认框。
-	app.suppressDeleteConfirmation = true
+	app.confirmBeforeDelete = false
 
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 	tt.Key(0, ui.KeyD)
@@ -187,7 +247,7 @@ func TestUndoShortcutUndoesTheMostRecentDeleteFirst(t *testing.T) {
 	app := newApplication()
 	app.history = history.New([]history.Item{older, newer})
 	app.pairedDevices = nil
-	app.suppressDeleteConfirmation = true
+	app.confirmBeforeDelete = false
 
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 
@@ -218,7 +278,7 @@ func TestUndoShortcutUndoesTheMostRecentDeleteFirst(t *testing.T) {
 // 拿不到构建帧的 ui.Context，只能排队，由下一帧消费后恢复记录。
 func TestUndoMenuRequestRestoresDeletedItem(t *testing.T) {
 	app := previewApp("")
-	app.suppressDeleteConfirmation = true
+	app.confirmBeforeDelete = false
 
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 	tt.Key(0, ui.KeyD)

@@ -216,6 +216,8 @@ const (
 	msgSettingsLaunchAtLoginDesc     messageKey = "settings.launchAtLoginDesc"
 	msgSettingsLanguage              messageKey = "settings.language"
 	msgSettingsLanguageDesc          messageKey = "settings.languageDesc"
+	msgSettingsConfirmDelete         messageKey = "settings.confirmDelete"
+	msgSettingsConfirmDeleteDesc     messageKey = "settings.confirmDeleteDesc"
 	msgSettingsAppearance            messageKey = "settings.appearance"
 	msgSettingsAppearanceDesc        messageKey = "settings.appearanceDesc"
 	msgSettingsVisualStyle           messageKey = "settings.visualStyle"
@@ -469,6 +471,8 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsLaunchAtLoginDesc:     "登录系统后自动打开 GoPaste",
 	msgSettingsLanguage:              "语言",
 	msgSettingsLanguageDesc:          "选择应用界面语言",
+	msgSettingsConfirmDelete:         "删除前确认",
+	msgSettingsConfirmDeleteDesc:     "删除单条记录前先询问。关闭后删除立即执行，清空历史与取消配对仍会确认。",
 	msgSettingsAppearance:            "外观",
 	msgSettingsAppearanceDesc:        "选择 GoPaste 使用的颜色主题。",
 	msgSettingsVisualStyle:           "视觉风格",
@@ -714,6 +718,8 @@ var englishCatalog = catalog{
 	msgSettingsLaunchAtLoginDesc:     "Open GoPaste automatically after you sign in",
 	msgSettingsLanguage:              "Language",
 	msgSettingsLanguageDesc:          "Choose the interface language",
+	msgSettingsConfirmDelete:         "Confirm before deleting",
+	msgSettingsConfirmDeleteDesc:     "Ask before deleting a single record. When off, deletes run immediately; clearing history and unpairing still confirm.",
 	msgSettingsAppearance:            "Appearance",
 	msgSettingsAppearanceDesc:        "Choose the color theme GoPaste uses.",
 	msgSettingsVisualStyle:           "Visual style",
