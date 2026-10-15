@@ -282,6 +282,8 @@ const (
 	// Tray menu.
 	msgTrayTurnSyncOff messageKey = "tray.turnSyncOff"
 	msgTrayTurnSyncOn  messageKey = "tray.turnSyncOn"
+	msgTrayDeviceSync  messageKey = "tray.deviceSync"
+	msgTrayNoDevices   messageKey = "tray.noDevices"
 	msgTrayOpen        messageKey = "tray.open"
 	msgTraySettings    messageKey = "tray.settings"
 	msgTrayRelaunch    messageKey = "tray.relaunch"
@@ -530,6 +532,8 @@ var simplifiedChineseCatalog = catalog{
 
 	msgTrayTurnSyncOff: "关闭同步",
 	msgTrayTurnSyncOn:  "打开同步",
+	msgTrayDeviceSync:  "设备同步",
+	msgTrayNoDevices:   "暂无已配对设备",
 	msgTrayOpen:        "打开",
 	msgTraySettings:    "设置",
 	msgTrayRelaunch:    "重启",
@@ -772,6 +776,8 @@ var englishCatalog = catalog{
 
 	msgTrayTurnSyncOff: "Turn sync off",
 	msgTrayTurnSyncOn:  "Turn sync on",
+	msgTrayDeviceSync:  "Device sync",
+	msgTrayNoDevices:   "No paired devices",
 	msgTrayOpen:        "Open",
 	msgTraySettings:    "Settings",
 	msgTrayRelaunch:    "Relaunch",

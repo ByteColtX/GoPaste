@@ -104,8 +104,39 @@ func (a *application) setSyncEnabled(enabled bool) {
 	for index := range a.pairedDevices {
 		a.pairedDevices[index].syncEnabled = enabled
 	}
+	a.syncStateChanged()
+}
+
+// toggleDeviceSync 翻转一台已配对设备的同步开关。设备已被取消配对时不做任何事。
+func (a *application) toggleDeviceSync(id string) {
+	device, ok := a.pairedDeviceByID(id)
+	if !ok {
+		return
+	}
+	device.syncEnabled = !device.syncEnabled
+	a.syncStateChanged()
+}
+
+// trayDevices 把已配对设备投影成托盘「设备同步」子菜单需要的字段。
+func (a *application) trayDevices() []trayDevice {
+	devices := make([]trayDevice, 0, len(a.pairedDevices))
+	for _, device := range a.pairedDevices {
+		devices = append(devices, trayDevice{id: device.id, name: device.name, syncOn: device.syncEnabled})
+	}
+	return devices
+}
+
+// syncStateChanged 通知外部（托盘、窗口）同步开关已经变化。
+func (a *application) syncStateChanged() {
 	if a.onSyncStateChanged != nil {
 		a.onSyncStateChanged()
+	}
+}
+
+// devicesChanged 通知外部已配对设备列表已经变化。
+func (a *application) devicesChanged() {
+	if a.onDevicesChanged != nil {
+		a.onDevicesChanged()
 	}
 }
 
@@ -275,6 +306,7 @@ func (a *application) removePairedDevice(id string) (int, pairedDevice, bool) {
 		if a.filterSource == history.DeviceSource(id) {
 			a.filterSource = history.SourceFilter{}
 		}
+		a.devicesChanged()
 		return index, device, true
 	}
 	return 0, pairedDevice{}, false
@@ -289,6 +321,7 @@ func (a *application) restorePairedDevice(index int, device pairedDevice) {
 	a.pairedDevices = slices.Insert(a.pairedDevices, index, device)
 	a.selectedDeviceID = device.id
 	a.pendingToast = a.t(msgToastRestored)
+	a.devicesChanged()
 }
 
 func (a *application) toggleFavorite(id string) string {

@@ -173,6 +173,8 @@ type application struct {
 
 	onSyncStateChanged func()
 	onLanguageChanged  func()
+	// onDevicesChanged 在已配对设备增删后触发，让托盘「设备同步」子菜单重建。
+	onDevicesChanged func()
 	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
 	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
 	onZoomChanged func(zoom float32)

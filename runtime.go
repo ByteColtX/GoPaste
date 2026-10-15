@@ -68,6 +68,7 @@ func (r *applicationRuntime) ready() {
 	r.app.applySystemLanguage()
 	r.app.onSyncStateChanged = r.syncStateChanged
 	r.app.onLanguageChanged = r.languageChanged
+	r.app.onDevicesChanged = r.devicesChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
 	r.app.clipboard = mygoClipboardWriter{}
@@ -101,14 +102,16 @@ func (r *applicationRuntime) ready() {
 
 	tray, err := newSystemTray(systemTrayOptions{
 		syncEnabled: func() bool { return r.app.deviceSyncEnabled },
+		devices:     r.app.trayDevices,
 		text:        r.app.t,
 		onToggleSync: func() {
 			r.app.setSyncEnabled(!r.app.deviceSyncEnabled)
 		},
-		onOpen:     r.showMainWindow,
-		onSettings: r.showSettings,
-		onRelaunch: mygo.App.Relaunch,
-		onQuit:     mygo.App.Quit,
+		onToggleDeviceSync: r.app.toggleDeviceSync,
+		onOpen:             r.showMainWindow,
+		onSettings:         r.showSettings,
+		onRelaunch:         mygo.App.Relaunch,
+		onQuit:             mygo.App.Quit,
 	})
 	if err != nil {
 		log.Printf("创建系统托盘失败，继续使用窗口模式: %v", err)
@@ -228,7 +231,7 @@ func (r *applicationRuntime) syncStateChanged() {
 // languageChanged 在界面语言变化后重建托盘菜单并重绘窗口。
 func (r *applicationRuntime) languageChanged() {
 	if r.tray != nil {
-		r.tray.refreshLabels()
+		r.tray.refreshMenu()
 	}
 	if r.appMenuSettings != nil {
 		r.appMenuSettings.SetLabel(r.app.t(msgAppMenuSettings))
@@ -241,6 +244,13 @@ func (r *applicationRuntime) languageChanged() {
 	}
 	if r.window != nil {
 		r.window.Invalidate()
+	}
+}
+
+// devicesChanged 在已配对设备增删后重建托盘菜单，让「设备同步」子菜单跟上列表。
+func (r *applicationRuntime) devicesChanged() {
+	if r.tray != nil {
+		r.tray.refreshMenu()
 	}
 }
 
