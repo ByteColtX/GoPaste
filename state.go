@@ -129,6 +129,37 @@ func (a *application) resetHistoryFilters() {
 	a.filterPeriod = periodFilterAny
 }
 
+// tagKind 返回一个标签筛选成立时载荷必须属于的类型。链接和代码的载荷都是文本，
+// 所以它们只能和「文本」同时成立。
+func tagKind(filter historyTagFilter) historyKindFilter {
+	switch filter {
+	case tagFilterLink, tagFilterCode:
+		return kindFilterText
+	case tagFilterImage:
+		return kindFilterImage
+	default:
+		return kindFilterAny
+	}
+}
+
+// setKindFilter 选中一个类型，并让标签跟着退让：图像、文件、富文本里不可能有
+// 链接或代码，两者同时生效会把列表筛成 0 条。
+func (a *application) setKindFilter(filter historyKindFilter) {
+	a.filterKind = filter
+	if filter != kindFilterAny && filter != tagKind(a.filterTag) {
+		a.filterTag = tagFilterAny
+	}
+}
+
+// setTagFilter 选中一个标签。标签是某一种载荷的子类型，所以选中它就把类型收窄到
+// 该类型，而不是与当前类型并存。
+func (a *application) setTagFilter(filter historyTagFilter) {
+	a.filterTag = filter
+	if kind := tagKind(filter); kind != kindFilterAny {
+		a.filterKind = kind
+	}
+}
+
 // setSyncEnabled 同步更新本机、文件和所有已配对设备的同步开关。
 func (a *application) setSyncEnabled(enabled bool) {
 	a.deviceSyncEnabled = enabled

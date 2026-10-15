@@ -22,13 +22,14 @@ type filterFacet struct {
 }
 
 // activeFilterLabel 返回当前生效的筛选条件名称，供空状态说明使用。它按
-// “类型 → 标签 → 来源 → 时间 → 收藏”的顺序取第一个生效项。
+// “标签 → 类型 → 来源 → 时间 → 收藏”的顺序取第一个生效项：标签总是比类型窄，
+// 选中链接时说明文字应该写「链接」而不是「文本」。
 func (a *application) activeFilterLabel() string {
 	switch {
-	case a.filterKind != kindFilterAny:
-		return a.kindFilterLabel(a.filterKind)
 	case a.filterTag != tagFilterAny:
 		return a.tagFilterLabel(a.filterTag)
+	case a.filterKind != kindFilterAny:
+		return a.kindFilterLabel(a.filterKind)
 	case a.filterSource.IsLocal():
 		return a.t(msgHistorySourceThisDevice)
 	case a.filterSource.IsSet():
@@ -546,10 +547,10 @@ func (a *application) kindFacet(key string, icon *ui.SVG, label messageKey, filt
 		selected: a.filterKind == filter,
 		onSelect: func() {
 			if a.filterKind == filter {
-				a.filterKind = kindFilterAny
+				a.setKindFilter(kindFilterAny)
 				return
 			}
-			a.filterKind = filter
+			a.setKindFilter(filter)
 		},
 	}
 }
@@ -563,10 +564,10 @@ func (a *application) tagFacet(key string, icon *ui.SVG, label messageKey, filte
 		selected: a.filterTag == filter,
 		onSelect: func() {
 			if a.filterTag == filter {
-				a.filterTag = tagFilterAny
+				a.setTagFilter(tagFilterAny)
 				return
 			}
-			a.filterTag = filter
+			a.setTagFilter(filter)
 		},
 	}
 }
