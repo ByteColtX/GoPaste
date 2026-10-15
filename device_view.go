@@ -129,7 +129,7 @@ func (a *application) deviceDetail(c *ui.Context, theme *ui.Theme) {
 			paneTop(c)
 			ui.Scroll(c).Grow(1).MinHeight(0).ScrollbarInsets(0, space(theme, 1), 0, 0).
 				Children(func() {
-					ui.Column(c).FillWidth().MaxWidth(pageDetailMaxWidth).AlignSelf(ui.Center).
+					ui.Column(c).FillWidth().MaxWidth(detailMaxWidth(theme)).AlignSelf(ui.Center).
 						Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
 						Gap(space(theme, spaceSection)).Children(func() {
 						a.deviceDetailHeader(c, theme)

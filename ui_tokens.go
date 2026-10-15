@@ -126,6 +126,13 @@ func spaceDIP(theme *ui.Theme, dip float32) float32 {
 	return theme.Space(dip / 4)
 }
 
+// detailMaxWidth 与 paneMinWidth 把用 DIP 写死的布局下限换算到当前界面缩放：
+// 放大界面时这些下限同步放大，内容列不会反而被 DIP 上限压窄。
+func detailMaxWidth(theme *ui.Theme) float32 { return spaceDIP(theme, pageDetailMaxWidth) }
+func paneMinWidth(theme *ui.Theme, dip float32) float32 {
+	return spaceDIP(theme, dip)
+}
+
 func space(theme *ui.Theme, units float32) float32 {
 	return theme.Space(units)
 }
@@ -237,7 +244,9 @@ func filterRailContentWidth(theme *ui.Theme) float32 {
 func (a *application) compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
 	// 筛选栏常驻在窗口左侧（收起时为 0），设备页与设置页的详情宽度要把它一起扣掉。
 	available := contentWidth(c) - a.filterRailSize(c, theme) - 1
-	return available < 680*textScale(c)
+	// 缩放会同时放大文字和 4 DIP 网格，所以紧凑布局的门槛也跟着放大，
+	// 否则放大后明明装不下却还按非紧凑布局排版。
+	return available < spaceDIP(theme, 680)*textScale(c)
 }
 
 // pageHeader keeps page title and description aligned across settings and

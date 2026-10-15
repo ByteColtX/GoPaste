@@ -25,8 +25,12 @@ type applicationRuntime struct {
 	// appMenuSettings 是 macOS 应用菜单里的「设置…」项。语言变化时只更新它的
 	// 标签，不必重建整个菜单。
 	appMenuSettings *mygo.MenuItem
-	tray            *systemTray
-	quitting        bool
+	// viewMenu、viewZoomItems 是自建的视图菜单与它的缩放项，语言变化时同样
+	// 只改标签。
+	viewMenu      *mygo.MenuItem
+	viewZoomItems map[*mygo.MenuItem]messageKey
+	tray          *systemTray
+	quitting      bool
 }
 
 // mygoClipboardWriter is the production adapter for history.Store's local
@@ -64,6 +68,8 @@ func (r *applicationRuntime) ready() {
 	r.app.applySystemLanguage()
 	r.app.onSyncStateChanged = r.syncStateChanged
 	r.app.onLanguageChanged = r.languageChanged
+	r.app.onZoomChanged = r.zoomChanged
+	r.app.onMaxZoom = r.maxZoom
 	r.app.clipboard = mygoClipboardWriter{}
 	r.window = openMainWindow(r.app)
 	r.window.OnClose(func(event *mygo.CloseEvent) {
@@ -124,6 +130,28 @@ func (r *applicationRuntime) installAppMenu() {
 		Accelerator: "Cmd+,",
 		Click:       func(*mygo.MenuItem, *mygo.Window) { r.showSettings() },
 	}
+	// 视图菜单自己搭，不用 RoleViewMenu：那套默认项（重新加载、开发者工具、
+	// 页面缩放）面向网页，原生界面里没有意义。
+	zoomIn := &mygo.MenuItem{ID: "view-zoom-in", Label: r.app.t(msgMenuZoomIn), Accelerator: "Cmd+Plus",
+		Click: func(*mygo.MenuItem, *mygo.Window) { r.app.zoomIn(); r.invalidate() }}
+	zoomOut := &mygo.MenuItem{ID: "view-zoom-out", Label: r.app.t(msgMenuZoomOut), Accelerator: "Cmd+-",
+		Click: func(*mygo.MenuItem, *mygo.Window) { r.app.zoomOut(); r.invalidate() }}
+	zoomReset := &mygo.MenuItem{ID: "view-zoom-reset", Label: r.app.t(msgMenuZoomReset), Accelerator: "Cmd+0",
+		Click: func(*mygo.MenuItem, *mygo.Window) { r.app.resetZoom(); r.invalidate() }}
+	r.viewMenu = &mygo.MenuItem{
+		ID:    "view-menu",
+		Label: r.app.t(msgMenuView),
+		Submenu: []*mygo.MenuItem{
+			zoomIn, zoomOut, zoomReset,
+			mygo.Separator(),
+			{Role: mygo.RoleToggleFullScreen},
+		},
+	}
+	r.viewZoomItems = map[*mygo.MenuItem]messageKey{
+		zoomIn:    msgMenuZoomIn,
+		zoomOut:   msgMenuZoomOut,
+		zoomReset: msgMenuZoomReset,
+	}
 	mygo.App.SetMenu(mygo.NewMenu([]*mygo.MenuItem{
 		{Role: mygo.RoleAppMenu, Submenu: []*mygo.MenuItem{
 			{Role: mygo.RoleAbout},
@@ -140,9 +168,51 @@ func (r *applicationRuntime) installAppMenu() {
 		}},
 		{Role: mygo.RoleFileMenu},
 		{Role: mygo.RoleEditMenu},
-		{Role: mygo.RoleViewMenu},
+		r.viewMenu,
 		{Role: mygo.RoleWindowMenu},
 	}))
+}
+
+// zoomChanged 在界面缩放变化后调整窗口：最小尺寸按比例放大，窗口不够大就长到
+// 刚好放得下，并且不超过所在屏幕的可用区域，最后刷新窗口。
+func (r *applicationRuntime) zoomChanged(zoom float32) {
+	if r.window == nil {
+		return
+	}
+	minWidth, minHeight := zoomedWindowMinimum(zoom)
+	r.window.SetMinimumSize(minWidth, minHeight)
+	width, height := r.window.Size()
+	if nextWidth, nextHeight := windowSizeForZoom(width, height, zoom, r.workArea()); nextWidth != width || nextHeight != height {
+		r.window.SetSize(nextWidth, nextHeight)
+	}
+	r.window.Invalidate()
+}
+
+// maxZoom 返回窗口所在屏幕允许的最大缩放：界面最小尺寸按比例放大后仍要装得
+// 进屏幕可用区域。屏幕未知时返回 0，由应用侧的内置上限决定。
+func (r *applicationRuntime) maxZoom() float32 {
+	return zoomCeilingForArea(r.workArea())
+}
+
+// workArea 返回主窗口所在屏幕的可用区域（不含菜单栏、程序坞与任务栏）。
+func (r *applicationRuntime) workArea() mygo.Rectangle {
+	if r.window == nil {
+		return mygo.Rectangle{}
+	}
+	bounds := r.window.Bounds()
+	display := mygo.Screen.DisplayNearestPoint(mygo.Point{
+		X: bounds.X + bounds.Width/2,
+		Y: bounds.Y + bounds.Height/2,
+	})
+	return display.WorkArea
+}
+
+// invalidate 在窗口存在时请求重绘。菜单项与缩放回调都在窗口可能尚未创建或
+// 已经关闭时运行，所以这里统一挡一层。
+func (r *applicationRuntime) invalidate() {
+	if r.window != nil {
+		r.window.Invalidate()
+	}
 }
 
 // syncStateChanged 让托盘文案和窗口在同步开关变化后同时刷新。
@@ -162,6 +232,12 @@ func (r *applicationRuntime) languageChanged() {
 	}
 	if r.appMenuSettings != nil {
 		r.appMenuSettings.SetLabel(r.app.t(msgAppMenuSettings))
+	}
+	if r.viewMenu != nil {
+		r.viewMenu.SetLabel(r.app.t(msgMenuView))
+	}
+	for item, key := range r.viewZoomItems {
+		item.SetLabel(r.app.t(key))
 	}
 	if r.window != nil {
 		r.window.Invalidate()

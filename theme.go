@@ -43,6 +43,9 @@ func (a *application) applyTheme(c *ui.Context) *ui.Theme {
 		t.Focus.A = 255
 	}
 
+	// 界面缩放作用在字号与 4 DIP 网格上，所有 font()/space() 取值一起等比变化。
+	a.applyZoom(&t)
+
 	t.Radius = 8
 	a.theme = t
 	c.SetTheme(&a.theme)
