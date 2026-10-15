@@ -42,10 +42,9 @@ type systemTray struct {
 
 func newSystemTray(options systemTrayOptions) (*systemTray, error) {
 	tray := &systemTray{options: options}
-	icon, iconTemplate := trayIcon()
 	native, err := mygo.NewTray(mygo.TrayOptions{
-		Icon:           icon,
-		IconIsTemplate: iconTemplate,
+		Icon:           embeddedTrayIcon,
+		IconIsTemplate: runtime.GOOS == "darwin",
 		ToolTip:        "GoPaste",
 		Menu:           tray.menu(),
 	})
