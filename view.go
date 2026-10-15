@@ -142,14 +142,18 @@ func (a *application) requestDeleteItem(c *ui.Context, id string) {
 	a.requestDangerousAction(dangerousActionDeleteItem, id)
 }
 
-// deviceShortcuts 为设备页的列表动作注册快捷键：Cmd+R 刷新、Cmd+N 新增设备。
-// 只在设备页生效，在历史页按下时不会撞上无反馈的隐藏动作。
+// deviceShortcuts 注册设备相关的快捷键。Cmd+N 新增设备在任何分区都可用：它先
+// 切到设备页再打开配对对话框，因为对话框只在设备页构建。Cmd+R 刷新只在设备页
+// 生效，离开设备页刷新没有可见反馈；macOS 的视图菜单项同步置灰。
 func (a *application) deviceShortcuts(c *ui.Context) {
+	c.OnShortcut(ui.Cmd, ui.KeyN, func() {
+		a.setPage(pageDevices)
+		a.openAddDeviceDialog()
+	})
 	if a.page != pageDevices {
 		return
 	}
 	c.OnShortcut(ui.Cmd, ui.KeyR, func() { a.refreshDevices(c) })
-	c.OnShortcut(ui.Cmd, ui.KeyN, a.openAddDeviceDialog)
 }
 
 // flushPendingToast 展示由回调产生的提示（例如撤销删除后的确认），只在下一次

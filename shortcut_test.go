@@ -338,6 +338,36 @@ func TestSetFilterRailOpenNotifiesOnlyOnChange(t *testing.T) {
 	}
 }
 
+// TestAddDeviceShortcutWorksFromAnyPage 检查 Cmd+N 在任何分区都能用：它先切到
+// 设备页（配对对话框只在设备页构建）再打开对话框。
+func TestAddDeviceShortcutWorksFromAnyPage(t *testing.T) {
+	app := previewApp("")
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	if app.page != pageHistory {
+		t.Fatalf("默认应在历史页，实际 %v", app.page)
+	}
+
+	tt.Key(ui.Cmd, ui.KeyN)
+	if app.page != pageDevices {
+		t.Errorf("Cmd+N 后应切到设备页，实际 %v", app.page)
+	}
+	if !app.addDeviceDialog {
+		t.Errorf("Cmd+N 后应打开配对对话框，实际显示：%q", tt.Texts())
+	}
+}
+
+// TestRefreshShortcutStaysOnTheDevicesPage 检查 Cmd+R 只在设备页生效：在历史页
+// 按下不会启动一次看不见的刷新（macOS 的菜单项在离开设备页时也会置灰）。
+func TestRefreshShortcutStaysOnTheDevicesPage(t *testing.T) {
+	app := previewApp("")
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+
+	tt.Key(ui.Cmd, ui.KeyR)
+	if app.deviceRefreshSpinning() {
+		t.Error("历史页按 Cmd+R 不应启动设备刷新")
+	}
+}
+
 // TestDeviceShortcuts 检查设备页的 Cmd+N 新增设备与 Cmd+R 刷新。
 func TestDeviceShortcuts(t *testing.T) {
 	app := previewApp("")

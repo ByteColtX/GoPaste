@@ -84,9 +84,13 @@ func truncateSingleLine(value string, limit int) string {
 	return string(runes[:limit-1]) + "…"
 }
 
-// setPage 统一切换当前页面，避免窗口控制代码直接修改业务状态字段。
+// setPage 统一切换当前页面，避免窗口控制代码直接修改业务状态字段。切换后通知
+// 外部，让只在某些分区有意义的菜单项跟上启用状态。
 func (a *application) setPage(next page) {
 	a.page = next
+	if a.onPageChanged != nil {
+		a.onPageChanged()
+	}
 }
 
 // setFilterRailOpen 设置筛选栏的展开状态，并通知外部。标题栏按钮、Cmd+Ctrl+S

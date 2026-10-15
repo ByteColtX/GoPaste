@@ -204,7 +204,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Cmd+K and Cmd+F focus the history search, expanding the sidebar first.
 - C / F / D on a selected record copy, favorite, and delete it; D opens the delete confirmation, where D or Y confirms and N or Escape cancels.
 - Cmd+Z undoes the most recent delete or unpair while its toast is still showing. On macOS the Edit menu's Undo item carries the shortcut and is enabled only while an undo is pending, so Cmd+Z still undoes text in a field when there is nothing else to undo.
-- Cmd+R refreshes the device list and Cmd+N opens the add-device dialog, both on the Devices page.
+- Cmd+N opens the add-device dialog from anywhere: the File menu's Add Device item carries it, and the command switches to Devices first, because the dialog is built there. Cmd+R refreshes the device list on the Devices page, where the View menu's Refresh Device List item carries it and greys out on the other sections, matching the shortcut's scope.
 - Cmd+Ctrl+S collapses or expands the sidebar, from the title-bar button, the shortcut, or the View menu's Collapse/Expand Sidebar item (Ctrl+S on Windows and Linux, where Cmd and Ctrl are the same key). The menu item's label follows the state, as macOS's Show/Hide Sidebar does.
 - Cmd+= / Cmd+- / Cmd+0 scale the interface; see Zoom.
 - Destructive actions that confirm through the dialog (clear history, unpair) keep Escape alone: a single confirm key is reserved for the delete action the user just asked for.

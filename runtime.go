@@ -25,13 +25,18 @@ type applicationRuntime struct {
 	// appMenuSettings 是 macOS 应用菜单里的「设置…」项。语言变化时只更新它的
 	// 标签，不必重建整个菜单。
 	appMenuSettings *mygo.MenuItem
-	// viewMenu、viewZoomItems 是自建的视图菜单与它的缩放项，语言变化时同样
-	// 只改标签。
-	viewMenu      *mygo.MenuItem
-	viewZoomItems map[*mygo.MenuItem]messageKey
+	// viewMenu、menuLabels 是自建的视图菜单与它的静态文案表，语言变化时逐项改
+	// 标签。
+	viewMenu   *mygo.MenuItem
+	menuLabels map[*mygo.MenuItem]messageKey
 	// viewFilterRailItem 是视图菜单里的「收起/展开侧栏」项。它的文案随侧栏展开
-	// 状态变化，所以不能放进 viewZoomItems 的固定文案表。
+	// 状态变化，所以不能放进 menuLabels 的固定文案表。
 	viewFilterRailItem *mygo.MenuItem
+	// viewRefreshItem、fileAddDeviceItem 把 Cmd+R 与 Cmd+N 摆上菜单栏，让快捷键
+	// 可发现。刷新只在设备页有意义，因此随分区切换置灰；新增设备在任何分区都能
+	// 用，点击会先切到设备页。
+	viewRefreshItem   *mygo.MenuItem
+	fileAddDeviceItem *mygo.MenuItem
 	// editUndo 是编辑菜单里的「撤销」项。GoPaste 自己的撤销优先于输入框的文本
 	// 撤销，没有可撤销的操作时置灰，Cmd+Z 于是落回输入框自身。
 	editUndo *mygo.MenuItem
@@ -76,6 +81,7 @@ func (r *applicationRuntime) ready() {
 	r.app.onLanguageChanged = r.languageChanged
 	r.app.onDevicesChanged = r.devicesChanged
 	r.app.onFilterRailToggled = r.filterRailToggled
+	r.app.onPageChanged = r.pageChanged
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
@@ -160,6 +166,21 @@ func (r *applicationRuntime) installAppMenu() {
 			r.invalidate()
 		},
 	}
+	// 刷新只在设备页有可见反馈（侧栏的设备列表与转圈图标），所以离开设备页即
+	// 置灰，与窗口快捷键的作用范围一致。菜单回调没有 ui.Context，提示排队到
+	// 下一帧。
+	r.viewRefreshItem = &mygo.MenuItem{
+		ID:          "view-refresh-devices",
+		Label:       r.app.t(msgDevicesRefresh),
+		Accelerator: "Cmd+R",
+		Disabled:    r.app.page != pageDevices,
+		Click: func(*mygo.MenuItem, *mygo.Window) {
+			if message := r.app.startDeviceRefresh(); message != "" {
+				r.app.pendingToast = message
+			}
+			r.invalidate()
+		},
+	}
 	r.viewMenu = &mygo.MenuItem{
 		ID:    "view-menu",
 		Label: r.app.t(msgMenuView),
@@ -168,13 +189,30 @@ func (r *applicationRuntime) installAppMenu() {
 			mygo.Separator(),
 			zoomIn, zoomOut, zoomReset,
 			mygo.Separator(),
+			r.viewRefreshItem,
+			mygo.Separator(),
 			{Role: mygo.RoleToggleFullScreen},
 		},
 	}
-	r.viewZoomItems = map[*mygo.MenuItem]messageKey{
-		zoomIn:    msgMenuZoomIn,
-		zoomOut:   msgMenuZoomOut,
-		zoomReset: msgMenuZoomReset,
+	// 文件菜单也自己搭：在默认的「关闭窗口」前面加一项「新增设备」，Cmd+N 因此
+	// 在菜单栏可见。从任何分区都能用，点击先切到设备页再开配对对话框。
+	r.fileAddDeviceItem = &mygo.MenuItem{
+		ID:          "file-add-device",
+		Label:       r.app.t(msgDevicesAdd),
+		Accelerator: "Cmd+N",
+		Click: func(*mygo.MenuItem, *mygo.Window) {
+			r.app.setPage(pageDevices)
+			r.app.openAddDeviceDialog()
+			r.invalidate()
+		},
+	}
+	fileMenu := &mygo.MenuItem{
+		Role: mygo.RoleFileMenu,
+		Submenu: []*mygo.MenuItem{
+			r.fileAddDeviceItem,
+			mygo.Separator(),
+			{Role: mygo.RoleClose},
+		},
 	}
 	// 编辑菜单自己搭，只为把「撤销」换成 GoPaste 自己的撤销：默认的 RoleUndo 走
 	// 响应链，只认得输入框里的文本撤销，会先把 Cmd+Z 吃掉。其余项沿用系统角色，
@@ -218,11 +256,19 @@ func (r *applicationRuntime) installAppMenu() {
 			mygo.Separator(),
 			{Role: mygo.RoleQuit},
 		}},
-		{Role: mygo.RoleFileMenu},
+		fileMenu,
 		editMenu,
 		r.viewMenu,
 		{Role: mygo.RoleWindowMenu},
 	}))
+	r.menuLabels = map[*mygo.MenuItem]messageKey{
+		zoomIn:              msgMenuZoomIn,
+		zoomOut:             msgMenuZoomOut,
+		zoomReset:           msgMenuZoomReset,
+		r.editUndo:          msgMenuUndo,
+		r.fileAddDeviceItem: msgDevicesAdd,
+		r.viewRefreshItem:   msgDevicesRefresh,
+	}
 }
 
 // zoomChanged 在界面缩放变化后调整窗口：最小尺寸按比例放大，窗口不够大就长到
@@ -288,16 +334,22 @@ func (r *applicationRuntime) languageChanged() {
 	if r.viewMenu != nil {
 		r.viewMenu.SetLabel(r.app.t(msgMenuView))
 	}
-	for item, key := range r.viewZoomItems {
+	for item, key := range r.menuLabels {
 		item.SetLabel(r.app.t(key))
 	}
 	r.updateFilterRailItem()
-	if r.editUndo != nil {
-		r.editUndo.SetLabel(r.app.t(msgMenuUndo))
-	}
 	if r.window != nil {
 		r.window.Invalidate()
 	}
+}
+
+// pageChanged 让只在设备页有意义的菜单项跟上启用状态：刷新设备离开设备页即
+// 置灰，与窗口快捷键的作用范围一致。
+func (r *applicationRuntime) pageChanged() {
+	if r.viewRefreshItem == nil {
+		return
+	}
+	r.viewRefreshItem.SetEnabled(r.app.page == pageDevices)
 }
 
 // filterRailMenuKey 返回侧栏菜单项当前的文案：展开时说「收起」，收起时说「展开」。

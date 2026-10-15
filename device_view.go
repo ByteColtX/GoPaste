@@ -57,17 +57,26 @@ func (a *application) deviceErrorState(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-func (a *application) refreshDevices(c *ui.Context) {
+// startDeviceRefresh 开始刷新设备列表，返回需要提示给用户的文案（空表示无需提示）。
+// 设备发现服务未接入时返回不可用提示。窗口按钮、快捷键与 macOS 菜单项共用它。
+func (a *application) startDeviceRefresh() string {
 	// 无论后端是否可用都先起一段最短转圈：点击必须有回应，否则按钮看起来
 	// 像没接上。转圈本身不代表结果，结果仍由下面的状态与提示给出。
 	a.deviceRefreshSpinUntil = time.Now().Add(motionSpinPeriod)
 	if a.onRefreshDevices == nil {
-		c.Toast(a.t(msgToastDeviceDiscoveryUnavailable))
-		return
+		return a.t(msgToastDeviceDiscoveryUnavailable)
 	}
 	a.deviceDiscovery = deviceDiscoveryLoading
 	a.deviceDiscoveryMessage = ""
 	a.onRefreshDevices()
+	return ""
+}
+
+// refreshDevices 是窗口内的刷新入口：开始刷新并直接提示。
+func (a *application) refreshDevices(c *ui.Context) {
+	if message := a.startDeviceRefresh(); message != "" {
+		c.Toast(message)
+	}
 }
 
 // deviceRefreshSpinning 报告刷新按钮是否该转圈：发现仍在进行，或者上一次点击的
