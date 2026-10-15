@@ -91,6 +91,11 @@ func TestSidebarAppearancePopover(t *testing.T) {
 	if option.Y+option.H > button.Y {
 		t.Errorf("气泡应在按钮上方：选项 %v，按钮 %v", option, button)
 	}
+	// 选项行之间也留出同样规格的空隙，两行的底色不会贴成一片。
+	pitch := textPitch(t, tt, app.appearanceModeLabel(appearanceLight), app.appearanceModeLabel(appearanceDark))
+	if gap := pitch - space(&app.theme, compactHeight); gap < 2 {
+		t.Errorf("外观气泡选项之间的空隙 = %.1f DIP，至少要 2 DIP", gap)
+	}
 	if option.X < 0 || option.X+option.W > float32(defaultWindowWidth) {
 		t.Errorf("气泡应留在窗口里：选项 %v", option)
 	}
@@ -102,6 +107,42 @@ func TestSidebarAppearancePopover(t *testing.T) {
 	tt.Frame()
 	if app.appearancePopoverOpen {
 		t.Fatal("再次点击外观按钮后气泡应收起")
+	}
+}
+
+// textPitch 返回同一帧里两段文字的纵向距离，用来量选项行的行距。
+func textPitch(t *testing.T, tt *ui.Tester, upper, lower string) float32 {
+	t.Helper()
+	first, ok := tt.Find(upper)
+	if !ok {
+		t.Fatalf("找不到 %q，实际显示：%q", upper, tt.Texts())
+	}
+	second, ok := tt.Find(lower)
+	if !ok {
+		t.Fatalf("找不到 %q，实际显示：%q", lower, tt.Texts())
+	}
+	return second.Y - first.Y
+}
+
+// TestDropdownOptionRowsAreSpacedApart 检查语言下拉里相邻两个选项之间留了间距。
+// 行距为 0 时，当前值和指针所在项的两块底色会贴成一片，看起来像同一块高亮；
+// 间距取的是单行条目的规格，与外观气泡里的选项行一致。
+func TestDropdownOptionRowsAreSpacedApart(t *testing.T) {
+	app := previewApp("")
+	app.setPage(pageSettings)
+	app.settingsArea = settingsGeneral
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+
+	if err := tt.Click(app.t(msgSettingsLanguageSystem)); err != nil {
+		t.Fatalf("展开语言下拉失败：%v", err)
+	}
+	tt.Frame()
+
+	// 行高与选项行用同一套规格，所以行距减去行高就是行与行之间的空隙。
+	// 断言一个不随实现移动的下限：设计系统规定单行条目之间留 2 DIP。
+	rowHeight := space(&app.theme, compactHeight)
+	if gap := textPitch(t, tt, "简体中文", "English") - rowHeight; gap < 2 {
+		t.Errorf("下拉选项之间的空隙 = %.1f DIP，至少要 2 DIP（行高 %.1f）", gap, rowHeight)
 	}
 }
 

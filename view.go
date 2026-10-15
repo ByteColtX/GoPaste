@@ -733,9 +733,9 @@ func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme)
 // appearancePopoverContent 是气泡里的模式列表：一个标题加三个单选项，当前
 // 模式打勾。顺序与设置页「模式」分段控件一致。
 func (a *application) appearancePopoverContent(c *ui.Context, theme *ui.Theme) {
-	ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
+	ui.Column(c).Gap(space(theme, optionRowGapUnits)).Children(func() {
 		ui.Text(c, a.t(msgSettingsAppearance)).FontSize(font(theme, fontMeta)).FontWeight(600).
-			TextColor(secondaryText(theme)).Padding(space(theme, 0.5), space(theme, 1.5)).
+			TextColor(secondaryText(theme)).Padding(space(theme, 0.5), space(theme, 2)).
 			Role(ui.RoleHeading).SingleLine()
 		for _, mode := range appearanceModes {
 			a.appearancePopoverItem(c, theme, mode)
@@ -748,19 +748,12 @@ func (a *application) appearancePopoverContent(c *ui.Context, theme *ui.Theme) {
 func (a *application) appearancePopoverItem(c *ui.Context, theme *ui.Theme, mode int) {
 	selected := a.appearance == mode
 	label := a.appearanceModeLabel(mode)
-	item := ui.ButtonBase(c.Key("filter-rail-appearance-"+appearanceModeName(mode))).
-		FillWidth().Shrink(0).Height(controlHeightSize(c, theme, compactHeight)).
-		Padding(0, space(theme, 1.5)).Gap(space(theme, 1.5)).
-		Radius(radius(theme, controlRadius)).Label(label).
-		Role(ui.RoleMenuItemRadio).Checked(selected).FocusRing(true)
-	switch {
-	case item.Pressed():
-		item.Background(theme.SurfacePressed)
-	case item.Hovered():
-		item.Background(hoverFill(theme))
-	default:
-		item.Background(ui.Transparent)
-	}
+	item := optionRow(c, theme, ui.ButtonBase(c.Key("filter-rail-appearance-"+appearanceModeName(mode))).
+		FillWidth().Shrink(0).Gap(space(theme, 2)).
+		Border(1, ui.Transparent).Label(label).
+		Role(ui.RoleMenuItemRadio).Checked(selected).FocusRing(true))
+	background, border := optionRowFill(c, theme, selected, item.Hovered(), item.Pressed())
+	item.Background(background).BorderColor(border)
 	iconColor := secondaryText(theme)
 	if selected {
 		iconColor = accentColor(theme)

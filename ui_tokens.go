@@ -420,6 +420,39 @@ func labelFor[T comparable](value T, options []option[T]) string {
 	return ""
 }
 
+// optionRowGapUnits 是一行选项与下一行之间的间距，单位同 space()。选项行的底色
+// 只画在行自己的内边距盒里，行距为 0 时上下两行的底色会贴成一块，看起来像同一
+// 块高亮，所以下拉和气泡的选项都按这个间距排版。
+const optionRowGapUnits float32 = 0.5
+
+// optionRow 把一行选项的几何统一到单行条目的规格：固定高度、左右内边距、圆角，
+// 内容垂直居中。下拉里的选项与侧栏外观气泡里的选项都走这里，两处的数字不会再
+// 各自漂移。
+//
+// 垂直的余量交给 AlignItems 而不是上下内边距：行高是固定的，Padding 会从高度里
+// 扣掉它，内容盒因此比行矮，日后往行里放一个等高控件时会居中溢出。
+func optionRow(c *ui.Context, theme *ui.Theme, item ui.Element) ui.Element {
+	return item.Height(controlHeightSize(c, theme, compactHeight)).
+		Padding(0, space(theme, 2)).
+		Radius(radius(theme, controlRadius)).
+		AlignItems(ui.Center)
+}
+
+// optionRowFill 返回一行选项的底色与描边，取值与列表行一致：当前值用共享的选中
+// 底色，指针或方向键所在的项用悬停底色。两者因此不会看起来是同一块高亮。
+func optionRowFill(c *ui.Context, theme *ui.Theme, selected, highlighted, pressed bool) (ui.Color, ui.Color) {
+	switch {
+	case selected:
+		return selectedFill(theme), selectionBorder(c, theme)
+	case pressed:
+		return theme.SurfacePressed, ui.Transparent
+	case highlighted:
+		return hoverFill(theme), ui.Transparent
+	default:
+		return ui.Transparent, ui.Transparent
+	}
+}
+
 // selectField renders a themed drop-down that stores a stable value while
 // showing a localized label. It wraps MyGo's SelectBase, so keyboard, focus and
 // popup behavior stay native while the bound value stays language-independent.
@@ -445,21 +478,15 @@ func selectField[T comparable](
 			Shrink(0).TextColor(secondaryText(theme))
 	})
 	sel.Popup(func(panel ui.Element) {
-		panel.Padding(space(theme, 1)).Radius(radius(theme, cardRadius)).
+		panel.Gap(space(theme, optionRowGapUnits)).
+			Padding(space(theme, 1)).Radius(radius(theme, cardRadius)).
 			Background(theme.Background).Border(1, borderColor(theme)).
 			Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, 0.18))
 		for _, opt := range options {
-			item := sel.Item(opt.value).Padding(space(theme, 1.5), space(theme, 2.5)).
-				Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
-				TextColor(primaryText(theme)).Transition(motionColors)
-			// 当前值与指针/方向键所在的项用同一套选中样式，
-			// 而不是一块实心强调色：下拉里的选中和列表里的选中看起来一样。
-			switch {
-			case item.Highlighted():
-				item.Background(selectedFill(theme)).BorderColor(selectionBorder(c, theme))
-			case opt.value == *value:
-				item.Background(selectedFill(theme))
-			}
+			item := optionRow(c, theme, sel.Item(opt.value)).
+				Border(1, ui.Transparent).TextColor(primaryText(theme)).Transition(motionColors)
+			background, border := optionRowFill(c, theme, opt.value == *value, item.Highlighted(), item.Pressed())
+			item.Background(background).BorderColor(border)
 			item.Children(func() {
 				ui.Text(c, opt.label).FontSize(font(theme, fontControl)).SingleLine()
 			})
