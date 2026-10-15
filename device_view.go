@@ -104,13 +104,10 @@ func (a *application) openAddDeviceDialog() {
 	a.pairingError = ""
 }
 
-// sidebarIconAction 是侧栏里的小图标动作按钮（刷新、新增设备）：与分区切换器
+// sidebarIconAction 是侧栏列表分组标题行里的小图标动作按钮（刷新）：与分区切换器
 // 同一套尺寸、圆角与悬停反馈，但没有选中态。文字放在提示与辅助技术标签里。
-//
-// height 由调用方给出：列表分组标题行是 controlHeight，底栏与分区切换器同高，
-// 用 compactHeight，两行按钮的图标中心才会落在同一条竖线上。
-func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, height float32, onClick func()) {
-	size := controlHeightSize(c, theme, height)
+func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, onClick func()) {
+	size := controlHeightSize(c, theme, controlHeight)
 	button := ui.ButtonBase(c.Key(key)).Size(size, size).Shrink(0).Center().
 		Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
 		Label(label).Tooltip(label).Transition(motionColors)
@@ -119,6 +116,31 @@ func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key stri
 	}
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 4), space(theme, 4))
+	})
+	if button.Clicked() {
+		onClick()
+	}
+}
+
+// sidebarWideButton 是侧栏底栏里的宽按钮：图标加文字，宽度由内容决定。高度和
+// 圆角与分区切换器一致，但没有选中态；表面色加描边沿用搜索框的写法，因此它读
+// 起来是一个可点的控件，而不是一条列表项。
+//
+// 与 sidebarIconAction 的分工：图标按钮留给列表作用域的次要动作（刷新），
+// 宽按钮留给页面主操作，文字可见，不必悬停才发现。
+func (a *application) sidebarWideButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, onClick func()) {
+	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
+		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, 1.5)).
+		Radius(radius(theme, controlRadius)).Border(1, borderColor(theme)).
+		TextColor(primaryText(theme)).Label(label).Role(ui.RoleButton).Transition(motionColors)
+	if button.Hovered() {
+		button.Background(hoverFill(theme))
+	} else {
+		button.Background(theme.Background)
+	}
+	button.Children(func() {
+		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
 	})
 	if button.Clicked() {
 		onClick()

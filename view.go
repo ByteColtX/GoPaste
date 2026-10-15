@@ -435,7 +435,7 @@ func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 		ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme)).SingleLine()
 		ui.Spacer(c)
-		a.sidebarIconAction(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), controlHeight, func() {
+		a.sidebarIconAction(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), func() {
 			a.refreshDevices(c)
 		})
 	})
@@ -467,8 +467,8 @@ func (a *application) sidebarSettings(c *ui.Context, theme *ui.Theme) {
 }
 
 // sidebarFooter 是侧栏在滚动区下方的分区专属底栏。目前只有设备分区有：左侧是
-// 在线台数，右侧是「新增设备」。两者都必须常驻——在线数是列表的汇总，随列表
-// 一起滚走就失去意义；新增是这一页的主操作，长列表下不能滚出视野。
+// 在线台数，右侧是「新增设备」宽按钮。两者都必须常驻——在线数是列表的汇总，
+// 随列表一起滚走就失去意义；新增是这一页的主操作，长列表下不能滚出视野。
 //
 // 刷新留在列表分组标题行：它作用于列表本身，和列表挨着读才顺。
 //
@@ -484,10 +484,10 @@ func (a *application) sidebarFooter(c *ui.Context, theme *ui.Theme) {
 		onlineColor = theme.Success
 	}
 	ui.Row(c).FillWidth().Shrink(0).
-		Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), space(theme, 0.5), 0).
+		Padding(space(theme, 1.5), spaceDIP(theme, paneSideInset), space(theme, 1.5), 0).
 		Justify(ui.SpaceBetween).AlignItems(ui.Center).Children(func() {
 		deviceStatus(c, theme, a.l10n().onlineCount(onlineCount), onlineColor)
-		a.sidebarIconAction(c, theme, "add-paired-device", icons.deviceAdd, a.t(msgDevicesAdd), compactHeight, a.openAddDeviceDialog)
+		a.sidebarWideButton(c, theme, "add-paired-device", icons.deviceAdd, a.t(msgDevicesAdd), a.openAddDeviceDialog)
 	})
 }
 
