@@ -180,6 +180,8 @@ func (r *applicationRuntime) startHistoryPersistence(captureCtx context.Context)
 			log.Printf("无法确定历史数据库位置，本次不保存历史记录: %v", err)
 			return
 		}
+		// 启动第一行就报出用的是哪个文件：界面里没有数据时，第一个要问的就是它。
+		log.Printf("历史数据库：%s", path)
 		// 目录只给当前用户，数据库里存的是剪贴板内容。
 		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			log.Printf("无法创建历史数据库目录，本次不保存历史记录: %v", err)

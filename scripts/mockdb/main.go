@@ -754,9 +754,12 @@ func run() error {
 	if err := os.MkdirAll(filepath.Dir(outPath), 0o700); err != nil {
 		return fmt.Errorf("无法创建输出目录 %s: %w", filepath.Dir(outPath), err)
 	}
-	// 每次运行都删掉旧文件，重新生成一份全新的数据库。
-	if err := os.Remove(outPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("无法删除旧的数据库文件 %s: %w", outPath, err)
+	// 每次运行都删掉旧文件，重新生成一份全新的数据库。WAL 的附属文件一起删：
+	// 上一份数据可能是在应用崩溃时留下的，只剩 WAL 的文件不该留在新库旁边。
+	for _, stale := range []string{outPath, outPath + "-wal", outPath + "-shm"} {
+		if err := os.Remove(stale); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("无法删除旧的文件 %s: %w", stale, err)
+		}
 	}
 
 	ctx := context.Background()
