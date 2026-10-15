@@ -76,7 +76,7 @@ func runApplication() error {
 
 // ready 在 MyGo 完成平台初始化后运行，此时才能创建窗口和托盘。
 func (r *applicationRuntime) ready() {
-	r.app.applySystemLanguage()
+	r.app.applyLanguage()
 	r.app.onSyncStateChanged = r.syncStateChanged
 	r.app.onLanguageChanged = r.languageChanged
 	r.app.onDevicesChanged = r.devicesChanged

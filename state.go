@@ -16,19 +16,20 @@ import (
 func newApplication() *application {
 	items, devices := previewData()
 	app := &application{
-		page:              pageHistory,
-		filterRailOpen:    true,
-		historyPaneWidth:  defaultHistoryPaneWidth,
-		history:           history.New(items),
-		deviceName:        newLocalizer(languageSimplifiedChinese).text(msgDevicesBadgeLocal),
-		devicePlatform:    localPlatformName(),
-		deviceSyncEnabled: true,
-		deviceFileSync:    true,
-		pairedDevices:     devices,
-		language:          languageSimplifiedChinese,
-		appearance:        appearanceSystem,
-		settingsArea:      settingsGeneral,
-		zoom:              1,
+		page:               pageHistory,
+		filterRailOpen:     true,
+		historyPaneWidth:   defaultHistoryPaneWidth,
+		history:            history.New(items),
+		deviceName:         newLocalizer(languageSimplifiedChinese).text(msgDevicesBadgeLocal),
+		devicePlatform:     localPlatformName(),
+		deviceSyncEnabled:  true,
+		deviceFileSync:     true,
+		pairedDevices:      devices,
+		languagePreference: languagePreferenceSystem,
+		language:           languageSimplifiedChinese,
+		appearance:         appearanceSystem,
+		settingsArea:       settingsGeneral,
+		zoom:               1,
 		// 删除单条记录默认先弹二次确认；勾选弹窗里的「不再询问」可关掉，
 		// 设置页的「删除前确认」开关可以再打开。
 		confirmBeforeDelete: true,
@@ -207,16 +208,11 @@ func (a *application) loadSystemSettings() {
 	a.launchAtLogin = mygo.App.OpenAtLogin()
 }
 
-// applySystemLanguage 依据系统语言选择界面语言，并把尚未修改过的本机名称
-// 换成该语言下的默认名称。
-func (a *application) applySystemLanguage() {
-	a.language = languageFromLocale(mygo.App.Locale())
-	a.renameDefaultDevice()
-}
-
-// applyLanguage 在设置页切换语言后刷新派生状态：默认设备名称、托盘和窗口。
-// 选择控件已经写入了新的语言，这里只负责后续的联动。
+// applyLanguage 把保存的语言偏好解析成实际使用的界面语言，再刷新派生状态：
+// 默认设备名称、托盘和窗口。启动时偏好是默认的「跟随系统」，设置页切换时选择
+// 控件已经写入了新偏好，两个入口都走这里。
 func (a *application) applyLanguage() {
+	a.language = a.languagePreference.language(mygo.App.Locale)
 	a.renameDefaultDevice()
 	if a.onLanguageChanged != nil {
 		a.onLanguageChanged()

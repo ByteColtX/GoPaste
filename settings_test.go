@@ -105,6 +105,45 @@ func TestSidebarAppearancePopover(t *testing.T) {
 	}
 }
 
+// TestSettingsLanguageSelectSwitchesTheInterface 检查设置页的语言下拉真的接上了偏好：
+// 选 English 之后偏好与实际界面语言都变成英文。
+//
+// 这里只点固定的语言，不点「跟随系统」：后者要读系统 locale，而 MyGo 在主线程上
+// 读它，测试器没有那个线程（同 TestSidebarAppearancePopover 的说明）。
+func TestSettingsLanguageSelectSwitchesTheInterface(t *testing.T) {
+	app := previewApp("")
+	app.setPage(pageSettings)
+	app.settingsArea = settingsGeneral
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	if !tt.HasText(app.t(msgSettingsLanguage)) {
+		t.Fatalf("设置页应显示语言设置，实际显示：%q", tt.Texts())
+	}
+	// 下拉的当前值就是默认的「跟随系统」。
+	if !tt.HasText(app.t(msgSettingsLanguageSystem)) {
+		t.Fatalf("语言下拉应显示「%s」，实际显示：%q", app.t(msgSettingsLanguageSystem), tt.Texts())
+	}
+
+	if err := tt.Click(app.t(msgSettingsLanguageSystem)); err != nil {
+		t.Fatalf("展开语言下拉失败：%v", err)
+	}
+	tt.Frame()
+	if err := tt.Click("English"); err != nil {
+		t.Fatalf("选择 English 失败：%v", err)
+	}
+	tt.Frame()
+
+	if app.languagePreference != languagePreferenceEnglish {
+		t.Errorf("语言偏好 = %v，期望英文", app.languagePreference)
+	}
+	if app.language != languageEnglish {
+		t.Errorf("界面语言 = %v，期望英文", app.language)
+	}
+	if !tt.HasText(app.t(msgSettingsLanguage)) {
+		t.Errorf("切到英文后设置页应显示 %q，实际显示：%q", app.t(msgSettingsLanguage), tt.Texts())
+	}
+}
+
 // TestEveryPageRenders 把三个页面和设置页的每个分栏都渲染一遍，确认缩放没有
 // 破坏任何一页的构建（key 重复、空元素或越界都会在这里暴露），并在最大档位
 // 再走一遍。

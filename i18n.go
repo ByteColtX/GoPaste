@@ -20,11 +20,43 @@ const (
 	languageEnglish
 )
 
-// languageChoices lists the language picker options. Each label is the
-// language's own name, so it stays legible whatever the current language is.
-var languageChoices = []option[language]{
-	{value: languageSimplifiedChinese, label: "简体中文"},
-	{value: languageEnglish, label: "English"},
+// languagePreference is the interface-language choice the settings page stores:
+// follow the system, or pin one language. It stays separate from language so the
+// stored choice never depends on what the system happens to be today: the
+// preference is what the user picked, language is what is on screen.
+type languagePreference uint8
+
+const (
+	// languagePreferenceSystem follows the system locale, and is the default.
+	languagePreferenceSystem languagePreference = iota
+	languagePreferenceSimplifiedChinese
+	languagePreferenceEnglish
+)
+
+// language resolves the preference to the language to display. The locale is
+// read only when following the system, so a pinned language never touches it —
+// MyGo reads the locale on the main thread, which a test has none of.
+func (p languagePreference) language(locale func() string) language {
+	switch p {
+	case languagePreferenceSimplifiedChinese:
+		return languageSimplifiedChinese
+	case languagePreferenceEnglish:
+		return languageEnglish
+	default:
+		return languageFromLocale(locale())
+	}
+}
+
+// languageChoices pairs each preference with its label for the current
+// language. Following the system has no name of its own, so it is the one label
+// that gets translated; the languages keep their own names, so they stay legible
+// whatever the interface is showing.
+func (l localizer) languageChoices() []option[languagePreference] {
+	return []option[languagePreference]{
+		{value: languagePreferenceSystem, label: l.text(msgSettingsLanguageSystem)},
+		{value: languagePreferenceSimplifiedChinese, label: "简体中文"},
+		{value: languagePreferenceEnglish, label: "English"},
+	}
 }
 
 // languageFromLocale maps a system locale such as "en-US" or "zh-Hans-CN" to a
@@ -222,6 +254,7 @@ const (
 	msgSettingsLaunchAtLogin         messageKey = "settings.launchAtLogin"
 	msgSettingsLaunchAtLoginDesc     messageKey = "settings.launchAtLoginDesc"
 	msgSettingsLanguage              messageKey = "settings.language"
+	msgSettingsLanguageSystem        messageKey = "settings.language.system"
 	msgSettingsLanguageDesc          messageKey = "settings.languageDesc"
 	msgSettingsConfirmDelete         messageKey = "settings.confirmDelete"
 	msgSettingsConfirmDeleteDesc     messageKey = "settings.confirmDeleteDesc"
@@ -480,6 +513,7 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsLaunchAtLogin:         "登录时打开",
 	msgSettingsLaunchAtLoginDesc:     "登录时自动打开 GoPaste",
 	msgSettingsLanguage:              "语言",
+	msgSettingsLanguageSystem:        "跟随系统",
 	msgSettingsLanguageDesc:          "选择界面语言",
 	msgSettingsConfirmDelete:         "删除前确认",
 	msgSettingsConfirmDeleteDesc:     "删除单条记录前先询问。关闭后删除将立即执行，清除历史记录和取消配对仍会先确认。",
@@ -730,6 +764,7 @@ var englishCatalog = catalog{
 	msgSettingsLaunchAtLogin:         "Open at Login",
 	msgSettingsLaunchAtLoginDesc:     "Open GoPaste automatically when you log in",
 	msgSettingsLanguage:              "Language",
+	msgSettingsLanguageSystem:        "System Default",
 	msgSettingsLanguageDesc:          "Choose the interface language",
 	msgSettingsConfirmDelete:         "Confirm before deleting",
 	msgSettingsConfirmDeleteDesc:     "Ask before deleting a single record. When off, records are deleted right away; clearing history and unpairing still ask first.",

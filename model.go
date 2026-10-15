@@ -236,6 +236,7 @@ type application struct {
 	pairingError             string
 	onStartPairing           func()
 	launchAtLogin            bool
+	languagePreference       languagePreference // 设置页选的语言，language 是它解析后的结果
 	language                 language
 	appearance               int
 	appearancePopoverOpen    bool // 侧栏底部外观气泡是否展开：按钮点击切换，点外部或 Esc 收起

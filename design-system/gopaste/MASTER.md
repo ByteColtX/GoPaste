@@ -186,6 +186,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - Pair status text with a status dot or icon; never use color alone.
 - Make the direct, peer-to-peer connection explicit in device details and pairing states, without naming a specific network type.
 - Use helper text for switches and direction controls so disabled states explain their scope.
+- The interface language follows the system by default; Settings › General's Language picker either keeps following it or pins one language. The two language names stay in their own script — 简体中文 and English — so either is legible whatever the interface is showing; only "跟随系统 / System Default" is translated, because following the system has no name of its own.
 - Destructive actions confirm the affected data or device.
 - Let a device unpairing be undone for a short window: the toast offers Undo, which puts the device back in its place and reselects it, and the chance ends when the toast times out.
 

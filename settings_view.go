@@ -90,7 +90,7 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 		})
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsLanguage), a.t(msgSettingsLanguageDesc), func() {
-			languageControl := selectField(c, theme, "settings-language", &a.language, a.t(msgSettingsLanguage), languageChoices)
+			languageControl := selectField(c, theme, "settings-language", &a.languagePreference, a.t(msgSettingsLanguage), a.l10n().languageChoices())
 			if a.compactDetailLayout(c, theme) {
 				languageControl.FillWidth()
 			} else {
