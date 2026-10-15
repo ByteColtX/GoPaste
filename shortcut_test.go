@@ -368,6 +368,40 @@ func TestRefreshShortcutStaysOnTheDevicesPage(t *testing.T) {
 	}
 }
 
+// TestSetPageNotifiesOnlyOnChange 检查分区切换通知只在真的换页时发出：重复设置
+// 当前页不通知，免得每次点筛选项都去动一遍菜单。
+func TestSetPageNotifiesOnlyOnChange(t *testing.T) {
+	app := newApplication()
+	changes := 0
+	app.onPageChanged = func() { changes++ }
+
+	app.setPage(pageHistory) // 默认已在历史页
+	if changes != 0 {
+		t.Errorf("重复设置当前页不应通知，实际通知 %d 次", changes)
+	}
+	app.setPage(pageDevices)
+	if changes != 1 {
+		t.Errorf("换页后应通知 1 次，实际 %d 次", changes)
+	}
+	app.setPage(pageDevices)
+	if changes != 1 {
+		t.Errorf("再次设置同一页不应通知，实际 %d 次", changes)
+	}
+}
+
+// TestRequestDeviceRefreshQueuesItsToast 检查菜单项走的排队路径：设备发现服务未
+// 接入时把「不可用」提示留给下一帧，而不是因为没有 ui.Context 就丢掉。
+func TestRequestDeviceRefreshQueuesItsToast(t *testing.T) {
+	app := previewApp("")
+	app.requestDeviceRefresh()
+	if app.pendingToast == "" {
+		t.Error("没有发现服务时应把不可用提示排队到下一帧")
+	}
+	if !app.deviceRefreshSpinning() {
+		t.Error("刷新请求应立刻开始转圈")
+	}
+}
+
 // TestDeviceShortcuts 检查设备页的 Cmd+N 新增设备与 Cmd+R 刷新。
 func TestDeviceShortcuts(t *testing.T) {
 	app := previewApp("")
