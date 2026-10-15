@@ -99,6 +99,53 @@ func TestHistoryDatabasePathStaysInTheUserDataDirectory(t *testing.T) {
 	}
 }
 
+// TestParseArgsReadsTheDatabasePath 检查历史数据库文件既可以由参数指定，也可以
+// 由环境变量提供，而且参数优先。
+func TestParseArgsReadsTheDatabasePath(t *testing.T) {
+	t.Setenv(historyDatabaseEnv, "/tmp/from-env.db")
+
+	if got, rest := parseArgs(nil); got != "/tmp/from-env.db" || len(rest) != 0 {
+		t.Errorf("没有参数时 parseArgs() = %q/%v，期望环境变量的值", got, rest)
+	}
+	if got, _ := parseArgs([]string{"-db", "/tmp/from-flag.db"}); got != "/tmp/from-flag.db" {
+		t.Errorf("参数指定的路径被忽略了，parseArgs() = %q", got)
+	}
+}
+
+// TestParseArgsLeavesMygoArgumentsAlone 检查留给 mygo 的参数原样保留：它把
+// 剩下的参数当成要打开的链接和文件。
+func TestParseArgsLeavesMygoArgumentsAlone(t *testing.T) {
+	_, rest := parseArgs([]string{"-db", "preview.db", "gopaste://open?x=1"})
+	if want := []string{"gopaste://open?x=1"}; !slices.Equal(rest, want) {
+		t.Errorf("剩下的参数 = %v，期望 %v", rest, want)
+	}
+}
+
+// TestDatabaseFilePrefersTheExplicitPath 检查命令行参数或环境变量指定的数据库
+// 优先于用户数据目录下的默认位置。
+func TestDatabaseFilePrefersTheExplicitPath(t *testing.T) {
+	explicit := filepath.Join(t.TempDir(), "preview.db")
+	got, err := newApplicationRuntime(explicit).databaseFile()
+	if err != nil {
+		t.Fatalf("databaseFile() 出错: %v", err)
+	}
+	if got != explicit {
+		t.Errorf("指定文件时 databaseFile() = %q，期望 %q", got, explicit)
+	}
+
+	fallback, err := newApplicationRuntime("").databaseFile()
+	if err != nil {
+		t.Fatalf("databaseFile() 出错: %v", err)
+	}
+	want, err := historyDatabasePath()
+	if err != nil {
+		t.Fatalf("historyDatabasePath() 出错: %v", err)
+	}
+	if fallback != want {
+		t.Errorf("未指定文件时 databaseFile() = %q，期望 %q", fallback, want)
+	}
+}
+
 // TestClipboardEchoFollowsWhatTheCopyPathWrites 检查回声标记记录的是「写回
 // 剪贴板之后监听会读到的那条记录」：纯文本、链接、代码和图片写回原样，
 // 富文本和文件只能写回纯文本表示。

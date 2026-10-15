@@ -14,7 +14,7 @@ import (
 	"gopaste/internal/history/sqlite"
 )
 
-// historyDatabasePath 返回历史数据库在本机的位置。
+// historyDatabasePath 返回历史数据库在本机的默认位置。
 //
 // 剪贴板内容属于敏感数据：数据库只放在当前用户的数据目录，不进仓库、不同步、
 // 不上传。三个平台用同一套「GoPaste/history.db」相对路径，本机预览数据脚本
@@ -157,6 +157,17 @@ func (a *application) persistDelete(ids ...string) {
 	a.persistence.enqueue(deleteItems(ids...))
 }
 
+// databaseFile 返回本次运行要用的历史数据库文件。
+//
+// 命令行参数和环境变量指定的文件优先，本机预览因此可以把应用指向一份生成的
+// 演示数据；两者都没有时才用用户数据目录下的默认位置。
+func (r *applicationRuntime) databaseFile() (string, error) {
+	if r.databasePath != "" {
+		return r.databasePath, nil
+	}
+	return historyDatabasePath()
+}
+
 // startHistoryPersistence 打开历史数据库、装载已有记录，然后开始监听剪贴板。
 //
 // 打开数据库、读取记录都在界面线程之外进行，结果通过 Window.Update 发布：界面
@@ -164,7 +175,7 @@ func (a *application) persistDelete(ids ...string) {
 // 运行；此时剪贴板监听也不启动，避免用户以为复制的内容被保存了。
 func (r *applicationRuntime) startHistoryPersistence(captureCtx context.Context) {
 	go func() {
-		path, err := historyDatabasePath()
+		path, err := r.databaseFile()
 		if err != nil {
 			log.Printf("无法确定历史数据库位置，本次不保存历史记录: %v", err)
 			return
@@ -177,7 +188,7 @@ func (r *applicationRuntime) startHistoryPersistence(captureCtx context.Context)
 		ctx := context.Background()
 		repository, err := sqlite.Open(ctx, path)
 		if err != nil {
-			log.Printf("无法打开历史数据库，本次不保存历史记录: %v", err)
+			log.Printf("无法打开历史数据库 %s，本次不保存历史记录: %v", path, err)
 			return
 		}
 		items, err := repository.Load(ctx)

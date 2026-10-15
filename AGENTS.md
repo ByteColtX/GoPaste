@@ -21,6 +21,21 @@ CGO_ENABLED=0 go test ./...
 go run .
 ```
 
+## 本地预览数据
+
+界面走查用的剪贴板历史由 `scripts/mockdb` 生成到 `resources/mock/history.db`。
+数据库和 `resources/mock/` 里的图片一样是本地素材，已被 .gitignore 忽略；生成器
+每次重建目标文件。
+
+```sh
+go run ./scripts/mockdb
+GOFLAGS='-tags=preview' GOPASTE_HISTORY_DB=resources/mock/history.db go tool mygo dev
+```
+
+`GOPASTE_HISTORY_DB`（或 `go run . -db PATH`）让应用读写指定的数据库文件，
+不指定时仍是用户数据目录下的 `history.db`。`-tags preview` 额外带出本地设备
+fixture：设备发现尚未接入。
+
 ## 开发规则
 
 - 依赖 MyGo API 时以当前 `go.mod` 版本和模块源码为准。

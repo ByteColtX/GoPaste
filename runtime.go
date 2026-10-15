@@ -23,6 +23,8 @@ const (
 type applicationRuntime struct {
 	app    *application
 	window *mygo.Window
+	// databasePath 是命令行或环境变量指定的历史数据库文件；为空时用默认位置。
+	databasePath string
 	// appMenuSettings 是 macOS 应用菜单里的「设置…」项。语言变化时只更新它的
 	// 标签，不必重建整个菜单。
 	appMenuSettings *mygo.MenuItem
@@ -48,13 +50,14 @@ func (mygoClipboardWriter) WriteImage(png []byte) error {
 	return mygo.Clipboard.WriteImage(png)
 }
 
-func newApplicationRuntime() *applicationRuntime {
-	return &applicationRuntime{app: newApplication()}
+func newApplicationRuntime(databasePath string) *applicationRuntime {
+	return &applicationRuntime{app: newApplication(), databasePath: databasePath}
 }
 
 // runApplication 注册应用级事件，并把控制权交给 MyGo 的事件循环。
-func runApplication() error {
-	controller := newApplicationRuntime()
+// databasePath 为空时使用默认的历史数据库位置。
+func runApplication(databasePath string) error {
+	controller := newApplicationRuntime(databasePath)
 	mygo.App.OnSecondInstance(func([]string, string) {
 		controller.showMainWindow()
 	})
