@@ -192,3 +192,40 @@ func TestBaseName(t *testing.T) {
 		})
 	}
 }
+
+// TestLabelOnlyNamesTheFormatItself pins the rule that keeps a format tag
+// honest: a name is only given where it is the format's own, so a format that
+// shares one label across several extensions — CSV, Log, Config, Sass — has
+// none, and the interface falls back to the file's own extension.
+func TestLabelOnlyNamesTheFormatItself(t *testing.T) {
+	named := []struct {
+		format Format
+		want   string
+	}{
+		{FormatMarkdown, "Markdown"},
+		{FormatGo, "Go"},
+		{FormatJSON, "JSON"},
+		{FormatPNG, "PNG"},
+		{FormatShell, "Shell"},
+		{FormatDockerfile, "Dockerfile"},
+		{FormatFigma, "Figma"},
+	}
+	for _, tc := range named {
+		if got := tc.format.Label(); got != tc.want {
+			t.Errorf("%v.Label() = %q，期望 %q", tc.format, got, tc.want)
+		}
+	}
+
+	unnamed := []Format{
+		FormatText, FormatLog, FormatCSV, FormatArchive, FormatDocument,
+		FormatSpreadsheet, FormatXLS, FormatPresentation, FormatPDF, FormatImage,
+		FormatVideo, FormatAudio, FormatCode, FormatSass, FormatConfig,
+		FormatFont, FormatDatabase, FormatDesign, FormatExecutable,
+		FormatUnknown,
+	}
+	for _, format := range unnamed {
+		if got := format.Label(); got != "" {
+			t.Errorf("%v.Label() = %q，期望空（应回退到扩展名）", format, got)
+		}
+	}
+}

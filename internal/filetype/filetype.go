@@ -136,6 +136,66 @@ func (f Format) Kind() Kind {
 	}
 }
 
+// Label returns the language-neutral name the interface shows for a format, or
+// "" when the format has no name of its own. A name is only given when it is
+// the format's own — a proper noun or a short form the format is known by, such
+// as Markdown, JSON, Go or PNG — so it reads the same in every UI language and
+// is never translated. Every other format falls back to the file's own
+// extension in the interface, which keeps a .zip a ZIP instead of a translated
+// family word and a .tsv a TSV instead of the name of a neighbouring format.
+func (f Format) Label() string {
+	switch f {
+	case FormatMarkdown:
+		return "Markdown"
+	case FormatPNG:
+		return "PNG"
+	case FormatJPEG:
+		return "JPEG"
+	case FormatBMP:
+		return "BMP"
+	case FormatSVG:
+		return "SVG"
+	case FormatGo:
+		return "Go"
+	case FormatPython:
+		return "Python"
+	case FormatJavaScript:
+		return "JavaScript"
+	case FormatTypeScript:
+		return "TypeScript"
+	case FormatVue:
+		return "Vue"
+	case FormatSvelte:
+		return "Svelte"
+	case FormatRust:
+		return "Rust"
+	case FormatPHP:
+		return "PHP"
+	case FormatShell:
+		return "Shell"
+	case FormatSQL:
+		return "SQL"
+	case FormatHTML:
+		return "HTML"
+	case FormatCSS:
+		return "CSS"
+	case FormatXML:
+		return "XML"
+	case FormatJSON:
+		return "JSON"
+	case FormatYAML:
+		return "YAML"
+	case FormatDockerfile:
+		return "Dockerfile"
+	case FormatFigma:
+		return "Figma"
+	case FormatBlender:
+		return "Blender"
+	default:
+		return ""
+	}
+}
+
 // byExtension maps a lowercase extension without its dot to its format. The
 // table is the whole implementation: one entry per extension the interface can
 // name, and everything absent stays FormatUnknown.

@@ -1266,10 +1266,12 @@ func (a *application) fileFormat(item history.Item) filetype.Format {
 }
 
 // fileTypeLabel names a file item's detected format, falling back to the
-// uppercased extension for an unrecognised format and to "" when the name has
-// neither a known format nor an extension.
+// uppercased extension for a format without a name of its own and to "" when
+// the name has neither. The label is never translated: a .zip reads ZIP in
+// every UI language, so the tag names the file's own format instead of a
+// translated family word.
 func (a *application) fileTypeLabel(item history.Item) string {
-	if label := a.l10n().fileFormatLabel(a.fileFormat(item)); label != "" {
+	if label := a.fileFormat(item).Label(); label != "" {
 		return label
 	}
 	if extension := filetype.Extension(firstFilePath(item.Text)); extension != "" {

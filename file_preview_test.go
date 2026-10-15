@@ -167,7 +167,7 @@ func TestFilePreviewNamesTheFileAndItsFormat(t *testing.T) {
 	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
 	for _, want := range []string{
 		"~/Documents/quarterly report.docx",
-		app.t(msgFileTypeDocument),
+		"DOCX",
 		"3.4 KB",
 	} {
 		if !tt.HasText(want) {
@@ -188,7 +188,7 @@ func TestFilePreviewRendersAnImagePayload(t *testing.T) {
 	if !hasExactText(texts, "~/Pictures/photo.png") {
 		t.Errorf("文件预览缺少路径，实际显示：%q", texts)
 	}
-	if !tt.HasText(app.t(msgFileFormatPNG)) || !tt.HasText("4.0 KB") {
+	if !tt.HasText("PNG") || !tt.HasText("4.0 KB") {
 		t.Errorf("文件预览缺少格式与大小，实际显示：%q", texts)
 	}
 	if tt.HasText(app.t(msgHistoryFilePreviewGone)) {
@@ -220,7 +220,7 @@ func TestFilePreviewRendersATextExcerpt(t *testing.T) {
 func TestFilePreviewFallsBackToANote(t *testing.T) {
 	app := fileApp(fileItem("file-export", "~/Desktop/design-export.zip", 18_874_368))
 	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
-	for _, want := range []string{"design-export.zip", app.t(msgFileTypeArchive), app.t(msgHistoryFilePreviewGone)} {
+	for _, want := range []string{"design-export.zip", "ZIP", app.t(msgHistoryFilePreviewGone)} {
 		if !tt.HasText(want) {
 			t.Errorf("文件预览缺少 %q，实际显示：%q", want, tt.Texts())
 		}
@@ -371,18 +371,33 @@ func TestFilePathListSummarizesTheRest(t *testing.T) {
 	}
 }
 
-// TestFileTypeLabelFallsBackToTheExtension checks the tag shown for a file
-// whose format is not recognised: the extension is better than nothing, and a
-// name with no extension has no tag at all.
-func TestFileTypeLabelFallsBackToTheExtension(t *testing.T) {
+// TestFileTypeLabelNamesTheFormatNotATranslation checks the tag shown for a
+// file: a format with a name of its own uses it, every other format uses the
+// uppercased extension, and a name with neither has no tag. The label never
+// goes through the catalog, so a .zip reads ZIP in every UI language instead of
+// a translated family word.
+func TestFileTypeLabelNamesTheFormatNotATranslation(t *testing.T) {
 	app := newApplication()
-	if got, want := app.fileTypeLabel(fileItem("f", "~/data/thing.qqq", 10)), "QQQ"; got != want {
-		t.Errorf("未知扩展名的类型标签 = %q，期望 %q", got, want)
+	cases := []struct {
+		path string
+		want string
+	}{
+		{"~/Pictures/photo.png", "PNG"},
+		{"~/Documents/notes.md", "Markdown"},
+		{"~/code/main.go", "Go"},
+		{"~/Desktop/design-export.zip", "ZIP"},
+		{"~/Documents/report.docx", "DOCX"},
+		{"~/Documents/notes.txt", "TXT"},
+		{"~/data/table.tsv", "TSV"},
+		{"~/config/settings.toml", "TOML"},
+		{"~/logs/app.log", "LOG"},
+		{"~/styles/theme.less", "LESS"},
+		{"~/data/thing.qqq", "QQQ"},
+		{"~/data/no-extension", ""},
 	}
-	if got := app.fileTypeLabel(fileItem("f", "~/data/no-extension", 10)); got != "" {
-		t.Errorf("没有扩展名时不应有类型标签，实际 %q", got)
-	}
-	if got, want := app.fileTypeLabel(fileItem("f", "~/Documents/report.docx", 10)), app.t(msgFileTypeDocument); got != want {
-		t.Errorf("文档类型标签 = %q，期望 %q", got, want)
+	for _, tc := range cases {
+		if got := app.fileTypeLabel(fileItem("f", tc.path, 10)); got != tc.want {
+			t.Errorf("%s 的类型标签 = %q，期望 %q", tc.path, got, tc.want)
+		}
 	}
 }
