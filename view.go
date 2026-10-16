@@ -715,11 +715,9 @@ func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme)
 	// 按钮贴着窗口下缘，气泡没有向下的空间，PopoverBase 会自动翻到按钮上方；
 	// 右对齐到按钮右缘，气泡因此盖在侧栏上，而不是伸进右侧的内容区。
 	ui.PopoverBase(c, button, &a.appearancePopoverOpen, func(panel ui.Element) {
-		panel.AttachTo(button, ui.AnchorBottomEnd, ui.AnchorTopEnd).
+		floatingSurface(theme, panel).
+			AttachTo(button, ui.AnchorBottomEnd, ui.AnchorTopEnd).
 			MinWidth(space(theme, 46)).Padding(space(theme, 1)).
-			Radius(radius(theme, cardRadius)).
-			Background(theme.Background).Border(1, borderColor(theme)).
-			Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
 			Margin(0, 0, space(theme, 1), 0).
 			Transition(ui.ElementTransition{
 				Duration: 140 * time.Millisecond,
@@ -1804,11 +1802,9 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	open := a.syncPopoverOpen
 	panelHovered := false
 	ui.PopoverBase(c, chip, &open, func(panel ui.Element) {
-		panel.MinWidth(space(theme, 60)).MaxWidth(space(theme, 96)).
+		floatingSurface(theme, panel).
+			MinWidth(space(theme, 60)).MaxWidth(space(theme, 96)).
 			Padding(space(theme, 2)).
-			Radius(radius(theme, cardRadius)).
-			Background(theme.Background).Border(1, borderColor(theme)).
-			Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
 			Transition(ui.ElementTransition{
 				Duration: 140 * time.Millisecond,
 				Ease:     ui.EaseOut,
@@ -2216,35 +2212,33 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 		ui.Row(c).FillWidth().MaxWidth(detailMaxWidth(theme)).Justify(ui.Center).
 			Padding(0, space(theme, spacePageSide), space(theme, previewBarBottomInset), space(theme, spacePageSide)).
 			Children(func() {
-				ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).
-					Padding(space(theme, previewBarPadding)).
-					Radius(radius(theme, cardRadius)).
-					Background(theme.Background).Border(1, borderColor(theme)).
-					Shadow(0, space(theme, 1.5), space(theme, 5), 0, ui.RGBA(0, 0, 0, 0.18)).
-					Children(func() {
-						deleteLabel := a.t(msgHistoryDelete)
-						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel, "D")
-						if deleteButton.Clicked() {
-							a.requestDeleteItem(c, item.ID)
-						}
+				// 操作条是浮层，和对话框、气泡共用同一套表面：圆角、填充、描边、投影。
+				bar := ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).
+					Padding(space(theme, previewBarPadding))
+				floatingSurface(theme, bar).Children(func() {
+					deleteLabel := a.t(msgHistoryDelete)
+					deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel, "D")
+					if deleteButton.Clicked() {
+						a.requestDeleteItem(c, item.ID)
+					}
 
-						ui.Box(c).Width(1).Height(controlHeightSize(c, theme, 4.5)).Shrink(0).
-							Background(dividerColor(theme))
+					ui.Box(c).Width(1).Height(controlHeightSize(c, theme, 4.5)).Shrink(0).
+						Background(dividerColor(theme))
 
-						favoriteLabel := a.favoriteLabel(item.Favorite)
-						favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel, item.Favorite, "F")
-						if favoriteButton.Clicked() {
-							if message := a.toggleFavorite(item.ID); message != "" {
-								c.Toast(message)
-							}
+					favoriteLabel := a.favoriteLabel(item.Favorite)
+					favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel, item.Favorite, "F")
+					if favoriteButton.Clicked() {
+						if message := a.toggleFavorite(item.ID); message != "" {
+							c.Toast(message)
 						}
+					}
 
-						copyLabel := a.t(msgHistoryCopy)
-						copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel, "C")
-						if copyButton.Clicked() {
-							a.copyToClipboard(c, item.ID)
-						}
-					})
+					copyLabel := a.t(msgHistoryCopy)
+					copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel, "C")
+					if copyButton.Clicked() {
+						a.copyToClipboard(c, item.ID)
+					}
+				})
 			})
 	})
 }

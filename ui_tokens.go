@@ -95,6 +95,22 @@ const (
 	controlRadius float32 = 2
 )
 
+// 弹窗（对话框与二次确认）的共享几何。宽度按 DIP 走缩放网格，其余走 theme.Space
+// 网格，因此界面缩放时弹窗和窗口里的控件同步放大。
+const (
+	// dialogWidth 是弹窗宽度，单位 DIP：去掉两侧 20 DIP 内边距后正文约 400 DIP，
+	// 落在 Apple 提醒框 420 pt 的正文宽度附近，也在 Material 3 对话框
+	// 280–560 dp 的区间内。
+	dialogWidth float32 = 440
+	// dialogPadding 是弹窗四周的留白，20 DIP。
+	dialogPadding float32 = 5
+	// dialogGap 是弹窗里相邻内容的间距，8 DIP：正文块内部与按钮之间都用它。
+	dialogGap float32 = 2
+	// dialogActionGap 是正文与按钮行之间额外让出的留白，12 DIP；与 dialogGap 相加
+	// 是 20 DIP，按钮行因此从正文里明确分出来，而不是和说明连成一段。
+	dialogActionGap float32 = 3
+)
+
 const (
 	// filterRailWidth is the sidebar's width in DIPs. The sidebar holds the
 	// history filters, the device list, or the settings panes, so it has to
@@ -274,6 +290,23 @@ func standardDivider(c *ui.Context, theme *ui.Theme) {
 	ui.Box(c).Height(1).FillWidth().Shrink(0).Background(dividerColor(theme))
 }
 
+// floatingShadow 是浮层共用的投影颜色：淡到只把浮层从画布上托起来，符合设计系统
+// 「不要重投影」的要求。
+var floatingShadow = ui.RGBA(0, 0, 0, 0.18)
+
+// dialogScrim 是弹窗背后压暗窗口的那层黑色，与 MyGo 的 Modal、AlertDialog 取同一个
+// 深度。它不分明暗外观：Material 3 的对话框遮罩也不随主题变化。
+var dialogScrim = ui.RGBA(0, 0, 0, 0.4)
+
+// floatingSurface 给浮层套上统一外观：卡片圆角、不透明表面、1px 语义描边和同一档
+// 投影。对话框、气泡、下拉面板和悬浮操作条都走它，各自的几何（宽度、内边距、锚点）
+// 由调用方给出。
+func floatingSurface(theme *ui.Theme, panel ui.Element) ui.Element {
+	return panel.Radius(radius(theme, cardRadius)).Background(theme.Background).
+		Border(1, borderColor(theme)).
+		Shadow(0, space(theme, 1.5), space(theme, 5), 0, floatingShadow)
+}
+
 func neutralButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
@@ -299,8 +332,85 @@ func dangerButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element 
 	return button
 }
 
-// dangerConfirmButton 是危险确认弹窗中的主操作按钮。
-func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
+// dialogSpec 是一个弹窗的内容。弹窗的外观只在 dialog 里定义一次：一个表面（不再
+// 套第二层卡片）、固定的宽度与内边距、标题与说明的排版、右对齐的按钮行，以及打开
+// 时落在关闭按钮上的焦点。调用方只填内容，并用下面的按钮助手构建按钮行。
+type dialogSpec struct {
+	// title 是弹窗标题，也是辅助技术读到的弹窗名字。
+	title string
+	// role 取 RoleAlertDialog（二次确认）或 RoleDialog（任务型弹窗）。
+	role ui.Role
+	// message 是标题下的说明，可留空。
+	message string
+	// badge 非空时在标题正下方画一行状态：一个圆点和标签，用 badgeColor。
+	// 它陈述弹窗所涉对象的当前状态，因此排在说明之前。
+	badge      string
+	badgeColor ui.Color
+	// content 是说明与按钮行之间的额外内容（错误、进度、复选项），可为 nil。
+	content func()
+	// actions 构建按钮行，至少一个按钮。
+	actions func()
+}
+
+// dialog 渲染一个弹窗并返回它的面板，供调用方登记覆盖层快捷键。
+//
+// 用 DialogBase 而不是 Modal：Modal 会给面板套上自己的内边距、表面和投影，我们再
+// 套一层卡片时那条描边就画在投影边缘往里 20 DIP 的地方。DialogBase 只提供遮罩、
+// 焦点陷阱和 Escape，表面完全由这里决定，弹窗因此只有一个表面。
+func dialog(c *ui.Context, theme *ui.Theme, open *bool, spec dialogSpec) ui.Element {
+	width, height := c.Size()
+	return ui.DialogBase(c, open, func(backdrop, panel ui.Element) {
+		backdrop.Background(dialogScrim)
+		floatingSurface(theme, panel).
+			Width(spaceDIP(theme, dialogWidth)).
+			MaxWidth(width - space(theme, 10)).
+			MaxHeight(height - space(theme, 10)).
+			Padding(space(theme, dialogPadding)).
+			Gap(space(theme, dialogGap)).
+			Role(spec.role).Label(spec.title).Description(spec.message)
+
+		ui.Text(c, spec.title).FontSize(font(theme, fontSection)).FontWeight(600).
+			Role(ui.RoleHeading).MaxLines(2).Wrap()
+		if spec.badge != "" {
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
+				statusDot(c, spec.badgeColor, space(theme, 2))
+				ui.Text(c, spec.badge).FontSize(font(theme, fontControl)).
+					TextColor(spec.badgeColor).FontWeight(600).SingleLine()
+			})
+		}
+		if spec.message != "" {
+			ui.Text(c, spec.message).FontSize(font(theme, fontBody)).
+				TextColor(secondaryText(theme)).Wrap()
+		}
+		if spec.content != nil {
+			spec.content()
+		}
+		ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, dialogGap)).
+			Margin(space(theme, dialogActionGap), 0, 0, 0).Children(spec.actions)
+	})
+}
+
+// dialogDismissButton 是弹窗里的取消/关闭按钮：安静的字形、Escape 键帽，并在弹窗
+// 打开时拿到焦点。所有弹窗的退出路径因此一致——Escape、这个按钮、点击弹窗之外，
+// 三者都只是取消。焦点落在它而不是确认按钮上，是为了让 Return 永远不会触发不可撤销
+// 的操作；Apple 的提醒框同样建议不要让用户习惯性地按 Return 打发掉提醒。
+func dialogDismissButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
+	button := neutralButton(c, theme, key, label).Gap(space(theme, 1)).AutoFocus()
+	button.Children(func() {
+		ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+		keycap(c, theme, shortcutKeyLabel(ui.KeyEscape), primaryText(theme))
+	})
+	return button
+}
+
+// dialogPrimaryButton 是任务型弹窗里的主操作按钮：强调色填充、文字反色。
+func dialogPrimaryButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
+	return primaryButton(c, theme, key, nil, label, "")
+}
+
+// dialogDangerButton 是二次确认里的确认按钮：危险色填充，文字反色。shortcut 非空
+// 时在文字后画出键帽——只画一个，其余可用按键照常生效但不显示，免得按钮上挤满键帽。
+func dialogDangerButton(c *ui.Context, theme *ui.Theme, key, label, shortcut string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 		Background(theme.Danger).TextColor(theme.AccentText).Label(label).
@@ -308,12 +418,18 @@ func dangerConfirmButton(c *ui.Context, theme *ui.Theme, key, label string) ui.E
 	if button.Hovered() {
 		button.Background(theme.Danger.Mix(theme.Text, 0.12))
 	}
+	button.Children(func() {
+		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		if shortcut != "" {
+			keycap(c, theme, shortcut, theme.AccentText)
+		}
+	})
 	return button
 }
 
 // dangerDialogKeys 是二次确认框的按键配置：confirm 与 cancel 是要注册的覆盖层
 // 快捷键，confirmShown 是确认按钮上唯一画成键帽的那个。多出来的按键照常生效，
-// 只是不显示，免得按钮上挤满键帽。Escape 由 Modal 自己处理，不放进 cancel。
+// 只是不显示，免得按钮上挤满键帽。Escape 由弹窗自己处理，不放进 cancel。
 type dangerDialogKeys struct {
 	confirm      []ui.Key
 	confirmShown ui.Key
@@ -321,7 +437,7 @@ type dangerDialogKeys struct {
 }
 
 // dangerConfirmDialog 渲染危险操作的二次确认框，并在打开期间为 keys 里的按键
-// 注册覆盖层快捷键。Escape 由 Modal 自己处理：关闭即取消。
+// 注册覆盖层快捷键。Escape 由弹窗自己处理：关闭即取消。
 func dangerConfirmDialog(
 	c *ui.Context,
 	theme *ui.Theme,
@@ -339,46 +455,31 @@ func dangerConfirmDialog(
 	}
 
 	confirmed := false
-	panel := ui.Modal(c, open, func() {
-		ui.Column(c).Width(440).Shrink(0).
-			Padding(space(theme, 5), space(theme, 5)).Gap(space(theme, 3)).
-			Radius(radius(theme, cardRadius)).Background(theme.Background).
-			Border(1, borderColor(theme)).Role(ui.RoleAlertDialog).Label(title).Children(func() {
-			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).
-				Role(ui.RoleHeading).SingleLine()
-			ui.Text(c, message).FontSize(font(theme, fontBody)).
-				TextColor(secondaryText(theme)).Wrap()
+	panel := dialog(c, theme, open, dialogSpec{
+		title:   title,
+		role:    ui.RoleAlertDialog,
+		message: message,
+		content: func() {
+			// 只有删除需要「不再询问」：勾选后本次确认即记住偏好。
 			if dontAskLabel != "" {
 				ui.Checkbox(c.Key("danger-confirm-dont-ask"), dontAsk, dontAskLabel).
 					Shrink(0).Label(dontAskLabel)
 			}
-			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, 2)).Children(func() {
-				cancelLabel := l.text(msgDangerCancel)
-				// 取消与确认按钮各自带上可用按键的键帽，与预览操作条同一套提示。
-				cancel := neutralButton(c, theme, "danger-confirm-cancel", cancelLabel).
-					Gap(space(theme, 1))
-				cancel.Children(func() {
-					ui.Text(c, cancelLabel).FontSize(font(theme, fontControl)).SingleLine()
-					keycap(c, theme, shortcutKeyLabel(ui.KeyEscape), primaryText(theme))
-				})
-				if cancel.Clicked() {
-					*open = false
-				}
+		},
+		actions: func() {
+			cancelLabel := l.text(msgDangerCancel)
+			cancel := dialogDismissButton(c, theme, "danger-confirm-cancel", cancelLabel)
+			if cancel.Clicked() {
+				*open = false
+			}
 
-				confirm := dangerConfirmButton(c, theme, "danger-confirm-submit", confirmLabel).
-					Gap(space(theme, 1))
-				confirm.Children(func() {
-					ui.Text(c, confirmLabel).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
-					if label := shortcutKeyLabel(keys.confirmShown); label != "" {
-						keycap(c, theme, label, theme.AccentText)
-					}
-				})
-				if confirm.Clicked() {
-					confirmed = true
-					*open = false
-				}
-			})
-		})
+			confirm := dialogDangerButton(c, theme, "danger-confirm-submit", confirmLabel,
+				shortcutKeyLabel(keys.confirmShown))
+			if confirm.Clicked() {
+				confirmed = true
+				*open = false
+			}
+		},
 	})
 
 	// 覆盖层快捷键在对话框子元素建完后登记：焦点落在「不再询问」之类的控件上时，
@@ -478,10 +579,8 @@ func selectField[T comparable](
 			Shrink(0).TextColor(secondaryText(theme))
 	})
 	sel.Popup(func(panel ui.Element) {
-		panel.Gap(space(theme, optionRowGapUnits)).
-			Padding(space(theme, 1)).Radius(radius(theme, cardRadius)).
-			Background(theme.Background).Border(1, borderColor(theme)).
-			Shadow(0, 6, 20, 0, ui.RGBA(0, 0, 0, 0.18))
+		floatingSurface(theme, panel).Gap(space(theme, optionRowGapUnits)).
+			Padding(space(theme, 1))
 		for _, opt := range options {
 			item := optionRow(c, theme, sel.Item(opt.value)).
 				Border(1, ui.Transparent).TextColor(primaryText(theme)).Transition(motionColors)
@@ -649,6 +748,7 @@ func keycap(c *ui.Context, theme *ui.Theme, key string, fg ui.Color) {
 
 // primaryButton 是面板中的主操作按钮：使用系统强调色填充，文字与图标反色。
 // 复制是历史预览的首要动作，因此它承担这一角色。shortcut 非空时在文字后显示快捷键。
+// icon 为 nil 时不画图标，弹窗的按钮行只用文字。
 func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, shortcut string) ui.Element {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).
 		Padding(space(theme, 1), space(theme, 2.5)).Gap(space(theme, 1)).
@@ -659,7 +759,9 @@ func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, lab
 		button.Background(theme.AccentHover)
 	}
 	button.Children(func() {
-		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+		if icon != nil {
+			ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
+		}
 		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
 		if shortcut != "" {
 			keycap(c, theme, shortcut, theme.AccentText)

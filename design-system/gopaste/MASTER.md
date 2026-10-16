@@ -37,7 +37,8 @@ All runtime colors come from `ui.Theme`, so system accent, high contrast, and li
 | --- | --- | --- |
 | Canvas | `theme.Background` | Window and page background |
 | Surface | `theme.Surface` | Sidebars, controls, inputs |
-| Elevated surface | `theme.Surface` | Cards, preview content, dialogs |
+| Elevated surface | `theme.Surface` | Cards and preview content |
+| Floating surface | `theme.Background` + 1px border + shadow | Dialogs, popovers, drop-down panels, the floating action bar, all through `floatingSurface` |
 | Hover | `theme.SurfaceHover` | Hover and pressed state layers |
 | Selected | `theme.Accent` (tinted) | Selected rows, filters, navigation, dropdown items, and the chosen segment; use `selectedFill` and `selectionBorder` |
 | Border | `theme.Border` | Cards, controls, separators |
@@ -124,11 +125,75 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 
 ### Buttons and controls
 
-- Prefer MyGo semantic widgets: `ButtonBase`, `Checkbox`, `Switch`, `Select`, `Segmented`, `List`, and `Modal`.
+- Prefer MyGo semantic widgets: `ButtonBase`, `Checkbox`, `Switch`, `Select`, `Segmented`, `List`, and `DialogBase`.
+- A floating surface — a dialog, a popover, a drop-down panel, the floating action bar — takes its radius, fill, border and shadow from `floatingSurface`, so the four cannot drift apart. Only its geometry stays at the call site.
 - Use shared control heights and radii; do not add page-specific control sizes.
 - Filled accent controls are reserved for the single primary action in a context.
 - Secondary actions stay quiet. Destructive actions use `theme.Danger` and confirmation.
 - Preserve the default MyGo focus ring or draw an equivalent ring without changing layout bounds.
+
+### Dialogs
+
+Every dialog — the dangerous-action confirmation (delete, clear history, unpair) and the
+add-device task dialog — is one surface built by one shell, `dialog` in `ui_tokens.go`.
+A caller fills in content and buttons; it never draws a panel. That is what keeps the
+following from drifting apart between dialogs.
+
+Anatomy, from the top:
+
+| Part | Value |
+| --- | --- |
+| Panel | `dialogWidth` 440 DIP wide, `dialogPadding` 20 DIP inside, `cardRadius`, `theme.Background`, 1px `theme.Border`, the shared floating shadow |
+| Scrim | black at 40% behind the panel, the same in both appearances |
+| Title | `fontSection`, weight 600, primary text, at most two lines |
+| Badge (optional) | a status dot and a `fontControl` 600 label in the dialog's own color, for a dialog whose subject has one state worth stating up front |
+| Message (optional) | `fontBody` in `theme.TextMuted`, wrapping |
+| Content (optional) | the suppression checkbox, an error line, a waiting line |
+| Actions | one End-justified row, 8 DIP between buttons, 20 DIP below the content |
+| Dismiss button | leading, quiet: transparent until hover, with an `Esc` keycap |
+| Action button | trailing: `dialogPrimaryButton` (accent) for a task, `dialogDangerButton` (`theme.Danger`) for a confirmation, with a keycap only for the key that matters |
+
+Inside the text block the gap is 8 DIP; the 20 DIP before the action row is `dialogGap` plus
+`dialogActionGap`, so the buttons read as a separate group instead of a continuation of the
+message.
+
+Why these values, and where the app deliberately differs from the guidance it follows:
+
+- **One surface, not two.** `DialogBase` rather than `Modal`: `Modal` puts its own padding,
+  fill and shadow on the panel, so a card drawn inside it puts the visible border 20 DIP
+  inside the shadow's edge and adds a second, heavier shadow. `DialogBase` supplies the
+  scrim, the focus trap and Escape, and nothing else.
+- **Width.** 440 DIP leaves a 400 DIP measure, next to the 420 pt informative-text width of
+  an `NSAlert` (Apple HIG › Alerts, anatomy) and inside Material 3's 280–560 dp dialog band.
+  The width goes through `spaceDIP`, so interface zoom scales it with everything else.
+- **Button order.** The action on the trailing side, Cancel or Close on the leading side
+  (Apple HIG › Alerts › Buttons: place the button people are most likely to choose on the
+  trailing side, and Cancel on the leading side). The add-device dialog used to put Start
+  before Close; it no longer does.
+- **Button titles.** A verb naming the result — 删除, 清除, 取消配对, 开始配对 — never OK,
+  Yes or No, and never a bare Cancel for anything but cancelling (Apple HIG › Alerts ›
+  Buttons).
+- **Focus.** Every dialog opens with the focus on its dismiss button, so Return can never
+  fire an irreversible action and Tab's first stop is a deliberate choice. Apple reaches
+  the same place from the other side: don't make a destructive button the default, and
+  avoid making any button the default in an alert people should read.
+- **Dismissal.** Escape, the dismiss button, and a click outside all cancel; a dialog never
+  confirms on dismissal. Apple alerts ignore clicks outside, but `DialogBase` closes on the
+  backdrop press, and cancelling is the safe reading of that press.
+- **The confirmation stays red.** Apple styles a destructive button only when the person
+  did not deliberately choose the action, on the grounds that Return should stay
+  convenient; Material 3 colors a destructive confirmation with the error color. No dialog
+  here has a Return default, so the red is the only thing marking the button, and it stays
+  `theme.Danger`.
+- **Presentation.** MyGo draws centered dialogs, not sheets attached to the window, so the
+  add-device dialog is a centered card where macOS would use a sheet (Apple HIG › Sheets).
+- **The suppression checkbox.** macOS alerts may add one (Apple HIG › Alerts › Content);
+  the delete confirmation shows 不再询问 on every platform, because the preference it sets
+  exists on every platform.
+
+The button helpers — `dialogDismissButton`, `dialogPrimaryButton`, `dialogDangerButton` —
+are the only ones a dialog uses, and `dialogDismissButton` is the only place that draws the
+`Esc` keycap or asks for the initial focus.
 
 ### Rows and items
 
@@ -196,7 +261,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - History supports search focus, Up/Down, Home/End, Enter to copy, and Escape.
 - Tab order follows visual order: global navigation, page controls, content, actions.
 - Custom selected and disclosure controls expose `Selected` or `Expanded` state.
-- Dialogs trap focus, close with Escape, and restore focus to the opener. The delete confirmation takes D or Y to confirm and N or Escape to cancel, and its buttons show only the keys that matter as keycaps (D on confirm, Esc on cancel) rather than listing every accepted key, so a keyboard user never has to reach for the mouse.
+- Dialogs trap focus, close with Escape, and restore focus to the opener. A dialog opens with the focus on its dismiss button, and that button carries the `Esc` keycap in every dialog, so the way out reads the same everywhere. The delete confirmation takes D or Y to confirm and N or Escape to cancel, and its buttons show only the keys that matter as keycaps (D on confirm, Esc on cancel) rather than listing every accepted key, so a keyboard user never has to reach for the mouse.
 - Use `c.Preferences()` for `ReduceMotion`, `HighContrast`, and `TextScale` behavior.
 - Maintain at least 4.5:1 contrast for normal text and 3:1 for meaningful icons and borders.
 - Disabled controls are semantically disabled, visually muted, and explained when scope matters.
@@ -240,7 +305,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 
 ## Implementation map
 
-- `ui_tokens.go` owns shared metrics, semantic colors, and primitives.
+- `ui_tokens.go` owns shared metrics, semantic colors, primitives, the `floatingSurface` look, and the one dialog shell every dialog is built from.
 - `zoom.go` owns interface zoom: steps, theme scaling, and the window geometry that follows it.
 - `view.go` owns the shell, the contextual sidebar, its section switcher, the header search, the history list, the preview, and the history actions.
 - `device_view.go` owns device navigation, sync controls, pairing, and connection details.
@@ -254,6 +319,7 @@ Errors name the cause and provide a recovery action. Loading feedback reserves t
 - [ ] No page code contains raw color literals.
 - [ ] Light, dark, and high-contrast themes preserve text, border, status, and focus contrast.
 - [ ] Focus is visible on navigation, lists, fields, selects, switches, and modal actions.
+- [ ] Every dialog is built by `dialog`, opens with the focus on its dismiss button, and closes with Escape, that button, or a click outside.
 - [ ] The sidebar stays usable at the 300 DIP list minimum and the 1000 DIP window minimum, and collapses to 0 without clipping the content.
 - [ ] Every page renders at each zoom step.
 - [ ] Empty, loading, success, warning, error, offline, and unavailable states have recovery copy where applicable.

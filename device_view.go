@@ -527,58 +527,45 @@ func (a *application) deviceInfoDisclosureLabel(title string, expanded bool) str
 	return a.tf(msgDevicesExpand, title)
 }
 
-// addDeviceDialogView 保留配对入口的状态容器，不在协议接入前伪造成功结果。
+// addDeviceDialogView 保留配对入口的状态容器，不在协议接入前伪造成功结果。外观走
+// dialog 的共享外壳：与二次确认同一个宽度、内边距、表面和按钮行，主操作按钮在右。
 func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
-	ui.Modal(c, &a.addDeviceDialog, func() {
-		ui.Column(c).Width(440).Shrink(0).
-			Padding(space(theme, 6), space(theme, 6)).Gap(space(theme, 2)).
-			Radius(radius(theme, cardRadius)).Background(theme.Background).
-			Border(1, borderColor(theme)).Role(ui.RoleDialog).Label(a.t(msgDevicesAdd)).Children(func() {
-			ui.Text(c, a.t(msgDevicesAdd)).FontSize(font(theme, fontSection)).FontWeight(600).
-				Role(ui.RoleHeading).SingleLine()
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
-				statusDot(c, theme.Accent, space(theme, 2))
-				ui.Text(c, a.t(msgDevicesPairDirectOnly)).FontSize(font(theme, fontControl)).
-					TextColor(theme.Accent).FontWeight(600).SingleLine()
-			})
-			ui.Text(c, a.t(msgDevicesPairDescription)).
-				FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).Wrap()
+	startLabel := a.t(msgDevicesPairStart)
+	if a.onStartPairing == nil {
+		startLabel = a.t(msgDevicesPairWaitingSvc)
+	}
+	dialog(c, theme, &a.addDeviceDialog, dialogSpec{
+		title:      a.t(msgDevicesAdd),
+		role:       ui.RoleDialog,
+		message:    a.t(msgDevicesPairDescription),
+		badge:      a.t(msgDevicesPairDirectOnly),
+		badgeColor: accentColor(theme),
+		content: func() {
 			if a.pairingError != "" {
 				ui.Text(c, a.pairingError).FontSize(font(theme, fontMeta)).
 					TextColor(theme.Danger).Wrap()
 			}
-			ui.Spacer(c)
-			ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Children(func() {
-				if a.pairingPending {
-					ui.Text(c, a.t(msgDevicesPairWaiting)).FontSize(font(theme, fontCaption)).
-						TextColor(secondaryText(theme)).SingleLine()
-				}
-				startLabel := a.t(msgDevicesPairStart)
-				if a.onStartPairing == nil {
-					startLabel = a.t(msgDevicesPairWaitingSvc)
-				}
-				start := neutralButton(c, theme, "start-pairing", startLabel).
-					Disabled(a.onStartPairing == nil || a.pairingPending)
-				start.Children(func() {
-					ui.Text(c, startLabel).FontSize(font(theme, fontControl)).SingleLine()
-				})
-				if start.Clicked() && a.onStartPairing != nil {
-					a.pairingPending = true
-					a.pairingError = ""
-					a.onStartPairing()
-				}
+			// 等待中的状态属于弹窗内容，不再挤进按钮行：按钮行在任何弹窗里都只是按钮。
+			if a.pairingPending {
+				ui.Text(c, a.t(msgDevicesPairWaiting)).FontSize(font(theme, fontCaption)).
+					TextColor(secondaryText(theme)).Wrap()
+			}
+		},
+		actions: func() {
+			close := dialogDismissButton(c, theme, "close-invite-device", a.t(msgDevicesPairClose))
+			if close.Clicked() {
+				a.addDeviceDialog = false
+				a.pairingPending = false
+			}
 
-				closeLabel := a.t(msgDevicesPairClose)
-				button := neutralButton(c, theme, "close-invite-device", closeLabel)
-				button.Children(func() {
-					ui.Text(c, closeLabel).FontSize(font(theme, fontControl)).SingleLine()
-				})
-				if button.Clicked() {
-					a.addDeviceDialog = false
-					a.pairingPending = false
-				}
-			})
-		})
+			start := dialogPrimaryButton(c, theme, "start-pairing", startLabel).
+				Disabled(a.onStartPairing == nil || a.pairingPending)
+			if start.Clicked() && a.onStartPairing != nil {
+				a.pairingPending = true
+				a.pairingError = ""
+				a.onStartPairing()
+			}
+		},
 	})
 }
 
