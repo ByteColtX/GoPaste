@@ -184,6 +184,93 @@ func buildFixture() []fixture {
 			created:   todayAt(0.94),
 			syncState: history.SyncStateOffline,
 		},
+		{
+			id:        "preview-note-long-spec",
+			kind:      history.KindText,
+			text:      "局域网同步设计要点\n\n1. 只允许已配对设备直连，不经过中继或云端。\n2. 配对时交换设备公钥，之后每条记录单独签名。\n3. 剪贴板内容只在内存里解密，落盘的是本地数据库。\n4. 设备离线时记录留在本机，等设备回到局域网再投递。\n5. 图片按 PNG 内联，文件只传路径与大小，正文留在原设备。\n6. 密码管理器标记过的内容不记录、不投递。\n\n待确认：\n- 单条记录的大小上限\n- 历史保留策略（按条数还是按天数）\n- 两端同时修改时以哪一端为准",
+			created:   todayAt(0.16),
+			favorite:  true,
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:      "preview-note-short",
+			kind:    history.KindText,
+			text:    "OK",
+			created: todayAt(0.28),
+		},
+		{
+			id:      "preview-note-long-line",
+			kind:    history.KindText,
+			text:    "这是一条刻意很长的单行文本，用来检查列表里的省略与预览区的换行：GoPaste 的历史列表在窄窗口下必须先把单行文本截断成一行加省略号，再在预览区按可用宽度重新折行，而不是把整行原样塞进列表让它横向溢出，也不是把行高撑开成两三行。",
+			source:  "preview-mac",
+			created: todayAt(0.34),
+		},
+		{
+			id:        "preview-note-mixed-script",
+			kind:      history.KindText,
+			text:      "🎉 发布啦！GoPaste v0.1.0 — 局域网直连、无需账号、剪贴板历史留在本机。\nTry it: ⌘⇧V 打开历史，回车复制，Esc 关闭。",
+			created:   todayAt(0.46),
+			favorite:  true,
+			syncState: history.SyncStatePartial,
+		},
+		{
+			id:   "preview-code-json-payload",
+			kind: history.KindCode,
+			text: `{
+  "device": { "id": "peer-9f2a", "name": "MacBook Pro", "online": true },
+  "item": { "kind": "text", "size": 128, "createdAt": "2026-03-04T05:06:07Z" },
+  "deliveries": [
+    { "deviceId": "peer-1b7c", "state": "received" },
+    { "deviceId": "peer-4d10", "state": "pending" }
+  ]
+}`,
+			created:   todayAt(0.58),
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:      "preview-code-css-card",
+			kind:    history.KindCode,
+			text:    ".history-row {\n  display: flex;\n  align-items: center;\n  gap: 10px;\n  padding: 8px 12px;\n  border-radius: 8px;\n}\n\n.history-row[data-selected=\"true\"] {\n  background: color-mix(in srgb, currentColor 8%, transparent);\n}",
+			source:  "preview-imac-design",
+			created: todayAt(0.66),
+		},
+		{
+			id:        "preview-code-diff-view",
+			kind:      history.KindCode,
+			text:      "--- a/view.go\n+++ b/view.go\n@@ -640,6 +640,7 @@ func (a *application) historyRow(c *ui.Context, item history.Item) {\n \tswitch item.Kind {\n \tcase kindCode:\n-\t\tui.Text(c, item.Text)\n+\t\tui.Text(c, item.Text).Font(ui.Monospace)\n \tdefault:\n \t\tui.Text(c, truncateSingleLine(item.Text, historyTextLimit))\n \t}",
+			created:   todayAt(0.74),
+			syncState: history.SyncStateOffline,
+		},
+		{
+			id:        "preview-file-screenshots",
+			kind:      history.KindFile,
+			text:      "~/Desktop/截图 2026-03-04 05.06.07.png\n~/Desktop/截图 2026-03-04 05.06.11.png\n~/Desktop/截图 2026-03-04 05.06.14.png",
+			fileSize:  2_734_080,
+			created:   todayAt(0.82),
+			favorite:  true,
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:      "preview-link-figma",
+			kind:    history.KindLink,
+			text:    "https://www.figma.com/design/8Qx2Kd/GoPaste?node-id=412-1187&t=Wq3n8Zb",
+			created: todayAt(0.88),
+		},
+		{
+			id:        "preview-rich-table",
+			kind:      history.KindRichText,
+			text:      "各平台支持情况\n平台\t剪贴板监听\t文件列表\nmacOS\t支持\t支持\nWindows\t支持\t支持\nLinux\t支持\t部分",
+			html:      "<h3>各平台支持情况</h3>\n<table><thead><tr><th>平台</th><th>剪贴板监听</th><th>文件列表</th></tr></thead><tbody><tr><td>macOS</td><td>支持</td><td>支持</td></tr><tr><td>Windows</td><td>支持</td><td>支持</td></tr><tr><td>Linux</td><td>支持</td><td>部分</td></tr></tbody></table>",
+			created:   todayAt(0.96),
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:      "preview-image-helix-today",
+			kind:    history.KindImage,
+			image:   "image-nebula-helix.png",
+			source:  "preview-macbook-air",
+			created: todayAt(0.99),
+		},
 		// —— 昨天 ——
 		{
 			id:      "preview-image-grist-mill",
@@ -237,6 +324,80 @@ func buildFixture() []fixture {
 			fileSize: 12_640,
 			source:   "preview-mac",
 			created:  daysAgoAt(1, 15, 6),
+		},
+		{
+			id:   "preview-code-html-card",
+			kind: history.KindCode,
+			text: `<article class="card">
+  <h2 class="card-title">GoPaste</h2>
+  <p class="card-body">剪贴板历史留在本机。</p>
+  <a class="card-link" href="/download">下载</a>
+</article>`,
+			created: daysAgoAt(1, 16, 22),
+		},
+		{
+			id:      "preview-code-c-parse",
+			kind:    history.KindCode,
+			text:    "static size_t read_len(const char *buf, size_t cap, size_t *out) {\n    if (buf == NULL || out == NULL) {\n        return EINVAL;\n    }\n    *out = cap > 4096 ? 4096 : cap;\n    return 0;\n}",
+			source:  "preview-fedora",
+			created: daysAgoAt(1, 17, 40),
+		},
+		{
+			id:        "preview-code-swift-decode",
+			kind:      history.KindCode,
+			text:      "struct Device: Decodable {\n    let id: String\n    let name: String\n    let online: Bool\n}\n\nlet devices = try JSONDecoder().decode([Device].self, from: data)\nlet online = devices.filter { $0.online }",
+			created:   daysAgoAt(1, 19, 5),
+			favorite:  true,
+			syncState: history.SyncStatePartial,
+		},
+		{
+			id:      "preview-code-protobuf",
+			kind:    history.KindCode,
+			text:    "message ClipboardItem {\n  string id = 1;\n  Kind kind = 2;\n  bytes payload = 3;\n  int64 created_at_ms = 4;\n  repeated Delivery deliveries = 5;\n}\n\nenum Kind {\n  KIND_UNSPECIFIED = 0;\n  KIND_TEXT = 1;\n  KIND_IMAGE = 2;\n}",
+			source:  "preview-surface",
+			created: daysAgoAt(1, 20, 18),
+		},
+		{
+			id:      "preview-link-stackoverflow",
+			kind:    history.KindLink,
+			text:    "https://stackoverflow.com/questions/12345678/how-to-watch-the-system-clipboard-on-macos-without-polling",
+			created: daysAgoAt(1, 21, 9),
+		},
+		{
+			id:      "preview-link-localhost",
+			kind:    history.KindLink,
+			text:    "http://localhost:5174/#/devices?filter=online&sort=name",
+			created: daysAgoAt(1, 22, 30),
+		},
+		{
+			id:        "preview-rich-blockquote",
+			kind:      history.KindRichText,
+			text:      "评审意见\n历史列表的密度可以再紧一点。\n\n> 引自设计评审：一屏能看到 8 条以上才算合格。\n\n参考实现：\nrowHeight := 82 - 6",
+			html:      "<p>评审意见</p><p>历史列表的密度可以再紧一点。</p>\n<blockquote>引自设计评审：一屏能看到 8 条以上才算合格。</blockquote>\n<p>参考实现：</p><pre><code>rowHeight := 82 - 6</code></pre>",
+			created:   daysAgoAt(1, 23, 12),
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:        "preview-file-pdf",
+			kind:      history.KindFile,
+			text:      "~/Documents/GoPaste/同步协议 v3.pdf",
+			fileSize:  4_718_592,
+			created:   daysAgoAt(1, 23, 48),
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:        "preview-note-error-log",
+			kind:      history.KindText,
+			text:      "2026-03-04T05:06:07Z WARN  device peer-4d10 offline, retry in 30s\n2026-03-04T05:06:37Z WARN  device peer-4d10 offline, retry in 30s\n2026-03-04T05:07:07Z ERROR dial 192.168.1.95:7710: connection refused\n2026-03-04T05:07:37Z INFO  delivery paused for peer-4d10",
+			created:   daysAgoAt(1, 23, 59),
+			syncState: history.SyncStateOffline,
+		},
+		{
+			id:      "preview-image-canyon-yesterday",
+			kind:    history.KindImage,
+			image:   "image-canyon-de-chelly.png",
+			source:  "preview-windows",
+			created: daysAgoAt(1, 6, 40),
 		},
 		// —— 最近 7 天 ——
 		{
@@ -399,6 +560,98 @@ func buildFixture() []fixture {
 			created:  daysAgoAt(6, 16, 47),
 			favorite: true,
 		},
+		{
+			id:      "preview-code-kotlin",
+			kind:    history.KindCode,
+			text:    "fun devicesByPlatform(devices: List<Device>): Map<String, List<Device>> =\n    devices.filter { it.paired }.groupBy { it.platform }",
+			source:  "preview-thinkpad",
+			created: daysAgoAt(6, 18, 3),
+		},
+		{
+			id:      "preview-code-lua",
+			kind:    history.KindCode,
+			text:    "local function trim(s)\n  return (s:gsub(\"^%s*(.-)%s*$\", \"%1\"))\nend\n\nfor _, path in ipairs(paths) do\n  print(trim(path))\nend",
+			created: daysAgoAt(6, 19, 21),
+		},
+		{
+			id:        "preview-code-zig",
+			kind:      history.KindCode,
+			text:      "pub fn digest(bytes: []const u8, out: *[32]u8) void {\n    var hasher = std.crypto.hash.sha2.Sha256.init(.{});\n    hasher.update(bytes);\n    hasher.final(out);\n}",
+			created:   daysAgoAt(6, 20, 44),
+			syncState: history.SyncStatePartial,
+		},
+		{
+			id:      "preview-code-graphql",
+			kind:    history.KindCode,
+			text:    "query History($first: Int!, $kind: Kind) {\n  history(first: $first, kind: $kind) {\n    edges {\n      node {\n        id\n        kind\n        createdAt\n        source { id name }\n      }\n    }\n  }\n}",
+			source:  "preview-mac",
+			created: daysAgoAt(5, 9, 55),
+		},
+		{
+			id:        "preview-code-terraform",
+			kind:      history.KindCode,
+			text:      "resource \"aws_instance\" \"relay\" {\n  ami           = var.ami\n  instance_type = \"t4g.small\"\n  tags = {\n    Name = \"gopaste-relay\"\n  }\n}",
+			created:   daysAgoAt(5, 11, 17),
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:      "preview-code-nginx",
+			kind:    history.KindCode,
+			text:    "server {\n    listen 443 ssl http2;\n    server_name gopaste.local;\n\n    location / {\n        proxy_pass http://127.0.0.1:7710;\n        proxy_set_header Host $host;\n    }\n}",
+			source:  "preview-ubuntu-workstation",
+			created: daysAgoAt(5, 13, 2),
+		},
+		{
+			id:      "preview-link-github-pr",
+			kind:    history.KindLink,
+			text:    "https://github.com/egoist/mygo/pull/812/files#diff-2f9a1c8b",
+			created: daysAgoAt(5, 16, 38),
+		},
+		{
+			id:        "preview-link-youtube",
+			kind:      history.KindLink,
+			text:      "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=1m42s",
+			created:   daysAgoAt(5, 17, 55),
+			favorite:  true,
+			syncState: history.SyncStateReplaced,
+		},
+		{
+			id:      "preview-link-arxiv",
+			kind:    history.KindLink,
+			text:    "https://arxiv.org/abs/2401.01234",
+			source:  "preview-mac",
+			created: daysAgoAt(4, 10, 26),
+		},
+		{
+			id:        "preview-file-folder-copy",
+			kind:      history.KindFile,
+			text:      folderCopyPaths(),
+			fileSize:  4_918_016,
+			created:   daysAgoAt(4, 14, 9),
+			favorite:  true,
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:      "preview-rich-email",
+			kind:    history.KindRichText,
+			text:    "主题：局域网同步的下一步\n你好，\n\n历史记录已经改成本地 SQLite，下一步是设备发现。\n先只做局域网广播，不做云端回退。\n\n祝好",
+			html:    "<p><strong>主题：</strong>局域网同步的下一步</p><p>你好，</p><p>历史记录已经改成本地 SQLite，下一步是设备发现。<br>先只做局域网广播，<em>不做云端回退</em>。</p><p>祝好</p>",
+			source:  "preview-windows",
+			created: daysAgoAt(4, 17, 33),
+		},
+		{
+			id:        "preview-note-shell-history",
+			kind:      history.KindText,
+			text:      "$ go tool mygo vet .\n$ CGO_ENABLED=0 go test ./...\nok  \tgopaste\t2.6s\nok  \tgopaste/internal/history\t0.1s\n$ git push origin main",
+			created:   daysAgoAt(3, 20, 50),
+			syncState: history.SyncStatePartial,
+		},
+		{
+			id:      "preview-image-penguins-week",
+			kind:    history.KindImage,
+			image:   "image-penguins.png",
+			created: daysAgoAt(2, 12, 14),
+		},
 		// —— 最近 30 天 ——
 		{
 			id:      "preview-image-nebula-helix",
@@ -467,6 +720,71 @@ func buildFixture() []fixture {
 			created:   daysAgoAt(27, 17, 5),
 			syncState: history.SyncStatePartial,
 		},
+		{
+			id:      "preview-code-ruby",
+			kind:    history.KindCode,
+			text:    "devices.group_by(&:platform).transform_values do |list|\n  list.sort_by(&:name).map(&:display_name)\nend",
+			source:  "preview-thinkpad",
+			created: daysAgoAt(26, 9, 31),
+		},
+		{
+			id:      "preview-code-php",
+			kind:    history.KindCode,
+			text:    "$online = array_filter($devices, fn ($d) => $d['online']);\nusort($online, fn ($a, $b) => strcmp($a['name'], $b['name']));\necho count($online), \" 台在线\";",
+			created: daysAgoAt(25, 15, 8),
+		},
+		{
+			id:        "preview-code-sql-migration",
+			kind:      history.KindCode,
+			text:      "BEGIN;\nALTER TABLE history_items ADD COLUMN html TEXT NOT NULL DEFAULT '';\nUPDATE history_items SET html = content WHERE kind = 5 AND html = '';\nPRAGMA user_version = 2;\nCOMMIT;",
+			created:   daysAgoAt(23, 11, 44),
+			syncState: history.SyncStateOffline,
+		},
+		{
+			id:        "preview-link-dribbble",
+			kind:      history.KindLink,
+			text:      "https://dribbble.com/shots/24118837-clipboard-manager-dashboard",
+			created:   daysAgoAt(22, 19, 2),
+			favorite:  true,
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:       "preview-file-sketch",
+			kind:     history.KindFile,
+			text:     "~/Documents/Design/GoPaste 图标.sketch",
+			fileSize: 28_311_552,
+			source:   "preview-imac-design",
+			created:  daysAgoAt(19, 13, 27),
+		},
+		{
+			id:       "preview-file-keynote",
+			kind:     history.KindFile,
+			text:     "~/Desktop/路线图.key",
+			fileSize: 61_931_520,
+			created:  daysAgoAt(17, 16, 51),
+		},
+		{
+			id:        "preview-note-onboarding-en",
+			kind:      history.KindText,
+			text:      "Open GoPaste on two machines in the same network, pair them once, and clipboard history starts syncing.\nNo account, no relay, no cloud.",
+			created:   daysAgoAt(15, 8, 19),
+			syncState: history.SyncStateSynced,
+		},
+		{
+			id:        "preview-rich-changelog",
+			kind:      history.KindRichText,
+			text:      "更新日志\n0.1.0\n- 局域网直连同步\n- 剪贴板历史筛选栏\n- 设备页同步方向设置\n0.0.9\n- 首个可运行版本",
+			html:      "<h3>更新日志</h3><h4>0.1.0</h4><ul><li>局域网直连同步<ul><li>剪贴板历史筛选栏</li><li>设备页同步方向设置</li></ul></li></ul><h4>0.0.9</h4><ul><li>首个可运行版本</li></ul>",
+			created:   daysAgoAt(13, 20, 36),
+			syncState: history.SyncStatePartial,
+		},
+		{
+			id:      "preview-image-earth-month",
+			kind:    history.KindImage,
+			image:   "image-earth-iss.png",
+			source:  "preview-ubuntu-laptop",
+			created: daysAgoAt(9, 18, 12),
+		},
 		// —— 更早 ——
 		{
 			id:      "preview-note-legacy-migration",
@@ -504,7 +822,89 @@ func buildFixture() []fixture {
 			html:    "<h2>季度回顾</h2>\n<ul><li>完成三平台打包</li><li>完成设备配对流程</li><li>剪贴板历史改为本地 SQLite</li></ul>",
 			created: daysAgoAt(210, 14, 45),
 		},
+		{
+			id:      "preview-code-perl",
+			kind:    history.KindCode,
+			text:    "my @online = grep { $_->{online} } @devices;\nprint scalar(@online), \" devices online\\n\";",
+			source:  "preview-fedora",
+			created: daysAgoAt(75, 10, 22),
+		},
+		{
+			id:      "preview-code-vimscript",
+			kind:    history.KindCode,
+			text:    "nnoremap <silent> <leader>gp :<C-u>call GoPaste#History()<CR>\nlet g:gopaste_keep_register = v:true",
+			created: daysAgoAt(110, 9, 47),
+		},
+		{
+			id:      "preview-link-old-blog",
+			kind:    history.KindLink,
+			text:    "https://blog.example.com/2024/09/why-clipboard-managers-should-stay-local",
+			created: daysAgoAt(150, 20, 33),
+		},
+		{
+			id:       "preview-file-old-dmg",
+			kind:     history.KindFile,
+			text:     "~/Downloads/GoPaste-0.0.9.dmg",
+			fileSize: 24_117_248,
+			source:   "preview-mac",
+			created:  daysAgoAt(180, 15, 58),
+			favorite: true,
+		},
+		{
+			id:      "preview-note-old-todo",
+			kind:    history.KindText,
+			text:    "早期待办\n[ ] 图标改成矢量\n[x] 窗口尺寸可调\n[x] 历史记录支持筛选",
+			created: daysAgoAt(240, 12, 6),
+		},
+		{
+			id:      "preview-image-old-nebula",
+			kind:    history.KindImage,
+			image:   "image-nebula-trifid.png",
+			created: daysAgoAt(300, 21, 25),
+		},
 	}
+}
+
+// folderCopyPaths 返回一次「复制整个文件夹」会得到的路径列表。
+//
+// 行数刻意超过预览区一次列出的上限，用来走查末尾的「还有 N 个」汇总行：
+// 选中一个文件夹时，剪贴板里是几百条路径，预览不能每条都建一行。
+func folderCopyPaths() string {
+	names := []string{
+		"AGENTS.md",
+		"code_view.go",
+		"device_view.go",
+		"go.mod",
+		"go.sum",
+		"i18n.go",
+		"icons.go",
+		"main.go",
+		"model.go",
+		"mygo.json",
+		"persistence.go",
+		"preview_data.go",
+		"runtime.go",
+		"settings_view.go",
+		"state.go",
+		"theme.go",
+		"tray.go",
+		"ui_tokens.go",
+		"view.go",
+		"zoom.go",
+		"internal/capture/capture.go",
+		"internal/capture/digest.go",
+		"internal/capture/read.go",
+		"internal/clipboard/clipboard.go",
+		"internal/history/repository.go",
+		"internal/history/store.go",
+		"internal/history/sync.go",
+		"internal/history/sqlite/sqlite.go",
+	}
+	paths := make([]string, 0, len(names))
+	for _, name := range names {
+		paths = append(paths, "~/Projects/GoPaste/"+name)
+	}
+	return strings.Join(paths, "\n")
 }
 
 // validateFixture 检查手写的预览记录本身是否自洽，避免错误悄悄写进数据库。

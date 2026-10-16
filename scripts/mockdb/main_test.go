@@ -34,27 +34,41 @@ func TestFixtureKeepsItsDocumentedShape(t *testing.T) {
 	}
 
 	wantKinds := map[history.Kind]int{
-		history.KindText:     8,
-		history.KindLink:     7,
-		history.KindCode:     16,
-		history.KindImage:    10,
-		history.KindFile:     6,
-		history.KindRichText: 4,
+		history.KindText:     16,
+		history.KindLink:     15,
+		history.KindCode:     34,
+		history.KindImage:    15,
+		history.KindFile:     12,
+		history.KindRichText: 8,
 	}
-	if len(entries) != 51 {
-		t.Errorf("记录 = %d 条，期望 51 条", len(entries))
+	if len(entries) != 100 {
+		t.Errorf("记录 = %d 条，期望 100 条", len(entries))
 	}
 	if !maps.Equal(kinds, wantKinds) {
 		t.Errorf("各类型条数 = %v，期望 %v", kinds, wantKinds)
 	}
-	if favorites != 13 {
-		t.Errorf("收藏 = %d 条，期望 13 条", favorites)
+	if favorites != 21 {
+		t.Errorf("收藏 = %d 条，期望 21 条", favorites)
 	}
-	if local != 28 {
-		t.Errorf("本机记录 = %d 条，期望 28 条", local)
+	if local != 61 {
+		t.Errorf("本机记录 = %d 条，期望 61 条", local)
 	}
-	if deliveries != 264 {
-		t.Errorf("投递记录 = %d 条，期望 264 条", deliveries)
+	if deliveries != 480 {
+		t.Errorf("投递记录 = %d 条，期望 480 条", deliveries)
+	}
+}
+
+// TestFolderCopyOutgrowsThePathRowLimit 检查「复制整个文件夹」那条记录确实超过
+// 预览区一次列出的路径数，否则末尾的「还有 N 个」汇总行永远走不到。
+//
+// 上限是 view.go 里的 filePathRowsLimit；两个 main 包之间引不到这个常量，所以
+// 这里写死并注明来源，改那边的时候记得一起改。
+func TestFolderCopyOutgrowsThePathRowLimit(t *testing.T) {
+	const pathRowLimit = 20
+
+	paths := strings.Split(folderCopyPaths(), "\n")
+	if len(paths) <= pathRowLimit {
+		t.Errorf("文件夹复制的路径 = %d 条，必须超过预览上限 %d 条", len(paths), pathRowLimit)
 	}
 }
 
