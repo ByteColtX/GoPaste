@@ -113,7 +113,7 @@ At compact widths, controls stack before they clip. The sidebar scrolls vertical
 - A collapse/expand button sits in the title bar, right of the platform window controls and 12 DIP clear of them. HIG › Accessibility asks for enough padding between controls to reduce wrong-control clicks: about 12 DIP around a bezelled control, about 24 DIP around an unbezelled one. Collapsing hides the sidebar entirely; the button stays, so it can return. The View menu carries the same action as Hide/Show Sidebar with its Cmd+Ctrl+S accelerator, so the shortcut is visible in the menu bar.
 - Filter rows are left-aligned: the icon sits at the sidebar's content edge, the label follows it, and section labels share that same left edge.
 - Current destination and current filter both use `Selected(true)`, `selectedFill(theme)`, and primary text.
-- Navigation and filter controls have stable keys, labels, tooltips, and visible focus rings.
+- Navigation and filter controls have stable keys, accessible labels, and visible focus rings. A tooltip belongs to a control that shows no text of its own — the section switcher, the rail toggle, the device list's refresh — never to a labeled row, where it would only repeat the visible text, and would pop up on keyboard focus as well as on hover.
 - Choosing any filter returns to History with that filter applied.
 
 ### Search

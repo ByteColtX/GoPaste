@@ -544,12 +544,14 @@ func sidebarItemButton(
 	selected bool,
 	onSelect func(),
 ) ui.Element {
+	// 不加 Tooltip：这一行本来就显示自己的文字，悬停再弹一个同名气泡只是噪音，
+	// 而且提示在键盘焦点落到它上面时也会弹。提示留给不显示文字的图标按钮。
 	item := ui.ButtonBase(c.Key(key)).
 		Height(controlHeightSize(c, theme, compactHeight)).FillWidth().Shrink(0).
 		Padding(space(theme, 1.5), space(theme, 2)).Gap(space(theme, 2)).
 		Radius(radius(theme, controlRadius)).AlignItems(ui.Center).Justify(ui.Start).
 		Border(1, ui.Transparent).
-		TextColor(secondaryText(theme)).Label(label).Tooltip(label).
+		TextColor(secondaryText(theme)).Label(label).
 		Role(ui.RoleToggleButton).Selected(selected).Transition(motionColors)
 	switch {
 	case selected:

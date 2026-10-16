@@ -2223,7 +2223,6 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 					Children(func() {
 						deleteLabel := a.t(msgHistoryDelete)
 						deleteButton := destructiveActionButton(c, theme, "delete", icons.trash, deleteLabel, "D")
-						deleteButton.Tooltip(shortcutHint(deleteLabel, "D"))
 						if deleteButton.Clicked() {
 							a.requestDeleteItem(c, item.ID)
 						}
@@ -2233,7 +2232,6 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 
 						favoriteLabel := a.favoriteLabel(item.Favorite)
 						favoriteButton := actionButton(c, theme, "favorite", icons.star, favoriteLabel, item.Favorite, "F")
-						favoriteButton.Tooltip(shortcutHint(favoriteLabel, "F"))
 						if favoriteButton.Clicked() {
 							if message := a.toggleFavorite(item.ID); message != "" {
 								c.Toast(message)
@@ -2242,7 +2240,6 @@ func (a *application) previewActions(c *ui.Context, theme *ui.Theme, item histor
 
 						copyLabel := a.t(msgHistoryCopy)
 						copyButton := primaryButton(c, theme, "preview-action-copy", icons.copy, copyLabel, "C")
-						copyButton.Tooltip(shortcutHint(copyLabel, "C"))
 						if copyButton.Clicked() {
 							a.copyToClipboard(c, item.ID)
 						}
