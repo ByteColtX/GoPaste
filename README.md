@@ -65,4 +65,6 @@ CGO_ENABLED=0 go test ./...
 
 ## 许可证
 
-尚未添加许可证文件，在此之前保留所有权利。
+MIT，全文见 [LICENSE](LICENSE)。
+
+`resources/icons/` 里的图标取自 [Tabler Icons](https://github.com/tabler/tabler-icons)（MIT）和 [Simple Icons](https://simpleicons.org)（CC0），各自的许可证全文放在同目录下。
