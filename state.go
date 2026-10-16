@@ -14,17 +14,17 @@ import (
 )
 
 func newApplication() *application {
-	items, devices := previewData()
 	app := &application{
-		page:               pageHistory,
-		filterRailOpen:     true,
-		historyPaneWidth:   defaultHistoryPaneWidth,
-		history:            history.New(items),
+		page:             pageHistory,
+		filterRailOpen:   true,
+		historyPaneWidth: defaultHistoryPaneWidth,
+		// 历史记录由 SQLite 仓库异步装载，见 startHistoryPersistence。
+		history:            history.New(nil),
 		deviceName:         newLocalizer(languageSimplifiedChinese).text(msgDevicesBadgeLocal),
 		devicePlatform:     localPlatformName(),
 		deviceSyncEnabled:  true,
 		deviceFileSync:     true,
-		pairedDevices:      devices,
+		pairedDevices:      previewDevices(),
 		languagePreference: languagePreferenceSystem,
 		language:           languageSimplifiedChinese,
 		appearance:         appearanceSystem,
@@ -272,10 +272,17 @@ func (a *application) updateLaunchAtLogin() string {
 	return a.t(msgToastLaunchAtLoginOff)
 }
 
+// clearHistory 清空历史记录，并把删除同步到数据库。
 func (a *application) clearHistory() {
+	view := a.history.Snapshot(history.Query{})
+	ids := make([]string, 0, len(view.Items))
+	for _, item := range view.Items {
+		ids = append(ids, item.ID)
+	}
 	a.history.Clear()
 	a.historyBitmaps = nil
 	a.codeHighlights = nil
+	a.persistDelete(ids...)
 }
 
 func (a *application) requestDangerousAction(action dangerousAction, targetID string) {
@@ -400,6 +407,7 @@ func (a *application) deleteHistoryItem(c *ui.Context, id string) {
 		return
 	}
 	delete(a.historyBitmaps, id)
+	a.persistDelete(id)
 	a.addUndoToast(c, a.t(msgToastDeleted), func() { a.restoreHistoryItem(item) })
 }
 
@@ -408,6 +416,7 @@ func (a *application) restoreHistoryItem(item history.Item) {
 	if err := a.history.Restore(item); err != nil {
 		return
 	}
+	a.persistItem(item)
 	a.pendingToast = a.t(msgToastRestored)
 }
 
@@ -458,6 +467,9 @@ func (a *application) toggleFavorite(id string) string {
 	favorite, err := a.history.ToggleFavorite(id)
 	if err != nil {
 		return ""
+	}
+	if item, ok := a.history.Item(id); ok {
+		a.persistItem(item)
 	}
 	if favorite {
 		return a.t(msgToastFavoriteAdded)

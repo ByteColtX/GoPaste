@@ -214,6 +214,11 @@ type application struct {
 	historySearch  ui.Handle
 	listState      ui.ListState
 
+	// persistence 是历史记录的落盘队列；为 nil 时只保存在内存里。
+	// clipboardEcho 记录应用自己刚写到剪贴板的读数 ID，见 recordClipboardWrite。
+	persistence   *historyPersistence
+	clipboardEcho map[string]struct{}
+
 	onResendItem func(itemID, deviceID string)
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：
 	// 浮层由指针悬停状态标记展开，指针移开标记与浮层后收起。

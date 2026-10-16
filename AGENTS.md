@@ -21,6 +21,29 @@ CGO_ENABLED=0 go test ./...
 go run .
 ```
 
+## 本地预览数据
+
+界面走查用的剪贴板历史由 `scripts/mockdb` 生成到 `.preview/history.db`（已被
+.gitignore 忽略，生成器每次重建目标文件）。它故意不放在 `resources/` 下：
+mygo dev 递归监视那个目录，应用运行时的每次写入都会让它重建并重启，
+`resources/` 里的东西也会被打进应用包。
+
+```sh
+scripts/preview.sh      # 生成预览数据并启动开发版应用
+```
+
+它等价于下面两步。`GOPASTE_HISTORY_DB`（或 `go run . -db PATH`）让应用读写
+指定的数据库文件，不指定时仍是用户数据目录下的 `history.db`：路径必须是绝对
+路径，应用的工作目录不由调用方决定。应用启动的第一行日志会报出它实际用的
+文件，界面里没有数据时先看那一行。
+
+```sh
+go run ./scripts/mockdb
+GOPASTE_HISTORY_DB="$PWD/.preview/history.db" GOFLAGS='-tags=preview' go tool mygo dev
+```
+
+`-tags preview` 额外带出本地设备 fixture：设备发现尚未接入。
+
 ## 开发规则
 
 - 依赖 MyGo API 时以当前 `go.mod` 版本和模块源码为准。

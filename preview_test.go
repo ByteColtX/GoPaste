@@ -183,3 +183,16 @@ func TestPreviewMetaHidesSegmentsBeforeTheTypeAndSource(t *testing.T) {
 		}
 	}
 }
+
+// TestHistoryPageRendersTheFirstUseEmptyState 检查历史记录还没装载完（或一条都
+// 没有）时，整个历史页渲染的是首次使用的空状态。装载在界面线程之外进行，
+// 应用启动后的第一帧就是这个状态。
+func TestHistoryPageRendersTheFirstUseEmptyState(t *testing.T) {
+	app := newApplication()
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	tt.Frame()
+
+	if !tt.HasText(app.t(msgHistoryEmptyFirstTitle)) {
+		t.Errorf("空历史应显示 %q，实际显示：%q", app.t(msgHistoryEmptyFirstTitle), tt.Texts())
+	}
+}

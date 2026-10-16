@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"runtime"
 
@@ -22,6 +23,8 @@ const (
 type applicationRuntime struct {
 	app    *application
 	window *mygo.Window
+	// databasePath 是命令行或环境变量指定的历史数据库文件；为空时用默认位置。
+	databasePath string
 	// appMenuSettings 是 macOS 应用菜单里的「设置…」项。语言变化时只更新它的
 	// 标签，不必重建整个菜单。
 	appMenuSettings *mygo.MenuItem
@@ -42,6 +45,8 @@ type applicationRuntime struct {
 	editUndo *mygo.MenuItem
 	tray     *systemTray
 	quitting bool
+	// captureCancel 结束剪贴板监听；为 nil 表示监听没有启动。
+	captureCancel context.CancelFunc
 }
 
 // mygoClipboardWriter is the production adapter for history.Store's local
@@ -56,13 +61,14 @@ func (mygoClipboardWriter) WriteImage(png []byte) error {
 	return mygo.Clipboard.WriteImage(png)
 }
 
-func newApplicationRuntime() *applicationRuntime {
-	return &applicationRuntime{app: newApplication()}
+func newApplicationRuntime(databasePath string) *applicationRuntime {
+	return &applicationRuntime{app: newApplication(), databasePath: databasePath}
 }
 
 // runApplication 注册应用级事件，并把控制权交给 MyGo 的事件循环。
-func runApplication() error {
-	controller := newApplicationRuntime()
+// databasePath 为空时使用默认的历史数据库位置。
+func runApplication(databasePath string) error {
+	controller := newApplicationRuntime(databasePath)
 	// 先告诉 MyGo 应用写了哪些语言，它才能把用户的偏好语言解析成 Locale()：
 	// 不声明的话 MyGo 认为应用只写了英语，「跟随系统」永远解析成 en。
 	mygo.App.SetLanguages(supportedLanguages()...)
@@ -120,6 +126,11 @@ func (r *applicationRuntime) ready() {
 		r.quitting = true
 	})
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
+		// 先停监听，再等写队列落盘，最后关掉数据库：退出时不会丢掉刚复制的记录。
+		r.stopCapture()
+		if r.app.persistence != nil {
+			r.app.persistence.Close()
+		}
 		if r.tray != nil {
 			r.tray.Destroy()
 		}
@@ -140,9 +151,14 @@ func (r *applicationRuntime) ready() {
 	})
 	if err != nil {
 		log.Printf("创建系统托盘失败，继续使用窗口模式: %v", err)
-		return
+	} else {
+		r.tray = tray
 	}
-	r.tray = tray
+
+	// 捕获的上下文在主线程上创建，退出时由 stopCapture 取消。
+	captureCtx, captureCancel := context.WithCancel(context.Background())
+	r.captureCancel = captureCancel
+	r.startHistoryPersistence(captureCtx)
 }
 
 // installAppMenu 安装应用菜单，并在其中加入 HIG › Settings 约定的「设置…」项

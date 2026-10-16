@@ -127,9 +127,14 @@ type FilePreview struct {
 // content stays on disk, so rendering never touches the filesystem. A file
 // item may carry a FilePreview alongside that on-disk content.
 type Item struct {
-	ID       string
-	Kind     Kind
-	Text     string
+	ID   string
+	Kind Kind
+	Text string
+	// HTML is the markup of a rich-text payload, empty for every other kind.
+	// Text carries the same content as plain text, so the list and the preview
+	// have something readable to show and a target that cannot take markup
+	// still gets something to paste.
+	HTML     string
 	Image    *Image
 	FileSize int64
 	// FilePreview is an optional preview of a file payload, nil for every
