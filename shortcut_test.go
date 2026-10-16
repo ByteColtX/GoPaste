@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"gopaste/internal/history"
 
@@ -363,7 +364,7 @@ func TestRefreshShortcutStaysOnTheDevicesPage(t *testing.T) {
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 
 	tt.Key(ui.Cmd, ui.KeyR)
-	if app.deviceRefreshSpinning() {
+	if app.deviceRefreshSpinning(tt.Now()) {
 		t.Error("历史页按 Cmd+R 不应启动设备刷新")
 	}
 }
@@ -397,7 +398,7 @@ func TestRequestDeviceRefreshQueuesItsToast(t *testing.T) {
 	if app.pendingToast == "" {
 		t.Error("没有发现服务时应把不可用提示排队到下一帧")
 	}
-	if !app.deviceRefreshSpinning() {
+	if !app.deviceRefreshSpinning(time.Now()) {
 		t.Error("刷新请求应立刻开始转圈")
 	}
 }
@@ -418,7 +419,7 @@ func TestDeviceShortcuts(t *testing.T) {
 	}
 
 	tt.Key(ui.Cmd, ui.KeyR)
-	if !app.deviceRefreshSpinning() {
+	if !app.deviceRefreshSpinning(tt.Now()) {
 		t.Error("Cmd+R 应开始刷新设备列表")
 	}
 }

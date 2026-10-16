@@ -51,6 +51,7 @@ func TestDeviceSidebarHeaderFitsItsRefreshButton(t *testing.T) {
 // 前后两次取样都处在同一个悬停状态，否则悬停底色会污染对比结果。
 //
 // 取样必须早于 MyGo 的 600 ms 提示延迟：提示浮层出现后图标方块会被盖住。
+// 时间由 Tester 的时钟推进（tt.Advance），不再依赖真实等待。
 func TestRefreshButtonSpinsWhileRefreshing(t *testing.T) {
 	app := previewApp("")
 	app.pairedDevices = []pairedDevice{
@@ -79,13 +80,14 @@ func TestRefreshButtonSpinsWhileRefreshing(t *testing.T) {
 		return out
 	}
 
-	// 悬停底色自己有一段 120 ms 的过渡：等它走完再取静止姿态，否则下面比到
-	// 的是底色渐变，而不是图标旋转。
+	// 悬停底色自己有一段 120 ms 的过渡：推进 Tester 的时钟等它走完再取静止
+	// 姿态，否则下面比到的是底色渐变，而不是图标旋转。时钟也把提示浮层的
+	// 600 ms 延迟挡在后面，取样时图标方块不会被盖住。
 	tt.Move(button.X+button.W/2, button.Y+button.H/2)
-	time.Sleep(150 * time.Millisecond)
+	tt.Advance(150 * time.Millisecond)
 	tt.Frame()
 	rest := sample()
-	if app.deviceRefreshSpinning() {
+	if app.deviceRefreshSpinning(tt.Now()) {
 		t.Fatal("点击之前刷新按钮不应转圈")
 	}
 
@@ -93,19 +95,19 @@ func TestRefreshButtonSpinsWhileRefreshing(t *testing.T) {
 		t.Fatalf("点击刷新失败：%v", err)
 	}
 	tt.Frame()
-	if !app.deviceRefreshSpinning() {
+	if !app.deviceRefreshSpinning(tt.Now()) {
 		t.Fatal("点击刷新后刷新按钮应转圈")
 	}
 
-	time.Sleep(200 * time.Millisecond)
+	tt.Advance(200 * time.Millisecond)
 	tt.Frame()
 	if got := sample(); bytes.Equal(got, rest) {
 		t.Error("转圈期间图标应被旋转，实际与静止姿态完全相同")
 	}
 
-	time.Sleep(motionSpinPeriod)
+	tt.Advance(motionSpinPeriod)
 	tt.Frame()
-	if app.deviceRefreshSpinning() {
+	if app.deviceRefreshSpinning(tt.Now()) {
 		t.Error("最短转圈时间过后刷新按钮应停下")
 	}
 }
