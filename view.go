@@ -1721,6 +1721,7 @@ func (a *application) copyFilePath(c *ui.Context, path string) {
 		return
 	}
 	a.clipboard.WriteText(path)
+	a.recordClipboardText(path)
 	c.Toast(a.t(msgToastCopied))
 }
 

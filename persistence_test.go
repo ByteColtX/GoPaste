@@ -376,3 +376,22 @@ func TestAppendCapturedKeepsNewContentOnce(t *testing.T) {
 		t.Errorf("历史记录 = %d 条，期望只添加一次", len(view.Items))
 	}
 }
+
+// TestRecordClipboardTextBlocksTheReadingItCauses 检查预览区里点单个文件路径复制
+// 之后，捕获路径不会把刚写出去的那段文本当成一次新复制。
+func TestRecordClipboardTextBlocksTheReadingItCauses(t *testing.T) {
+	const path = "/Users/me/季度报表 2026.xlsx"
+
+	app := newApplication()
+	app.recordClipboardText(path)
+
+	reading, ok := capture.Snapshot{Kind: kindText, Text: path, At: time.Now()}.Item()
+	if !ok {
+		t.Fatal("读数没有生成记录")
+	}
+	app.appendCaptured(reading)
+
+	if view := app.history.Snapshot(history.Query{}); len(view.Items) != 0 {
+		t.Errorf("复制路径之后多出了 %d 条记录", len(view.Items))
+	}
+}

@@ -286,6 +286,13 @@ func (a *application) recordClipboardWrite(item history.Item) {
 	a.clipboardEcho = map[string]struct{}{echo.ID: {}}
 }
 
+// recordClipboardText 记下应用直接写到剪贴板的一段文本，作用同 recordClipboardWrite。
+// 用于没有整条记录可依据的复制入口：预览区里点单个文件路径就是这种，它写出去的
+// 文本会被捕获路径当成一次新复制。
+func (a *application) recordClipboardText(text string) {
+	a.recordClipboardWrite(history.Item{Kind: kindText, Text: text})
+}
+
 // clipboardEchoOf 返回把一条记录写到剪贴板之后，捕获路径会读到的那条记录。
 // 图片按原样写回，其余类型都只能写回 Text。
 func clipboardEchoOf(item history.Item) (history.Item, bool) {
