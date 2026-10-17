@@ -502,6 +502,20 @@ func buildFixture() []fixture {
 			syncState: history.SyncStatePartial,
 		},
 		{
+			id:      "preview-note-mac-mini-meeting-room",
+			kind:    history.KindText,
+			text:    "会议室投屏信息\nWi-Fi：GoPaste-Guest\n投屏地址：http://192.168.1.88:8080",
+			source:  "preview-mac-mini",
+			created: daysAgoAt(2, 9, 26),
+		},
+		{
+			id:      "preview-code-windows-build",
+			kind:    history.KindCode,
+			text:    "SET CGO_ENABLED=0\ngo tool mygo build -platform windows/amd64",
+			source:  "preview-windows-dev",
+			created: daysAgoAt(4, 16, 48),
+		},
+		{
 			id:        "preview-file-csv-export",
 			kind:      history.KindFile,
 			text:      "~/Downloads/clipboard-history.csv",

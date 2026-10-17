@@ -1,61 +1,99 @@
 package main
 
 import (
-	"maps"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"gopaste/internal/filetype"
 	"gopaste/internal/history"
 )
 
-// TestFixtureKeepsItsDocumentedShape 检查手写预览记录的形状：自洽性检查，加上各
-// 类型、收藏、本机记录和投递记录的条数。
+// TestFixtureFillsEveryFilter 检查预览数据填满了界面上的每个筛选维度：类型、标签、
+// 来源（本机与每台配对设备）、时间窗口、收藏，以及每种同步状态。
 //
-// 这些条数是界面走查的前提：每个类型筛选、来源筛选和时间筛选都要有内容。改动
-// fixture 时它们会跟着一起被检查。
-func TestFixtureKeepsItsDocumentedShape(t *testing.T) {
+// 这里不钉条数：fixture 是随手改的东西，钉死总数只会让每次调整都要改测试。要守住
+// 的是「点开任何一个筛选都不会空」——那个状态才有东西可走查。
+func TestFixtureFillsEveryFilter(t *testing.T) {
 	entries := buildFixture()
 	if err := validateFixture(entries); err != nil {
 		t.Fatalf("预览记录不自洽: %v", err)
 	}
 
-	kinds := map[history.Kind]int{}
-	favorites, local, deliveries := 0, 0, 0
+	// 用真实的 history.Store 过滤，而不是在这里重算时间窗口：窗口语义归
+	// internal/history 管，测试只关心结果非空。
+	now := time.Now()
+	items := make([]history.Item, 0, len(entries))
 	for _, entry := range entries {
-		kinds[entry.kind]++
-		if entry.favorite {
-			favorites++
-		}
-		if entry.source == "" {
-			local++
-		}
-		deliveries += len(deliveriesFor(entry))
+		items = append(items, history.Item{
+			ID:             entry.id,
+			Kind:           entry.kind,
+			Text:           entry.text,
+			SourceDeviceID: entry.source,
+			CreatedAt:      resolveCreated(entry.created, now),
+			Favorite:       entry.favorite,
+			Sync:           entry.syncState,
+		})
+	}
+	store := history.New(items)
+
+	type facet struct {
+		name  string
+		query history.Query
+	}
+	facets := []facet{
+		{"类型：文本", history.Query{Kind: history.KindFilterText}},
+		{"类型：富文本", history.Query{Kind: history.KindFilterRichText}},
+		{"类型：图片", history.Query{Kind: history.KindFilterImage}},
+		{"类型：文件", history.Query{Kind: history.KindFilterFile}},
+		{"标签：链接", history.Query{Tag: history.TagFilterLink}},
+		{"标签：代码", history.Query{Tag: history.TagFilterCode}},
+		{"标签：图片", history.Query{Tag: history.TagFilterImage}},
+		{"来源：本机", history.Query{Source: history.LocalSource()}},
+		{"时间：今天", history.Query{Period: history.PeriodFilterToday}},
+		{"时间：昨天", history.Query{Period: history.PeriodFilterYesterday}},
+		{"时间：最近 7 天", history.Query{Period: history.PeriodFilterLast7Days}},
+		{"时间：最近 30 天", history.Query{Period: history.PeriodFilterLast30Days}},
+		{"收藏", history.Query{FavoriteOnly: true}},
+	}
+	// 设备页的「只看这台设备」对每台配对设备都得有内容，否则那个筛选点了是空的。
+	for _, deviceID := range previewDeviceIDs {
+		facets = append(facets, facet{"来源：" + deviceID, history.Query{Source: history.DeviceSource(deviceID)}})
 	}
 
-	wantKinds := map[history.Kind]int{
-		history.KindText:     16,
-		history.KindLink:     15,
-		history.KindCode:     34,
-		history.KindImage:    15,
-		history.KindFile:     46,
-		history.KindRichText: 8,
+	for _, f := range facets {
+		if view := store.Snapshot(f.query); len(view.Items) == 0 {
+			t.Errorf("%s 筛选是空的", f.name)
+		}
 	}
-	if len(entries) != 134 {
-		t.Errorf("记录 = %d 条，期望 134 条", len(entries))
+
+	// 同步状态不是筛选，但每种都要有记录，否则对应的徽标和投递说明看不到。
+	states := map[history.SyncState]bool{}
+	for _, entry := range entries {
+		states[entry.syncState] = true
 	}
-	if !maps.Equal(kinds, wantKinds) {
-		t.Errorf("各类型条数 = %v，期望 %v", kinds, wantKinds)
+	for _, want := range []history.SyncState{
+		history.SyncStateNone,
+		history.SyncStateSynced,
+		history.SyncStatePartial,
+		history.SyncStateOffline,
+		history.SyncStateReplaced,
+	} {
+		if !states[want] {
+			t.Errorf("预览数据里没有同步状态 %d 的记录", want)
+		}
 	}
-	if favorites != 21 {
-		t.Errorf("收藏 = %d 条，期望 21 条", favorites)
-	}
-	if local != 82 {
-		t.Errorf("本机记录 = %d 条，期望 82 条", local)
-	}
-	if deliveries != 624 {
-		t.Errorf("投递记录 = %d 条，期望 624 条", deliveries)
+
+	// 有同步状态的本机记录，投递记录必须覆盖每一台目标设备：界面按这个列表
+	// 算「已同步 / 部分送达 / 待发送」，缺一条就会显示成没送达。
+	for _, entry := range entries {
+		if entry.source != "" || entry.syncState == history.SyncStateNone || entry.syncState == history.SyncStateReplaced {
+			continue
+		}
+		if got := len(deliveriesFor(entry)); got != len(previewDeviceIDs) {
+			t.Errorf("%s 的投递记录 = %d 条，期望 %d 条", entry.id, got, len(previewDeviceIDs))
+		}
 	}
 }
 
