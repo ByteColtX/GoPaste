@@ -8,5 +8,4 @@ mygo_windows_*.syso
 /gopaste
 /mock_data.go
 /local_preview_data.go
-/resources/mock/
 /.preview/

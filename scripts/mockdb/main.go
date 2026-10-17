@@ -28,7 +28,9 @@ const (
 	// 的东西也会被打进应用包。.preview 已被 .gitignore 忽略，两者都不沾。
 	defaultOutputPath = ".preview/history.db"
 	// defaultImagesDir 是默认的预览图片目录，里面的 PNG 就是预览数据用的图片。
-	defaultImagesDir = "resources/mock"
+	// 它和输出文件一样放在 .preview 下：resources/ 里的东西会被复制进应用包，
+	// 这些照片只是走查素材，不能跟着产品分发。
+	defaultImagesDir = ".preview/images"
 	// previewIDPrefix 是每条预览记录 ID 的前缀，用来把它们和真实记录区分开。
 	previewIDPrefix = "preview-"
 )
@@ -1342,7 +1344,7 @@ func readPNG(path string) ([]byte, int, int, error) {
 func requireImagesDir(dir string) error {
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
-		return fmt.Errorf("图片目录不存在：%s\n用 -images DIR 指向 resources/mock 目录；预览图片必须来自真实 PNG 文件，不会写入没有图片的占位记录。", dir)
+		return fmt.Errorf("图片目录不存在：%s\n预览图片必须来自真实 PNG 文件（不会写入没有图片的占位记录）；把预览用的 PNG 放进这个目录，或用 -images DIR 指向别处。", dir)
 	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
