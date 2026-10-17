@@ -1,65 +1,48 @@
 # AGENTS.md
 
-## 项目
+GoPaste 是用 Go 和 MyGo 原生 UI 写的剪贴板历史工具，目标平台 macOS、Windows、Linux。
+剪贴板捕获、本地 SQLite 历史、界面已经可用；局域网同步尚未接入，设备页和配对对话框
+只有界面，不要假装配对成功。
 
-GoPaste 是使用 Go 和 MyGo 原生 UI 编写的 macOS、Windows、Linux 剪贴板同步软件。
+## 硬约束
 
-## 固定约束
+这几条是产品定义，不是待办事项：
 
-- 同步只允许已配对设备之间的局域网直连。
-- 永不加入内置中继、云端服务、第三方代理或非局域网回退连接。
+- 同步只走已配对设备之间的局域网直连；不加入中继、云端服务、第三方代理或任何非局域网回退。
 - 保持 MyGo 原生窗口和控件，不引入 WebView 或独立前端框架。
-- 剪贴板内容属于敏感数据，不写入普通日志、遥测或第三方服务。
-- 平台专属代码应隔离，不能破坏其他平台的构建和行为。
+- 剪贴板内容是敏感数据：不写普通日志、不做遥测、不发第三方服务。
+- 平台专属代码隔离在 `tray.go`、`persistence.go`、`runtime.go`、`state.go`，不能破坏其他平台的构建和行为。
 
-## 常用命令
+## 命令
 
 ```sh
 go fmt ./...
-go tool mygo vet .
-CGO_ENABLED=0 go test ./...
-go run .
+go tool mygo vet .              # MyGo 静态检查：持久值、goroutine 捕获
+CGO_ENABLED=0 go test ./...     # 必须关掉 cgo：验证纯 Go 构建
+go run .                        # 运行
+go tool mygo dev                # 开发模式，热重载
+go tool mygo build              # 打包，macOS 产出 .app 和 .dmg
 ```
 
-## 本地预览数据
+## 代码约定
 
-界面走查用的剪贴板历史由 `scripts/mockdb` 生成到 `.preview/history.db`（已被
-.gitignore 忽略，生成器每次重建目标文件）。它故意不放在 `resources/` 下：
-mygo dev 递归监视那个目录，应用运行时的每次写入都会让它重建并重启，
-`resources/` 里的东西也会被打进应用包。预览照片同理放在 `.preview/images/`：
-它们是第三方照片，不进仓库，也绝不能跟着产品分发。
+- 依赖 MyGo API 时以 `go.mod` 里的版本和模块源码为准，不要凭记忆写。
+- `internal/` 下的包不依赖 MyGo、不依赖网络，可以脱离界面单独测试；界面逻辑留在根包。
+- 遵循 `gofmt` 和标准 Go 风格；不做无关重构，不擅自加依赖。
 
-```sh
-scripts/preview.sh      # 生成预览数据并启动开发版应用
-```
+## MyGo 规则
 
-第一次跑之前把预览用的 PNG 放进 `.preview/images/`（或用 `-images DIR` 指向别
-处）；缺图时 `scripts/mockdb` 直接报错，不会写占位图。设备列表来自仓库里的
-`preview_devices.go`，不需要额外准备。
+- 元素只在当前构建帧有效。持久状态里存数据、`ui.Handle` 或 `ui.ListState`，绝不存元素。
+- 控件用稳定且唯一的 key；容器的 `.Key` 要在子元素之前。
+- 渲染函数不要无条件执行文件、剪贴板或网络副作用；副作用走事件处理或显式任务。
+- 慢任务放 UI 线程之外，结果通过 `Window.Update` 发布，并处理窗口关闭和过期结果。
 
-它等价于下面两步。`GOPASTE_HISTORY_DB`（或 `go run . -db PATH`）让应用读写
-指定的数据库文件，不指定时仍是用户数据目录下的 `history.db`：路径必须是绝对
-路径，应用的工作目录不由调用方决定。应用启动的第一行日志会报出它实际用的
-文件，界面里没有数据时先看那一行。
+## 测试
 
-```sh
-go run ./scripts/mockdb
-GOPASTE_HISTORY_DB="$PWD/.preview/history.db" GOFLAGS='-tags=preview' go tool mygo dev
-```
+- 改行为就改测试；`internal/` 的包用普通表驱动测试。
+- UI 用 `ui.NewTester`：覆盖元素消失后重新出现、焦点、输入和快捷键。
 
-`-tags preview` 带出 `preview_devices.go` 里的设备 fixture（设备发现尚未接入），
-并且关掉剪贴板监听：预览库只装生成的数据，不会被真实复制内容污染。要看「复制
-→ 列表出现新行」这条流程，用 `go run .`。
+## 提交
 
-## 开发规则
-
-- 依赖 MyGo API 时以当前 `go.mod` 版本和模块源码为准。
-- MyGo 元素只在当前构建帧有效；持久状态中保存数据、`ui.Handle` 或 `ui.ListState`，不要保存元素。
-- 控件使用稳定且唯一的 key；渲染函数不要无条件执行文件、剪贴板或网络副作用。
-- 慢任务放在 UI 线程之外，结果通过 `Window.Update` 发布，并处理窗口关闭和过期结果。
-- 遵循 `gofmt` 和标准 Go 风格；避免无关重构和依赖变更。
-
-## 提交前
-
-- 检查 `git diff`，不要提交构建产物、`.mygo` 状态、Node 依赖或本地 demo 数据。
-- 确认改动没有引入云端、中继、遥测或非局域网连接。
+- 提交信息用 Conventional Commits，与现有 `git log` 一致：`feat(ui): …`、`fix(history): …`、`docs: …`
+- body 只写 subject 说不出的东西（动机、被否掉的方案、副作用）；只看 subject 就能判断要不要看这个 diff 时省略。
