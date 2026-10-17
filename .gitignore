@@ -6,6 +6,4 @@ mygo_windows_*.syso
 
 # Local build artifacts and visual QA fixtures are never part of source commits.
 /gopaste
-/mock_data.go
-/local_preview_data.go
 /.preview/
