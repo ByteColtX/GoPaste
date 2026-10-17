@@ -35,6 +35,14 @@ func previewDevices() []pairedDevice {
 	return previewPairedDevices()
 }
 
+// clipboardCaptureEnabled 在预览构建里返回 false：走查用的是 scripts/mockdb
+// 生成的固定数据，监听剪贴板会把开发者真实的复制内容写进 .preview/history.db，
+// 既让演示数据不再确定，也让真实剪贴板内容落进一个专门用来截图的文件。
+// 常规构建的对应实现见 preview_data.go。
+func clipboardCaptureEnabled() bool {
+	return false
+}
+
 // previewPairedDevices 构造覆盖 macOS、Windows、Linux、Ubuntu 四种平台，
 // 以及在线/离线、同步开关、各内容方向都不同的设备列表。
 // 离线设备携带各自的同步设置和上次在线时间戳，

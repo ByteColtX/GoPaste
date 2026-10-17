@@ -216,7 +216,12 @@ func (r *applicationRuntime) startHistoryPersistence(captureCtx context.Context)
 // startClipboardCapture 开始监听系统剪贴板，把新复制的内容并入历史记录。
 //
 // 监听只读剪贴板，不写入、不联网：捕获结果先落到内存里的 Store，再排进写队列。
+// 本次构建不监听时直接返回，历史只来自已装载的数据库。
 func (r *applicationRuntime) startClipboardCapture(ctx context.Context) {
+	if !clipboardCaptureEnabled() {
+		log.Printf("预览构建不监听剪贴板，历史只来自预览数据库")
+		return
+	}
 	source, err := clipboard.New()
 	if err != nil {
 		log.Printf("剪贴板不可用，本次不自动记录复制内容: %v", err)
