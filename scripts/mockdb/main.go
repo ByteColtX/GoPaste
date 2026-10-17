@@ -55,7 +55,7 @@ var kindLabels = map[history.Kind]string{
 	history.KindRichText: "富文本",
 }
 
-// previewDeviceIDs 是本地预览设备的稳定 ID，与 local_preview_data.go 的
+// previewDeviceIDs 是本地预览设备的稳定 ID，与 preview_devices.go 的
 // previewPairedDevices 一一对应；投递记录按这个顺序写入。
 var previewDeviceIDs = []string{
 	"preview-mac",
@@ -1460,5 +1460,6 @@ func printSummary(outPath string, items []history.Item) {
 	for _, kind := range kindOrder {
 		fmt.Printf("  %d %s: %d\n", kind, kindLabels[kind], counts[kind])
 	}
-	fmt.Printf("提示：用同一个路径启动应用查看效果：GOPASTE_HISTORY_DB=%s go run .\n", outPath)
+	fmt.Printf("提示：scripts/preview.sh 会重建这份数据并启动开发版应用。\n")
+	fmt.Printf("      只用这份数据库启动：GOPASTE_HISTORY_DB=%s GOFLAGS='-tags=preview' go run .\n", outPath)
 }

@@ -11,7 +11,7 @@ import (
 // mygo dev 会把父进程的环境原样交给开发版应用，命令行参数到不了那里，
 // 所以本机预览走环境变量最省事：
 //
-//	GOPASTE_HISTORY_DB=resources/mock/history.db go tool mygo dev
+//	GOPASTE_HISTORY_DB="$PWD/.preview/history.db" go tool mygo dev
 const historyDatabaseEnv = "GOPASTE_HISTORY_DB"
 
 // parseArgs 解析本应用的启动参数，返回历史数据库文件（未指定时为空，由

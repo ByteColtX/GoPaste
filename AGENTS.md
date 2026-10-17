@@ -26,11 +26,16 @@ go run .
 界面走查用的剪贴板历史由 `scripts/mockdb` 生成到 `.preview/history.db`（已被
 .gitignore 忽略，生成器每次重建目标文件）。它故意不放在 `resources/` 下：
 mygo dev 递归监视那个目录，应用运行时的每次写入都会让它重建并重启，
-`resources/` 里的东西也会被打进应用包。
+`resources/` 里的东西也会被打进应用包。预览照片同理放在 `.preview/images/`：
+它们是第三方照片，不进仓库，也绝不能跟着产品分发。
 
 ```sh
 scripts/preview.sh      # 生成预览数据并启动开发版应用
 ```
+
+第一次跑之前把预览用的 PNG 放进 `.preview/images/`（或用 `-images DIR` 指向别
+处）；缺图时 `scripts/mockdb` 直接报错，不会写占位图。设备列表来自仓库里的
+`preview_devices.go`，不需要额外准备。
 
 它等价于下面两步。`GOPASTE_HISTORY_DB`（或 `go run . -db PATH`）让应用读写
 指定的数据库文件，不指定时仍是用户数据目录下的 `history.db`：路径必须是绝对
@@ -42,7 +47,9 @@ go run ./scripts/mockdb
 GOPASTE_HISTORY_DB="$PWD/.preview/history.db" GOFLAGS='-tags=preview' go tool mygo dev
 ```
 
-`-tags preview` 额外带出本地设备 fixture：设备发现尚未接入。
+`-tags preview` 带出 `preview_devices.go` 里的设备 fixture（设备发现尚未接入），
+并且关掉剪贴板监听：预览库只装生成的数据，不会被真实复制内容污染。要看「复制
+→ 列表出现新行」这条流程，用 `go run .`。
 
 ## 开发规则
 

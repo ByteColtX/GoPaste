@@ -38,7 +38,7 @@ go tool mygo dev      # 开发模式，带热重载
 go tool mygo build    # 打包，macOS 产出 .app 和 .dmg
 ```
 
-想先看看界面长什么样，运行 `scripts/preview.sh`：它先用 `scripts/mockdb` 造一批示例历史，再启动开发版应用。示例数据只写在本机 `.preview/history.db`，不会提交到仓库。
+想先看看界面长什么样，运行 `scripts/preview.sh`：它先用 `scripts/mockdb` 造一批示例历史，再启动开发版应用。示例数据只写在本机 `.preview/history.db`，不会提交到仓库；预览构建（`-tags preview`）不监听剪贴板，所以走查时复制的东西不会混进示例数据。预览图片需要自己放进 `.preview/images/`（第三方照片不进仓库），缺图时生成器会直接报错。
 
 历史数据库默认放在用户数据目录下，macOS 是 `~/Library/Application Support/GoPaste/history.db`。`-db PATH` 或 `GOPASTE_HISTORY_DB` 可以改到别处，路径必须是绝对路径；应用启动的第一行日志会报出它实际用的文件。
 
