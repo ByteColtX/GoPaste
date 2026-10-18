@@ -14,17 +14,36 @@ import (
 	"gopaste/internal/history/sqlite"
 )
 
+// appDataDirectory 返回 GoPaste 在本机的数据目录，也就是历史数据库与设置文件所在
+// 的那一层。两个文件共用它，应用文件夹的名字只写在这里。
+func appDataDirectory() (string, error) {
+	base, err := userDataDirectory()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "GoPaste"), nil
+}
+
 // historyDatabasePath 返回历史数据库在本机的默认位置。
 //
 // 剪贴板内容属于敏感数据：数据库只放在当前用户的数据目录，不进仓库、不同步、
 // 不上传。三个平台用同一套「GoPaste/history.db」相对路径，本机预览数据脚本
 // 因此不必重复判断平台。
 func historyDatabasePath() (string, error) {
-	base, err := userDataDirectory()
+	dir, err := appDataDirectory()
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(base, "GoPaste", "history.db"), nil
+	return filepath.Join(dir, "history.db"), nil
+}
+
+// settingsPath 返回设置文件在本机的默认位置，与历史数据库同目录。
+func settingsPath() (string, error) {
+	dir, err := appDataDirectory()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "settings.json"), nil
 }
 
 // userDataDirectory 返回当前用户存放应用数据的基础目录。Go 标准库只有配置目录
