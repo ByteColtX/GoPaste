@@ -305,6 +305,13 @@ func (a *application) applyDeviceName() {
 	_ = a.syncService.SetName(a.deviceName)
 }
 
+// deviceNameChanged 在设置页改完设备名后同步广播并落盘：广播换掉局域网里的旧名字，
+// 落盘保证重启后还是这个名字，而不是退回默认主机名。
+func (a *application) deviceNameChanged() {
+	a.applyDeviceName()
+	a.saveSettings()
+}
+
 func (a *application) applyAppearance() {
 	switch a.appearance {
 	case appearanceLight:

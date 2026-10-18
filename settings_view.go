@@ -79,11 +79,10 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 			} else {
 				input.Width(220)
 			}
-			// 改完名字就把广播也换掉：否则局域网里还是旧名字，直到下次重启。
-			// 名字同样要落盘，否则重启后会退回默认的主机名。
+			// 改完名字就把广播也换掉：否则局域网里还是旧名字，直到下次重启。名字同样
+			// 要落盘，否则重启后会退回默认的主机名。
 			if input.Changed() {
-				a.applyDeviceName()
-				a.saveSettings()
+				a.deviceNameChanged()
 			}
 		})
 		settingsRule(c, theme)
