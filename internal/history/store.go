@@ -355,6 +355,21 @@ func (s *Store) ToggleFavorite(id string) (bool, error) {
 	return false, ErrItemNotFound
 }
 
+// SetDelivery records how one item reached the paired devices, together with the
+// summary the preview shows. It backs the sync service reporting a delivery
+// outcome; the delivery list replaces whatever was recorded before.
+func (s *Store) SetDelivery(id string, state SyncState, deliveries []DeviceDelivery) error {
+	for index := range s.items {
+		if s.items[index].ID != id {
+			continue
+		}
+		s.items[index].Sync = state
+		s.items[index].Deliveries = append([]DeviceDelivery(nil), deliveries...)
+		return nil
+	}
+	return ErrItemNotFound
+}
+
 // Item returns one stored item by ID and whether it exists. The caller only
 // reads the result, so the item is returned by value like a Snapshot entry.
 func (s *Store) Item(id string) (Item, bool) {

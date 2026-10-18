@@ -79,6 +79,10 @@ func (a *application) generalSettings(c *ui.Context, theme *ui.Theme) {
 			} else {
 				input.Width(220)
 			}
+			// 改完名字就把广播也换掉：否则局域网里还是旧名字，直到下次重启。
+			if input.Changed() {
+				a.applyDeviceName()
+			}
 		})
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsLaunchAtLogin), a.t(msgSettingsLaunchAtLoginDesc), func() {

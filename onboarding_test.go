@@ -254,7 +254,7 @@ func TestIncompletePairingCodeKeepsContinueDisabled(t *testing.T) {
 	app, _ := onboardingApp(t, settings.File{})
 	app.onboarding = onboardingStepDetail
 	app.onboardingPath = onboardingJoinExisting
-	app.pairingCode = "482"
+	app.onboardingPairingCode = "482"
 	tt := onboardingTester(app)
 
 	if app.pairingCodeAccepted() {
@@ -275,7 +275,7 @@ func TestRejectedPairingCodeExplainsItself(t *testing.T) {
 	app, _ := onboardingApp(t, settings.File{})
 	app.onboarding = onboardingStepDetail
 	app.onboardingPath = onboardingJoinExisting
-	app.pairingCode = "48291a"
+	app.onboardingPairingCode = "48291a"
 	tt := onboardingTester(app)
 
 	if _, invalid := app.pairingCodeHint(); invalid {
@@ -568,8 +568,8 @@ func TestBackButtonLetsTheUserChangeTheirMind(t *testing.T) {
 	if app.onboardingPath != onboardingFirstDevice {
 		t.Errorf("改选后路径 = %v，期望「这是我的第一台设备」", app.onboardingPath)
 	}
-	if app.pairingCode != "" {
-		t.Errorf("换路径后不该留着上一次的配对码，实际 %q", app.pairingCode)
+	if app.onboardingPairingCode != "" {
+		t.Errorf("换路径后不该留着上一次的配对码，实际 %q", app.onboardingPairingCode)
 	}
 }
 

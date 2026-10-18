@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gopaste/internal/history"
+	"gopaste/internal/lansync"
 	"gopaste/internal/settings"
 
 	"github.com/egoist/mygo/ui"
@@ -41,13 +42,13 @@ var desktopPlatforms = []string{"macOS", "Windows", "Linux"}
 // syncDirection is the language-independent direction stored for each content
 // type. Labels are derived from the active language at render time, so
 // switching languages never rewrites the stored value.
-type syncDirection uint8
+type syncDirection = lansync.Direction
 
 const (
-	syncDirectionTwoWay syncDirection = iota
-	syncDirectionSendOnly
-	syncDirectionReceiveOnly
-	syncDirectionOff
+	syncDirectionTwoWay      = lansync.DirectionTwoWay
+	syncDirectionSendOnly    = lansync.DirectionSendOnly
+	syncDirectionReceiveOnly = lansync.DirectionReceiveOnly
+	syncDirectionOff         = lansync.DirectionOff
 )
 
 // settingsArea 表示设置页左侧导航中的当前主题。
@@ -134,15 +135,15 @@ const (
 	deliveryOffline  = history.DeliveryOffline
 )
 
-// pairedDevice 保存一个已配对设备的运行时状态。
-// 这些字段先保存在内存中，后续接入持久化同步服务时可直接替换数据来源。
+// pairedDevice 是已配对设备在界面上的投影。真正的数据在 lansync 的
+// devices.json 里，这里每个字段都由 applySyncDevices 从那边刷新，界面上的改动
+// 则经 syncService 写回去，界面因此不持有唯一真相。
 type pairedDevice struct {
 	id       string
 	name     string
 	peerID   string
 	platform string
 	version  string
-	channel  string
 	address  string
 	online   bool
 	// lastSeenAt 记录设备最近一次在线的时间，零值表示未知。
@@ -155,16 +156,29 @@ type pairedDevice struct {
 	richTextSyncDirection syncDirection
 }
 
-// deviceDiscoveryState describes the device provider state exposed by the UI.
-// The current preview has no discovery backend, so it remains ready by default;
-// a future LAN adapter can publish loading and error states without changing
-// the page structure.
+// deviceDiscoveryState describes what the discovery side of the sync service is
+// doing, so the device page can show a spinner or an error instead of an empty
+// list.
 type deviceDiscoveryState uint8
 
 const (
 	deviceDiscoveryReady deviceDiscoveryState = iota
 	deviceDiscoveryLoading
 	deviceDiscoveryError
+)
+
+// pairingState is where the pairing dialog is in the pairing flow.
+type pairingState uint8
+
+const (
+	// pairingIdle lists the devices discovered on the network.
+	pairingIdle pairingState = iota
+	// pairingWaiting shows the code this device generated for the device it is
+	// pairing with.
+	pairingWaiting
+	// pairingAnswering asks for the code shown by the device that started the
+	// pairing.
+	pairingAnswering
 )
 
 // application 保存窗口在多次重绘之间需要延续的状态。UI 元素本身不放在这里，
@@ -219,8 +233,15 @@ type application struct {
 	// clipboardEcho 记录应用自己刚写到剪贴板的读数 ID，见 recordClipboardWrite。
 	persistence   *historyPersistence
 	clipboardEcho map[string]struct{}
+	// historyReady 表示持久化的历史已经装载进 history。在此之前收到的同步内容先
+	// 排进 pendingClips：装载结果会整份替换内存里的历史，直接写进去的条目会连同
+	// 剪贴板里已有的内容一起丢掉。
+	historyReady bool
+	pendingClips []history.Item
 
-	onResendItem func(itemID, deviceID string)
+	// syncService 是局域网同步服务。为 nil 时（测试、或服务启动失败）界面只显示
+	// 本地状态，配对与同步入口按不可用处理。
+	syncService *lansync.Service
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：
 	// 浮层由指针悬停状态标记展开，指针移开标记与浮层后收起。
 	syncPopoverItem        string
@@ -234,14 +255,21 @@ type application struct {
 	pairedDevices          []pairedDevice
 	deviceDiscovery        deviceDiscoveryState
 	deviceDiscoveryMessage string
-	onRefreshDevices       func()
 	deviceRefreshSpinUntil time.Time
 	selectedDeviceID       string
 	deviceInfoExpanded     bool
 	addDeviceDialog        bool
-	pairingPending         bool
-	pairingError           string
-	onStartPairing         func()
+
+	// discoveredPeers 是发现到但还没配对的设备，配对对话框据此列出可配对的设备。
+	discoveredPeers []lansync.Peer
+	// pairing、pairingCode、pairingPeerName 描述配对对话框当前所处的阶段。
+	pairing         pairingState
+	pairingCode     string
+	pairingPeerID   string
+	pairingPeerName string
+	pairingError    string
+	// pairCodeInput 是「对方发起配对」时用户输入的配对码。
+	pairCodeInput string
 
 	// 首次启动向导。onboarding 是当前步骤，onboardingStepNone 表示不显示；
 	// onboardingCompleted 是已经落盘的那个事实，跳过也算完成，因此向导不会
@@ -251,11 +279,13 @@ type application struct {
 	onboardingPath      onboardingPath
 	// onboardingName 是向导里的设备名草稿，进入向导时用当前设备名预填。
 	onboardingName string
-	// pairingCode 是向导里的配对码草稿，按用户输入的原样保存，提交时才规范化。
-	pairingCode string
-	// pairingCodeRejected 记录用户已经用回车提交过一次非法配对码，用来把字段
-	// 下方的说明行转成错误提示。
-	pairingCodeRejected bool
+	// onboardingPairingCode 是向导里的配对码草稿，按用户输入的原样保存，提交时
+	// 才规范化。它和配对对话框的 pairingCode 不是同一个东西：后者是本机生成、
+	// 念给对方输入的码。
+	onboardingPairingCode string
+	// onboardingPairingCodeRejected 记录用户已经用回车提交过一次非法配对码，用来
+	// 把字段下方的说明行转成错误提示。
+	onboardingPairingCodeRejected bool
 	// confirmSkipOnboarding 是「跳过首次设置？」确认框的展开状态。跳过会让向导
 	// 不再出现，所以先问一句。
 	confirmSkipOnboarding bool

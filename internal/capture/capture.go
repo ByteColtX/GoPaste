@@ -77,14 +77,25 @@ type Snapshot struct {
 	Sensitive bool
 }
 
+// content is the snapshot in the form item identity is derived from.
+func (s Snapshot) content() history.Content {
+	return history.Content{
+		Kind:  s.Kind,
+		Text:  s.Text,
+		HTML:  s.HTML,
+		Image: s.Image,
+		Files: s.Files,
+	}
+}
+
 // Item converts the snapshot into the history item it should become, and
 // reports false when nothing worth keeping was copied.
 //
-// The item ID is a digest of the content, so copying the same content twice
-// yields the same ID. That is also what keeps a change this process caused
-// itself out of the history: writing a stored item back to the clipboard
-// reads back as the same content, resolves to the ID already stored, and the
-// store rejects it as a duplicate.
+// The item ID is a digest of the content (history.ContentID), so copying the
+// same content twice yields the same ID. That is also what keeps a change this
+// process caused itself out of the history: writing a stored item back to the
+// clipboard reads back as the same content, resolves to the ID already stored,
+// and the store rejects it as a duplicate.
 func (s Snapshot) Item() (history.Item, bool) {
 	switch s.Kind {
 	case history.KindText:
@@ -92,7 +103,7 @@ func (s Snapshot) Item() (history.Item, bool) {
 			return history.Item{}, false
 		}
 		return history.Item{
-			ID:        s.digest(),
+			ID:        history.ContentID(s.content()),
 			Kind:      history.KindText,
 			Text:      s.Text,
 			CreatedAt: s.At,
@@ -105,7 +116,7 @@ func (s Snapshot) Item() (history.Item, bool) {
 		// plain-text representation beside it so the list and the preview stay
 		// readable and Store.Copy can write both back out.
 		return history.Item{
-			ID:        s.digest(),
+			ID:        history.ContentID(s.content()),
 			Kind:      history.KindRichText,
 			Text:      s.Text,
 			HTML:      s.HTML,
@@ -116,7 +127,7 @@ func (s Snapshot) Item() (history.Item, bool) {
 			return history.Item{}, false
 		}
 		return history.Item{
-			ID:        s.digest(),
+			ID:        history.ContentID(s.content()),
 			Kind:      history.KindImage,
 			Image:     s.Image,
 			CreatedAt: s.At,
@@ -126,7 +137,7 @@ func (s Snapshot) Item() (history.Item, bool) {
 			return history.Item{}, false
 		}
 		return history.Item{
-			ID:        s.digest(),
+			ID:        history.ContentID(s.content()),
 			Kind:      history.KindFile,
 			Text:      filePathsText(s.Files),
 			FileSize:  totalFileSize(s.Files),

@@ -44,7 +44,7 @@ func (a *application) startOnboarding() {
 	a.onboardingPath = onboardingFirstDevice
 	a.onboardingName = a.deviceDisplayName()
 	a.pairingCode = ""
-	a.pairingCodeRejected = false
+	a.onboardingPairingCodeRejected = false
 	a.confirmSkipOnboarding = false
 }
 
@@ -62,7 +62,7 @@ func (a *application) advanceOnboarding() {
 		// 换路径不该带着上一次的残留：回到第一步再选另一条路时，配对码清空，
 		// 设备名草稿只在为空时重新预填，用户已经打进去的字不覆盖。
 		a.pairingCode = ""
-		a.pairingCodeRejected = false
+		a.onboardingPairingCodeRejected = false
 		if a.onboardingName == "" {
 			a.onboardingName = a.deviceDisplayName()
 		}
@@ -70,7 +70,7 @@ func (a *application) advanceOnboarding() {
 		if a.onboardingPath == onboardingJoinExisting {
 			if _, ok := settings.PairingCode(a.pairingCode); !ok {
 				// 「继续」在校验不过时是禁用的，能走到这里的只有回车提交。
-				a.pairingCodeRejected = true
+				a.onboardingPairingCodeRejected = true
 				return
 			}
 		}
@@ -119,12 +119,13 @@ func (a *application) finishOnboarding(skip bool) {
 		} else if name := strings.TrimSpace(a.onboardingName); name != "" && name != a.deviceDisplayName() {
 			// 和预填的名字一样就什么都不做：默认名继续跟着系统主机名走。
 			a.deviceName = name
+			a.applyDeviceName()
 		}
 	}
 	a.onboarding = onboardingStepNone
 	a.onboardingCompleted = true
 	a.pairingCode = ""
-	a.pairingCodeRejected = false
+	a.onboardingPairingCodeRejected = false
 	a.confirmSkipOnboarding = false
 	a.saveSettings()
 	a.setPage(pageDevices)
@@ -140,7 +141,7 @@ func (a *application) pairingCodeAccepted() bool {
 // pairingCodeHint 是配对码字段下方的说明行：平时讲格式，回车提交过非法码之后
 // 变成错误提示（onboarding_view 据此换成危险色）。
 func (a *application) pairingCodeHint() (text string, invalid bool) {
-	if a.pairingCodeRejected && !a.pairingCodeAccepted() {
+	if a.onboardingPairingCodeRejected && !a.pairingCodeAccepted() {
 		return a.tf(msgOnboardingPairingCodeBad, settings.PairingCodeLength), true
 	}
 	return a.tf(msgOnboardingPairingCodeHint, settings.PairingCodeLength), false

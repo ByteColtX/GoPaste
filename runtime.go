@@ -2,8 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"runtime"
+	"time"
+
+	"gopaste/internal/history"
+	"gopaste/internal/lansync"
 
 	"gopaste/internal/settings"
 
@@ -49,6 +54,8 @@ type applicationRuntime struct {
 	quitting bool
 	// captureCancel 结束剪贴板监听；为 nil 表示监听没有启动。
 	captureCancel context.CancelFunc
+	// syncCancel 结束局域网同步服务；为 nil 表示服务没有启动。
+	syncCancel context.CancelFunc
 }
 
 // mygoClipboardWriter is the production adapter for history.Store's local
@@ -131,7 +138,9 @@ func (r *applicationRuntime) ready() {
 		r.quitting = true
 	})
 	mygo.App.OnWillQuit(func(*mygo.QuitEvent) {
-		// 先停监听，再等写队列落盘，最后关掉数据库：退出时不会丢掉刚复制的记录。
+		// 先停同步服务，再停监听、等写队列落盘、关掉数据库：退出时既不会丢掉刚
+		// 复制的记录，也不会再有同步回调打到正在关闭的窗口上。
+		r.stopSync()
 		r.stopCapture()
 		if r.app.persistence != nil {
 			r.app.persistence.Close()
@@ -160,10 +169,14 @@ func (r *applicationRuntime) ready() {
 		r.tray = tray
 	}
 
-	// 捕获的上下文在主线程上创建，退出时由 stopCapture 取消。
+	// 捕获与同步的上下文都在主线程上创建，退出时由 stopCapture / stopSync 取消。
 	captureCtx, captureCancel := context.WithCancel(context.Background())
 	r.captureCancel = captureCancel
 	r.startHistoryPersistence(captureCtx)
+
+	syncCtx, syncCancel := context.WithCancel(context.Background())
+	r.syncCancel = syncCancel
+	r.startSyncService(syncCtx)
 }
 
 // installAppMenu 安装应用菜单，并在其中加入 HIG › Settings 约定的「设置…」项
@@ -452,6 +465,141 @@ func (r *applicationRuntime) showSettings() {
 	r.app.setPage(pageSettings)
 	r.window.Show()
 	r.window.Invalidate()
+}
+
+// startSyncService 启动局域网同步服务，并把它的结果经 Window.Update 送回界面线程。
+//
+// 服务自己开 goroutine 做发现、配对与投递，回调都不在界面线程上：这里统一转交给
+// Window.Update，界面状态因此仍然只在主线程上改动。
+func (r *applicationRuntime) startSyncService(ctx context.Context) {
+	path, err := deviceDatabasePath()
+	if err != nil {
+		log.Printf("无法确定设备配对信息位置，本次不启用局域网同步: %v", err)
+		r.publishDiscoveryFailure(r.app.t(msgDevicesDiscoveryUnavailable))
+		return
+	}
+	options := lansync.Options{
+		StorePath: path,
+		Name:      r.app.deviceName,
+		Platform:  r.app.devicePlatform,
+		Version:   settingsVersion,
+		OnPeersChanged: func(peers []lansync.Peer) {
+			r.update(func() { r.app.applySyncPeers(peers) })
+		},
+		OnDevicesChanged: func(devices []lansync.Device) {
+			r.update(func() {
+				r.app.applySyncDevices(devices)
+				r.app.devicesChanged()
+			})
+		},
+		OnPairRequest: func(request lansync.PairRequest) {
+			r.update(func() {
+				r.app.applyPairRequest(request)
+				r.window.Show()
+			})
+		},
+		OnPairingCode: func(deviceName, code string) {
+			r.update(func() { r.app.applyPairingCode(deviceName, code) })
+		},
+		OnPairingFailed: func(deviceName string, err error) {
+			r.update(func() { r.app.applyPairingFailed(deviceName, err) })
+		},
+		OnClip: func(clip lansync.Clip, from lansync.Device) {
+			r.update(func() { r.app.receiveClip(clip, from) })
+		},
+		OnDelivery: func(itemID string, deliveries []history.DeviceDelivery) {
+			r.update(func() { r.app.applyDelivery(itemID, deliveries) })
+		},
+	}
+	service, err := openSyncService(ctx, func() (*lansync.Service, error) {
+		return lansync.NewService(options)
+	})
+	if err != nil {
+		// 配对信息读不出来时不覆盖原文件：修好之后还能接着用。
+		log.Printf("无法读取设备配对信息，本次不启用局域网同步: %v", err)
+		r.publishDiscoveryFailure(r.app.t(msgDevicesDiscoveryUnavailable))
+		return
+	}
+	r.app.syncService = service
+	r.app.devicePeerID = service.Identity().ID
+	r.app.deviceDiscovery = deviceDiscoveryLoading
+	r.update(func() { r.app.applySyncDevices(service.Devices()) })
+
+	go func() {
+		if err := service.Start(ctx); err != nil {
+			log.Printf("局域网发现未启动: %v", err)
+			// 文案要读界面语言，所以在界面线程上取，不在这里读。
+			noNetwork := errors.Is(err, lansync.ErrNoInterfaces)
+			r.update(func() {
+				message := r.app.t(msgDevicesErrorMessage)
+				if noNetwork {
+					message = r.app.t(msgDevicesDiscoveryNoNetwork)
+				}
+				r.app.deviceDiscovery = deviceDiscoveryError
+				r.app.deviceDiscoveryMessage = message
+			})
+		}
+	}()
+}
+
+// 身份文件被另一个实例短暂占用时重试的次数与间隔。一个实例正在退出、热重载刚重启、
+// 或者用户快速点两下图标，都会让下一个实例在启动时撞上这个锁；Windows 上读一个正被
+// 独占打开的文件直接报错。为了一次几百毫秒的争用就让整次运行没有同步，不值得。
+const (
+	syncServiceOpenAttempts = 10
+	syncServiceOpenDelay    = 300 * time.Millisecond
+)
+
+// openSyncService 打开同步服务，遇到「文件暂时被占用」这类可恢复的错误就短暂重试。
+// 内容本身读不出来（ErrStoreUnreadable）时立刻放弃：那不是等一等就会好的事。
+func openSyncService(ctx context.Context, open func() (*lansync.Service, error)) (*lansync.Service, error) {
+	var err error
+	for attempt := 0; attempt < syncServiceOpenAttempts; attempt++ {
+		var service *lansync.Service
+		service, err = open()
+		if err == nil {
+			return service, nil
+		}
+		if errors.Is(err, lansync.ErrStoreUnreadable) {
+			return nil, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(syncServiceOpenDelay):
+		}
+	}
+	return nil, err
+}
+
+// stopSync 停止局域网同步服务。返回后不会再有同步回调。
+func (r *applicationRuntime) stopSync() {
+	if r.syncCancel != nil {
+		r.syncCancel()
+		r.syncCancel = nil
+	}
+	if r.app.syncService != nil {
+		r.app.syncService.Stop()
+		r.app.syncService = nil
+	}
+}
+
+// publishDiscoveryFailure 把发现层的失败告诉界面：设备页据此显示错误状态，而不是
+// 一个看起来空荡荡的列表。
+func (r *applicationRuntime) publishDiscoveryFailure(message string) {
+	r.update(func() {
+		r.app.deviceDiscovery = deviceDiscoveryError
+		r.app.deviceDiscoveryMessage = message
+	})
+}
+
+// update 在窗口存在时把结果送回界面线程。窗口可能已经关闭（退出过程中），所以
+// 这里统一挡一层。
+func (r *applicationRuntime) update(work func()) {
+	if r.window == nil {
+		return
+	}
+	r.window.Update(work)
 }
 
 func openMainWindow(app *application) *mygo.Window {

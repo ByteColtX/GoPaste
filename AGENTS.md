@@ -1,8 +1,7 @@
 # AGENTS.md
 
 GoPaste 是用 Go 和 MyGo 原生 UI 写的剪贴板历史工具，目标平台 macOS、Windows、Linux。
-剪贴板捕获、本地 SQLite 历史、界面已经可用；局域网同步尚未接入，设备页和配对对话框
-只有界面，不要假装配对成功。
+剪贴板捕获、本地 SQLite 历史、局域网直连同步（`internal/lansync`）与界面都已接入。
 
 ## 硬约束
 
@@ -27,7 +26,10 @@ go tool mygo build              # 打包，macOS 产出 .app 和 .dmg
 ## 代码约定
 
 - 依赖 MyGo API 时以 `go.mod` 里的版本和模块源码为准，不要凭记忆写。
-- `internal/` 下的包不依赖 MyGo、不依赖网络，可以脱离界面单独测试；界面逻辑留在根包。
+- `internal/` 下的包不依赖 MyGo，可以脱离界面单独测试；界面逻辑留在根包。
+- 网络代码只放在 `internal/lansync`：身份、mDNS 发现、配对、TLS 连接、投递都在那里，
+  `internal/` 下其余包不碰网络。界面通过 `lansync.Service` 使用它，回调一律经
+  `Window.Update` 回到主线程。
 - 遵循 `gofmt` 和标准 Go 风格；不做无关重构，不擅自加依赖。
 
 ## MyGo 规则
