@@ -1,11 +1,11 @@
 package main
 
 import (
-	"io/fs"
 	"math"
 	"os"
-	"path/filepath"
 	"strconv"
+
+	"gopaste/internal/filescache"
 )
 
 // storageUsage 是 GoPaste 在本机磁盘上各类数据的占用字节数。两类之和就是界面上
@@ -43,7 +43,7 @@ func measureStorageUsage(paths storageUsagePaths) storageUsage {
 			fileBytes(paths.database+"-wal") +
 			fileBytes(paths.database+"-shm")
 	}
-	usage.files = directoryBytes(paths.files)
+	usage.files = filescache.DirectoryBytes(paths.files)
 	return usage
 }
 
@@ -57,32 +57,6 @@ func fileBytes(path string) int64 {
 		return 0
 	}
 	return info.Size()
-}
-
-// directoryBytes 返回一棵目录树里所有普通文件的大小之和。不跟随符号链接：链接指向
-// 的东西不在这棵目录里，算进来会让数字与目录的实际体积对不上。
-func directoryBytes(dir string) int64 {
-	if dir == "" {
-		return 0
-	}
-	var total int64
-	_ = filepath.WalkDir(dir, func(path string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			// 子目录读不了就跳过它，继续统计其余部分。
-			if entry != nil && entry.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		if !entry.Type().IsRegular() {
-			return nil
-		}
-		if info, infoErr := entry.Info(); infoErr == nil {
-			total += info.Size()
-		}
-		return nil
-	})
-	return total
 }
 
 // byteUnits 是 formatBytes 依次尝试的单位，1024 进制。
