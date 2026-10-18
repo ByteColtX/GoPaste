@@ -205,3 +205,31 @@ func TestRestoredZoomIsClampedToTheScreen(t *testing.T) {
 		t.Errorf("屏幕未知时缩放 = %v，期望保持不变", app.zoom)
 	}
 }
+
+// TestPreferencesSurviveAnActualRestart 模拟一次真实重启：第一个应用实例改完四项偏好
+// 后落盘，第二个实例从同一份文件启动。这是「重启回到默认」那个 bug 的端到端回归。
+func TestPreferencesSurviveAnActualRestart(t *testing.T) {
+	first, path := preferencesApp(t, nil)
+	first.languagePreference = languagePreferenceEnglish
+	first.appearance = appearanceDark
+	first.confirmBeforeDelete = false
+	first.zoom = 1.25
+	first.saveSettings()
+
+	second := newApplication()
+	second.settingsPath = path
+	second.applySettings(readSettings(t, path))
+
+	if second.languagePreference != languagePreferenceEnglish {
+		t.Errorf("重启后语言偏好 = %v，期望英文", second.languagePreference)
+	}
+	if second.appearance != appearanceDark {
+		t.Errorf("重启后外观 = %v，期望深色", second.appearance)
+	}
+	if second.confirmBeforeDelete {
+		t.Error("重启后删除前确认应保持关闭")
+	}
+	if second.zoom != 1.25 {
+		t.Errorf("重启后缩放 = %v，期望 1.25", second.zoom)
+	}
+}
