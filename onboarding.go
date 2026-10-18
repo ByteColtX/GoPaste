@@ -113,24 +113,31 @@ func (a *application) finishOnboarding(skip bool) {
 }
 
 // applySettings 把读到的设置应用到界面状态，并决定是否显示首次启动向导。
+//
+// 它只写内存状态：语言、外观与缩放要等运行时在主线程上应用（见 runtime.ready），
+// 所以测试可以脱离 MyGo 直接走这条路径。
 func (a *application) applySettings(file settings.File) {
 	if file.DeviceName != "" {
 		a.deviceName = file.DeviceName
 	}
+	a.applyPreferences(file.UI)
 	a.onboardingCompleted = file.Onboarding.Completed
 	if !a.onboardingCompleted {
 		a.startOnboarding()
 	}
 }
 
-// saveSettings 把要跨启动保留的项写进设置文件。写失败只记日志：本次运行内的状态
-// 照旧，下次启动会重新显示向导，这是可接受的降级。
+// saveSettings 把要跨启动保留的项写进设置文件：向导的完成标记、改过的设备名，以及
+// 界面偏好。每次都是整份重写，所以向导结束或任一项偏好改变都会带上其它字段。写失败
+// 只记日志：本次运行内的状态照旧，下次启动会重新显示向导、偏好回到默认，这是可接受
+// 的降级。
 func (a *application) saveSettings() {
 	if a.settingsPath == "" {
 		return
 	}
 	file := settings.File{
 		Onboarding: settings.Onboarding{Completed: a.onboardingCompleted},
+		UI:         a.preferences(),
 	}
 	// 默认名不落盘：它跟着系统主机名走，写进文件会把这一刻的主机名冻住，用户
 	// 之后改主机名就不再生效。只有用户真的改过名字才记下来。

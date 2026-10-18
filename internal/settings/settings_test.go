@@ -133,3 +133,95 @@ func TestLoadRejectsADamagedFile(t *testing.T) {
 		t.Error("坏文件应当返回错误")
 	}
 }
+
+// TestSaveLoadUIPreferencesRoundTrip 检查界面偏好原样回来：固定的语言、外观、
+// 关掉的删除确认和缩放比例都要跨保存保留。
+func TestSaveLoadUIPreferencesRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	off := false
+	want := File{
+		Onboarding: Onboarding{Completed: true},
+		UI: &UI{
+			Language:      "en",
+			Appearance:    "dark",
+			ConfirmDelete: &off,
+			Zoom:          1.25,
+		},
+	}
+	if err := Save(path, want); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.UI == nil {
+		t.Fatal("界面偏好没有读回来")
+	}
+	if got.UI.Language != want.UI.Language {
+		t.Errorf("语言 = %q，期望 %q", got.UI.Language, want.UI.Language)
+	}
+	if got.UI.Appearance != want.UI.Appearance {
+		t.Errorf("外观 = %q，期望 %q", got.UI.Appearance, want.UI.Appearance)
+	}
+	if got.UI.ConfirmDelete == nil || *got.UI.ConfirmDelete {
+		t.Errorf("删除前确认 = %v，期望读到明确的 false", got.UI.ConfirmDelete)
+	}
+	if got.UI.Zoom != want.UI.Zoom {
+		t.Errorf("缩放 = %v，期望 %v", got.UI.Zoom, want.UI.Zoom)
+	}
+}
+
+// TestSaveOmitsDefaultUIPreferences 检查没有任何偏好改动时文件里不出现 ui 对象：
+// 默认值就是缺字段，多写一个空对象只会让文件多几行噪音。
+func TestSaveOmitsDefaultUIPreferences(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := Save(path, File{Onboarding: Onboarding{Completed: true}}); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("读取写入的文件出错: %v", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatalf("写入的文件不是合法 JSON: %v", err)
+	}
+	if _, ok := fields["ui"]; ok {
+		t.Errorf("没有改过的界面偏好不应写进文件: %s", data)
+	}
+}
+
+// TestLoadWithoutUIPreferencesKeepsDefaults 检查旧版本写的文件（只有向导与设备名）
+// 读出来 UI 是 nil，调用方据此保持默认偏好。
+func TestLoadWithoutUIPreferencesKeepsDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	data := []byte("{\n  \"onboarding\": { \"completed\": true },\n  \"deviceName\": \"bytecolt-mbp\"\n}\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("写入旧版设置出错: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.UI != nil {
+		t.Errorf("旧版文件不该读出界面偏好，实际 %+v", got.UI)
+	}
+}
+
+// TestLoadKeepsUnknownUIPreferenceValues 检查设置文件原样交出它读到的值：认不出的
+// 取值由调用方回退到默认，而不是让整个文件读失败。
+func TestLoadKeepsUnknownUIPreferenceValues(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	data := []byte("{\n  \"onboarding\": { \"completed\": true },\n  \"ui\": { \"language\": \"de\", \"appearance\": \"sepia\" }\n}\n")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatalf("写入设置出错: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.UI == nil || got.UI.Language != "de" || got.UI.Appearance != "sepia" {
+		t.Errorf("未知取值应原样读回，实际 %+v", got.UI)
+	}
+}
