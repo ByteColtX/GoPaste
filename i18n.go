@@ -350,8 +350,6 @@ const (
 	msgSettingsStorageFiles             messageKey = "settings.storageFiles"
 	msgSettingsStorageUsage             messageKey = "settings.storageUsage"
 	msgSettingsData                     messageKey = "settings.data"
-	msgSettingsHistoryRow               messageKey = "settings.historyRow"
-	msgSettingsHistoryRowDesc           messageKey = "settings.historyRowDesc"
 	msgSettingsNoRecords                messageKey = "settings.noRecords"
 	msgSettingsRecordCount              messageKey = "settings.recordCount"
 	msgSettingsRecordCountOne           messageKey = "settings.recordCountOne"
@@ -673,11 +671,9 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsStorageDatabase:          "数据库",
 	msgSettingsStorageFiles:             "接收的文件",
 	msgSettingsData:                     "数据",
-	msgSettingsHistoryRow:               "历史记录",
-	msgSettingsHistoryRowDesc:           "此设备上保存的剪贴板记录",
 	msgSettingsNoRecords:                "暂无记录",
-	msgSettingsRecordCount:              "%d 条",
-	msgSettingsRecordCountOne:           "%d 条",
+	msgSettingsRecordCount:              "%d 条记录",
+	msgSettingsRecordCountOne:           "%d 条记录",
 	msgSettingsImageCount:               "%d 张图像",
 	msgSettingsImageCountOne:            "%d 张图像",
 	msgSettingsRetentionItemsRow:        "最多保留",
@@ -988,8 +984,6 @@ var englishCatalog = catalog{
 	msgSettingsStorageDatabase:          "Database",
 	msgSettingsStorageFiles:             "Received files",
 	msgSettingsData:                     "Data",
-	msgSettingsHistoryRow:               "History",
-	msgSettingsHistoryRowDesc:           "Clipboard records saved on this device",
 	msgSettingsNoRecords:                "No records",
 	msgSettingsRecordCount:              "%d records",
 	msgSettingsRecordCountOne:           "%d record",

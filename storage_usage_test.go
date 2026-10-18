@@ -75,8 +75,9 @@ func TestMeasureStorageUsageIgnoresMissingLocations(t *testing.T) {
 	}
 }
 
-// TestStorageSettingsShowsTheUsageBreakdown 检查储存空间页画出总计、两类名称与各自
-// 的大小。测试器在 key 重复时会 panic，所以这也是一次新控件 key 的冒烟检查。
+// TestStorageSettingsShowsTheUsageBreakdown 检查储存空间页画出总计、两类名称与各自的
+// 大小，以及用量区下面的记录条数。测试器在 key 重复时会 panic，所以这也是一次新控件
+// key 的冒烟检查。
 func TestStorageSettingsShowsTheUsageBreakdown(t *testing.T) {
 	app := previewApp("")
 	app.storageUsage = storageUsage{database: 75_000_000, files: 181_248}
@@ -85,6 +86,8 @@ func TestStorageSettingsShowsTheUsageBreakdown(t *testing.T) {
 
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 
+	stats := app.history.Snapshot(history.Query{})
+	summary := app.l10n().storageRecord(stats.Total) + " · " + app.l10n().imageCount(stats.ImageCount)
 	for _, want := range []string{
 		"72 MB",
 		app.t(msgSettingsStorageTotal),
@@ -92,6 +95,7 @@ func TestStorageSettingsShowsTheUsageBreakdown(t *testing.T) {
 		app.t(msgSettingsStorageDatabase),
 		app.t(msgSettingsStorageFiles),
 		"177 KB",
+		summary,
 	} {
 		if !tt.HasText(want) {
 			t.Errorf("储存空间页应显示 %q，实际显示：%q", want, tt.Texts())
