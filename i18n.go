@@ -350,6 +350,16 @@ const (
 	msgSettingsRecordCountOne        messageKey = "settings.recordCountOne"
 	msgSettingsImageCount            messageKey = "settings.imageCount"
 	msgSettingsImageCountOne         messageKey = "settings.imageCountOne"
+	msgSettingsRetentionItemsRow     messageKey = "settings.retentionItemsRow"
+	msgSettingsRetentionItemsRowDesc messageKey = "settings.retentionItemsRowDesc"
+	msgSettingsRetentionDaysRow      messageKey = "settings.retentionDaysRow"
+	msgSettingsRetentionDaysRowDesc  messageKey = "settings.retentionDaysRowDesc"
+	msgSettingsRetentionNote         messageKey = "settings.retentionNote"
+	msgSettingsRetentionUnlimited    messageKey = "settings.retentionUnlimited"
+	msgSettingsRetentionItems        messageKey = "settings.retentionItems"
+	msgSettingsRetentionItemsOne     messageKey = "settings.retentionItemsOne"
+	msgSettingsRetentionDays         messageKey = "settings.retentionDays"
+	msgSettingsRetentionDaysOne      messageKey = "settings.retentionDaysOne"
 	msgSettingsClearHistoryRow       messageKey = "settings.clearHistoryRow"
 	msgSettingsClearHistoryRowDesc   messageKey = "settings.clearHistoryRowDesc"
 	msgSettingsClearHistory          messageKey = "settings.clearHistory"
@@ -652,6 +662,16 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsRecordCountOne:        "%d 条",
 	msgSettingsImageCount:            "%d 张图像",
 	msgSettingsImageCountOne:         "%d 张图像",
+	msgSettingsRetentionItemsRow:     "最多保留",
+	msgSettingsRetentionItemsRowDesc: "超出上限时从最旧的删起；收藏的记录不删除，也不占名额",
+	msgSettingsRetentionDaysRow:      "最多保留天数",
+	msgSettingsRetentionDaysRowDesc:  "更早的记录自动删除；收藏的记录不删除",
+	msgSettingsRetentionNote:         "调低上限会立即删除超出的旧记录，且不提供撤销。",
+	msgSettingsRetentionUnlimited:    "不限",
+	msgSettingsRetentionItems:        "%d 条",
+	msgSettingsRetentionItemsOne:     "%d 条",
+	msgSettingsRetentionDays:         "%d 天",
+	msgSettingsRetentionDaysOne:      "%d 天",
 	msgSettingsClearHistoryRow:       "清除历史记录",
 	msgSettingsClearHistoryRowDesc:   "删除此设备上保存的所有记录",
 	msgSettingsClearHistory:          "清除历史记录",
@@ -946,6 +966,16 @@ var englishCatalog = catalog{
 	msgSettingsRecordCountOne:        "%d record",
 	msgSettingsImageCount:            "%d images",
 	msgSettingsImageCountOne:         "%d image",
+	msgSettingsRetentionItemsRow:     "Keep at most",
+	msgSettingsRetentionItemsRowDesc: "Once the limit is reached, the oldest records are deleted first. Favorites are never deleted and do not use up the limit.",
+	msgSettingsRetentionDaysRow:      "Keep for at most",
+	msgSettingsRetentionDaysRowDesc:  "Records older than this are deleted automatically. Favorites are never deleted.",
+	msgSettingsRetentionNote:         "Lowering a limit deletes the extra records right away, and that cannot be undone.",
+	msgSettingsRetentionUnlimited:    "No limit",
+	msgSettingsRetentionItems:        "%d records",
+	msgSettingsRetentionItemsOne:     "%d record",
+	msgSettingsRetentionDays:         "%d days",
+	msgSettingsRetentionDaysOne:      "%d day",
 	msgSettingsClearHistoryRow:       "Clear history",
 	msgSettingsClearHistoryRowDesc:   "Delete all records saved on this device",
 	msgSettingsClearHistory:          "Clear history",
@@ -1077,6 +1107,47 @@ func (l localizer) storageRecord(n int) string {
 // imageCount describes the number of stored images.
 func (l localizer) imageCount(n int) string {
 	return l.pluralFormat(n, msgSettingsImageCountOne, msgSettingsImageCount, n)
+}
+
+// retentionItemChoices lists the record-count limits the storage settings offer.
+// Zero comes last and means no limit at all.
+func (l localizer) retentionItemChoices() []option[int] {
+	return []option[int]{
+		{value: 500, label: l.retentionItemLabel(500)},
+		{value: 2000, label: l.retentionItemLabel(2000)},
+		{value: 10000, label: l.retentionItemLabel(10000)},
+		{value: 50000, label: l.retentionItemLabel(50000)},
+		{value: 0, label: l.retentionItemLabel(0)},
+	}
+}
+
+// retentionDayChoices lists the age limits the storage settings offer. Zero comes
+// last and means no limit at all.
+func (l localizer) retentionDayChoices() []option[int] {
+	return []option[int]{
+		{value: 7, label: l.retentionDayLabel(7)},
+		{value: 30, label: l.retentionDayLabel(30)},
+		{value: 90, label: l.retentionDayLabel(90)},
+		{value: 180, label: l.retentionDayLabel(180)},
+		{value: 365, label: l.retentionDayLabel(365)},
+		{value: 0, label: l.retentionDayLabel(0)},
+	}
+}
+
+// retentionItemLabel names a "keep at most N records" choice; zero is no limit.
+func (l localizer) retentionItemLabel(n int) string {
+	if n <= 0 {
+		return l.text(msgSettingsRetentionUnlimited)
+	}
+	return l.pluralFormat(n, msgSettingsRetentionItemsOne, msgSettingsRetentionItems, n)
+}
+
+// retentionDayLabel names a "keep for at most N days" choice; zero is no limit.
+func (l localizer) retentionDayLabel(n int) string {
+	if n <= 0 {
+		return l.text(msgSettingsRetentionUnlimited)
+	}
+	return l.pluralFormat(n, msgSettingsRetentionDaysOne, msgSettingsRetentionDays, n)
 }
 
 // onlineCount describes how many paired devices are online.

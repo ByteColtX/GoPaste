@@ -23,6 +23,10 @@ type File struct {
 	// UI is nil while every interface preference is still the default: the
 	// caller passes nil so a file that never saw a change stays small.
 	UI *UI `json:"ui,omitempty"`
+	// Retention is the history cleanup the user chose. A nil pointer means the
+	// user never touched it, and the application applies its own defaults; a
+	// present object records exactly what was chosen.
+	Retention *Retention `json:"retention,omitempty"`
 }
 
 // UI is the interface preferences the settings page records. Every zero value
@@ -40,6 +44,18 @@ type UI struct {
 	ConfirmDelete *bool `json:"confirmDelete,omitempty"`
 	// Zoom is the interface scale, where 1 is 100%; zero is the default.
 	Zoom float32 `json:"zoom,omitempty"`
+}
+
+// Retention is one saved history cleanup rule: how many records to keep and
+// how old a record may become. Each limit is optional. A nil pointer means the
+// user never chose that dimension, so the application keeps using its own
+// default for it; a present 0 means the user chose "no limit". Both cases must
+// be distinguishable, which is why these are pointers rather than plain ints:
+// with ints an untouched file would read back as "unlimited" and silently
+// switch the policy off for every existing user.
+type Retention struct {
+	MaxItems *int `json:"maxItems,omitempty"`
+	MaxDays  *int `json:"maxDays,omitempty"`
 }
 
 // Onboarding records what the first-run wizard came to. Completed covers the

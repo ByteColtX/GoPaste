@@ -25,6 +25,7 @@ func newApplication() *application {
 		historyPaneWidth: defaultHistoryPaneWidth,
 		// 历史记录由 SQLite 仓库异步装载，见 startHistoryPersistence。
 		history:            history.New(nil),
+		retention:          defaultRetention(),
 		devicePlatform:     localPlatformName(),
 		deviceSyncEnabled:  true,
 		deviceFileSync:     true,
