@@ -262,11 +262,22 @@ func (r *applicationRuntime) stopCapture() {
 
 // installHistory 用持久化装载的结果替换内存中的历史记录，并接入后续写入。
 // 装载只发生一次，替换后选中项回到最新一条。
+//
+// 装载完成之前收到的同步内容排在这里补上：那一刻内存里的历史是空的，替换之后它们
+// 就只剩下剪贴板里的那一份，数据库里永远不会有。
 func (a *application) installHistory(items []history.Item, persistence *historyPersistence) {
 	a.history = history.New(items)
 	a.persistence = persistence
 	a.historyBitmaps = nil
 	a.codeHighlights = nil
+	a.historyReady = true
+	for _, item := range a.pendingClips {
+		if err := a.history.Append(item); err != nil {
+			continue
+		}
+		a.persistItem(item)
+	}
+	a.pendingClips = nil
 }
 
 // appendCaptured 把一次捕获结果并入历史记录。

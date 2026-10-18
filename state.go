@@ -690,19 +690,35 @@ func (a *application) pairingMessage(err error) string {
 // receiveClip 处理从已配对设备收到的剪贴板内容：写进本机剪贴板，并作为一条带来源
 // 的历史记录留下。内容已在别处存在时不再存第二份，但仍然写进剪贴板——用户在另一台
 // 机器上刚复制了它。
+//
+// 历史装载完成之前收到的内容先排队（见 historyReady）：剪贴板照写，条目等装载完成
+// 后再补，否则它会被装载结果整份替换掉。
 func (a *application) receiveClip(clip lansync.Clip, from lansync.Device) {
 	item := clip.HistoryItem(from.ID, time.Now())
-	// 内容已经在本机历史里时不再存第二份（同内容同 ID），但仍然写进剪贴板：
-	// 用户刚在另一台机器上复制了它。
-	if err := a.history.Append(item); err == nil {
-		a.persistItem(item)
-	}
-	// 记下这次写入会读回什么，捕获路径就不会把它当成一次新的复制。
+	// 先记下这次写入会读回什么，捕获路径就不会把它当成一次新的复制。
 	a.recordClipboardWrite(item)
 	if a.clipboard != nil {
-		_ = a.history.Copy(item.ID, a.clipboard)
+		if clip.Kind == kindImage && clip.Image != nil {
+			_ = a.clipboard.WriteImage(clip.Image.PNG)
+		} else {
+			a.clipboard.WriteText(clip.Text)
+		}
 	}
+	if !a.historyReady {
+		if len(a.pendingClips) < maxPendingClips {
+			a.pendingClips = append(a.pendingClips, item)
+		}
+		return
+	}
+	if err := a.history.Append(item); err != nil {
+		return
+	}
+	a.persistItem(item)
 }
+
+// maxPendingClips 是装载历史之前最多先收下多少条同步内容。正常情况下这个窗口只有
+// 几十毫秒，队列里至多一两条；上限只是防止历史永远装载不上时无限增长。
+const maxPendingClips = 32
 
 // applyDelivery 记录一条记录的投递结果，并更新预览区看到的同步状态。
 func (a *application) applyDelivery(itemID string, deliveries []history.DeviceDelivery) {

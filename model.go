@@ -232,6 +232,11 @@ type application struct {
 	// clipboardEcho 记录应用自己刚写到剪贴板的读数 ID，见 recordClipboardWrite。
 	persistence   *historyPersistence
 	clipboardEcho map[string]struct{}
+	// historyReady 表示持久化的历史已经装载进 history。在此之前收到的同步内容先
+	// 排进 pendingClips：装载结果会整份替换内存里的历史，直接写进去的条目会连同
+	// 剪贴板里已有的内容一起丢掉。
+	historyReady bool
+	pendingClips []history.Item
 
 	// syncService 是局域网同步服务。为 nil 时（测试、或服务启动失败）界面只显示
 	// 本地状态，配对与同步入口按不可用处理。

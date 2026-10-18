@@ -15,10 +15,11 @@ import (
 // for the sync paths that touch both.
 func syncApp() (*application, *recordingClipboard) {
 	app := newApplication()
-	app.history = history.New(nil)
 	app.pairedDevices = nil
 	clipboard := &recordingClipboard{}
 	app.clipboard = clipboard
+	// 与生产一致：历史装载完成之后才开始收同步内容。
+	app.installHistory(nil, nil)
 	return app, clipboard
 }
 
@@ -219,6 +220,42 @@ func TestReceiveClipKeepsOneRecordPerContent(t *testing.T) {
 	}
 	if len(clipboard.texts) != 2 {
 		t.Errorf("clipboard writes = %d, want 2", len(clipboard.texts))
+	}
+}
+
+// TestReceiveClipBeforeTheHistoryLoads 检查装载完成之前收到的内容不会被丢掉：那一刻
+// 内存里的历史还是空的，装载结果稍后会整份替换它。剪贴板照样先写，条目在装载完成后
+// 补进历史，否则用户只会看到剪贴板变了、列表里什么都没有。
+func TestReceiveClipBeforeTheHistoryLoads(t *testing.T) {
+	app := newApplication()
+	app.pairedDevices = nil
+	clipboard := &recordingClipboard{}
+	app.clipboard = clipboard
+	if app.historyReady {
+		t.Fatal("a fresh application must not claim the history is loaded")
+	}
+
+	from := remoteDevice("peer-a", "工作室 PC")
+	app.receiveClip(lansync.Clip{Kind: history.KindText, Text: "早到的内容"}, from)
+
+	if len(clipboard.texts) != 1 || clipboard.texts[0] != "早到的内容" {
+		t.Fatalf("clipboard = %q, want the received text", clipboard.texts)
+	}
+	if items := app.history.Snapshot(history.Query{}).Items; len(items) != 0 {
+		t.Fatalf("items before the load = %d, want the clip queued", len(items))
+	}
+
+	app.installHistory(nil, nil)
+
+	items := app.history.Snapshot(history.Query{}).Items
+	if len(items) != 1 || items[0].Text != "早到的内容" {
+		t.Fatalf("items = %+v, want the clip received before the load", items)
+	}
+	if items[0].SourceDeviceID != from.ID {
+		t.Errorf("source = %q, want %q", items[0].SourceDeviceID, from.ID)
+	}
+	if len(app.pendingClips) != 0 {
+		t.Error("the queue must be empty once it has been flushed")
 	}
 }
 
