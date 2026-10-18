@@ -360,3 +360,108 @@ func TestSaveLoadRoundTripFileSyncLimit(t *testing.T) {
 		t.Errorf("上限 = %d，期望 64", got.FileSyncMaxMB)
 	}
 }
+
+// TestSyncDefaultsWhenAbsent 检查没有 sync 对象时每一项都读成默认：开关全开、
+// 配额 2 GB、期限 24 小时、目录留空交给应用自己决定。
+func TestSyncDefaultsWhenAbsent(t *testing.T) {
+	file := File{}
+	if !file.SyncEnabled() || !file.AutoSendEnabled() {
+		t.Error("缺省的同步与自动发送应为开")
+	}
+	if !file.FileSyncEnabled() || !file.FileAutoCleanEnabled() {
+		t.Error("缺省的文件同步与自动清理应为开")
+	}
+	if got := file.FileSyncDir(); got != "" {
+		t.Errorf("缺省目录 = %q，期望空串（应用自己的默认位置）", got)
+	}
+	if got, want := file.FileQuotaBytes(), int64(DefaultFileQuotaMB)<<20; got != want {
+		t.Errorf("缺省配额 = %d，期望 %d", got, want)
+	}
+	if got := file.FileRetentionHours(); got != DefaultFileRetentionHours {
+		t.Errorf("缺省期限 = %d，期望 %d", got, DefaultFileRetentionHours)
+	}
+}
+
+// TestSaveLoadSyncRoundTrip 检查关掉的开关、自定义目录与配额、以及明确的「不限」
+// 期限都能原样存进文件再读回来。
+func TestSaveLoadSyncRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	off := false
+	unlimited := 0
+	want := File{Sync: &Sync{
+		Enabled:  &off,
+		AutoSend: &off,
+		Files: &SyncFiles{
+			Enabled:        &off,
+			Dir:            "/Users/me/GoPasteFiles",
+			QuotaMB:        4096,
+			RetentionHours: &unlimited,
+			AutoClean:      &off,
+		},
+	}}
+	if err := Save(path, want); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.SyncEnabled() || got.AutoSendEnabled() {
+		t.Error("关掉的同步与自动发送读回来仍是开")
+	}
+	if got.FileSyncEnabled() || got.FileAutoCleanEnabled() {
+		t.Error("关掉的文件同步与自动清理读回来仍是开")
+	}
+	if got.FileSyncDir() != want.Sync.Files.Dir {
+		t.Errorf("目录 = %q，期望 %q", got.FileSyncDir(), want.Sync.Files.Dir)
+	}
+	if got, want := got.FileQuotaBytes(), int64(4096)<<20; got != want {
+		t.Errorf("配额 = %d，期望 %d", got, want)
+	}
+	if got := got.FileRetentionHours(); got != 0 {
+		t.Errorf("期限 = %d，期望 0（不限）", got)
+	}
+}
+
+// TestLoadSyncKeepsAnExplicitZeroRetention 检查手写的 `"retentionHours": 0` 不会被
+// 当成「没设过」而退回默认：这两件事在文件里必须分得开。
+func TestLoadSyncKeepsAnExplicitZeroRetention(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	data := `{"sync":{"files":{"retentionHours":0}}}`
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatalf("写入设置出错: %v", err)
+	}
+	file, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got := file.FileRetentionHours(); got != 0 {
+		t.Errorf("期限 = %d，期望 0（不限）", got)
+	}
+}
+
+// TestFileQuotaBytesFallsBackToTheDefault 检查没写或写坏时用默认配额。
+func TestFileQuotaBytesFallsBackToTheDefault(t *testing.T) {
+	for _, megabytes := range []int{0, -1} {
+		file := File{Sync: &Sync{Files: &SyncFiles{QuotaMB: megabytes}}}
+		if got, want := file.FileQuotaBytes(), int64(DefaultFileQuotaMB)<<20; got != want {
+			t.Errorf("QuotaMB = %d 时配额 = %d，期望 %d", megabytes, got, want)
+		}
+	}
+}
+
+// TestSaveOmitsAnAbsentSyncObject 检查没写过同步设置时文件里不出现 sync 键：
+// 默认值由应用在保存前省略，读回来就是缺省。
+func TestSaveOmitsAnAbsentSyncObject(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := Save(path, File{Onboarding: Onboarding{Completed: true}}); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("读取写入的文件出错: %v", err)
+	}
+	if strings.Contains(string(data), "sync") {
+		t.Errorf("没有同步设置时不应写进文件: %s", data)
+	}
+}
