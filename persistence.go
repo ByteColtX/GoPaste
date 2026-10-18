@@ -314,6 +314,8 @@ func (a *application) installHistory(items []history.Item, persistence *historyP
 	a.pendingClips = nil
 	// 装载完就先裁一次：升级后第一次启动，超过上限的旧记录在这一刻消失。
 	a.pruneHistory()
+	// 文件缓存同理：启动时按期限与配额收拾一次，而不是等下一份文件进来。
+	a.requestFileCacheCleanup(false)
 }
 
 // appendCaptured 把一次捕获结果并入历史记录。

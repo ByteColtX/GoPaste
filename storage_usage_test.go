@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"gopaste/internal/history"
 
@@ -46,7 +47,7 @@ func TestMeasureStorageUsageCountsEveryLocation(t *testing.T) {
 	files := filepath.Join(dir, "Files")
 	writeSizedFile(t, filepath.Join(files, "item-1", "报表.txt"), 500)
 	writeSizedFile(t, filepath.Join(files, "item-2", "nested", "photo.png"), 70)
-	usage := measureStorageUsage(storageUsagePaths{database: database, files: files})
+	usage := measureStorageUsage(storageUsagePaths{database: database, files: []string{files}})
 
 	want := storageUsage{database: 1230, files: 570}
 	if usage != want {
@@ -68,7 +69,7 @@ func TestMeasureStorageUsageIgnoresMissingLocations(t *testing.T) {
 	dir := t.TempDir()
 	usage = measureStorageUsage(storageUsagePaths{
 		database: filepath.Join(dir, "missing.db"),
-		files:    filepath.Join(dir, "missing-files"),
+		files:    []string{filepath.Join(dir, "missing-files")},
 	})
 	if usage != (storageUsage{}) {
 		t.Fatalf("不存在的文件的用量 = %+v，期望全 0", usage)
@@ -175,7 +176,11 @@ func TestReturningToStorageMeasuresAgain(t *testing.T) {
 func TestClearingHistoryMeasuresAfterTheFilesAreGone(t *testing.T) {
 	app := newApplication()
 	app.receivedFilesDir = t.TempDir()
-	writeSizedFile(t, filepath.Join(app.receivedFilesDir, "item-1", "报表.txt"), 500)
+	local := filepath.Join(app.receivedFilesDir, "item-1", "报表.txt")
+	writeSizedFile(t, local, 500)
+	app.history = history.New([]history.Item{{
+		ID: "item-1", Kind: kindFile, SourceDeviceID: "peer-a", Text: local, CreatedAt: time.Now(),
+	}})
 	var after <-chan struct{}
 	app.onMeasureStorageUsage = func(channel <-chan struct{}) { after = channel }
 
@@ -185,8 +190,8 @@ func TestClearingHistoryMeasuresAfterTheFilesAreGone(t *testing.T) {
 		t.Fatal("清除历史后应当带着删除完成的通道去测量")
 	}
 	<-after
-	if _, err := os.Stat(app.receivedFilesDir); !os.IsNotExist(err) {
-		t.Fatalf("删除完成后目录应当已经不存在，Stat 返回 %v", err)
+	if _, err := os.Stat(filepath.Dir(local)); !os.IsNotExist(err) {
+		t.Fatalf("删除完成后记录目录应当已经不存在，Stat 返回 %v", err)
 	}
 }
 

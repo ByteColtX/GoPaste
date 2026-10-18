@@ -24,10 +24,11 @@ func (u storageUsage) total() int64 {
 }
 
 // storageUsagePaths 是测量要知道的几个位置。空字符串表示这一类本次不测（例如没有
-// 数据目录、同步不可用时没有收到的文件目录），对应的占用按 0 算。
+// 数据目录、同步不可用时没有收到的文件目录），对应的占用按 0 算。files 可能有多个
+// 根目录：用户换过保存位置之后，旧目录里的文件仍然占着盘。
 type storageUsagePaths struct {
 	database string
-	files    string
+	files    []string
 }
 
 // measureStorageUsage 统计 paths 指到的文件占了多少字节。它只读元数据、只碰磁盘，
@@ -43,7 +44,9 @@ func measureStorageUsage(paths storageUsagePaths) storageUsage {
 			fileBytes(paths.database+"-wal") +
 			fileBytes(paths.database+"-shm")
 	}
-	usage.files = filescache.DirectoryBytes(paths.files)
+	for _, dir := range paths.files {
+		usage.files += filescache.DirectoryBytes(dir)
+	}
 	return usage
 }
 

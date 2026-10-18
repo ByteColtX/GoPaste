@@ -242,6 +242,8 @@ func (a *application) syncSettings(c *ui.Context, theme *ui.Theme) {
 		a.fileRetentionRow(c, theme)
 		settingsRule(c, theme)
 		a.fileAutoCleanRow(c, theme)
+		settingsRule(c, theme)
+		a.fileCacheUsageRow(c, theme)
 	})
 }
 
@@ -375,6 +377,27 @@ func (a *application) fileRetentionRow(c *ui.Context, theme *ui.Theme) {
 		if control.Changed() {
 			a.editFileRetention(a.fileRetentionHours)
 		}
+	})
+}
+
+// fileCacheUsageRow 显示收到的文件当前占了多少盘，并提供「立即清理」：按当前的
+// 期限与配额立刻跑一遍，不受自动清理开关影响。数字来自最近一次统计，渲染本身不碰
+// 磁盘。
+func (a *application) fileCacheUsageRow(c *ui.Context, theme *ui.Theme) {
+	a.settingsRow(c, theme, a.t(msgSettingsFileCacheUsage), a.t(msgSettingsFileCacheUsageDesc), func() {
+		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
+			labelText(c, formatBytes(a.storageUsage.files)).FontSize(font(theme, fontControl)).
+				TextColor(secondaryText(theme))
+			cleanLabel := a.t(msgSettingsFileCacheClean)
+			button := neutralButton(c, theme, "settings-file-cache-clean", cleanLabel).
+				Disabled(a.fileCachePending)
+			button.Children(func() {
+				labelText(c, cleanLabel).FontSize(font(theme, fontControl))
+			})
+			if button.Clicked() {
+				a.requestFileCacheCleanup(true)
+			}
+		})
 	})
 }
 

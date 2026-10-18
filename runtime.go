@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"gopaste/internal/filescache"
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
 
@@ -106,6 +107,7 @@ func (r *applicationRuntime) ready() {
 	r.app.onFilterRailToggled = r.filterRailToggled
 	r.app.onPageChanged = r.pageChanged
 	r.app.onMeasureStorageUsage = r.measureStorageUsage
+	r.app.onCleanFileCache = r.cleanFileCache
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
@@ -637,13 +639,23 @@ func (r *applicationRuntime) measureStorageUsage(after <-chan struct{}) {
 }
 
 // storageUsagePaths 返回用量统计要看的几个位置。拿不到的位置留空，对应那一类按 0
-// 算：没有数据目录时本来就什么都没落盘。
+// 算：没有数据目录时本来就什么都没落盘。文件那一类可能有多个根目录，见
+// fileCacheRoots。
 func (r *applicationRuntime) storageUsagePaths() storageUsagePaths {
-	paths := storageUsagePaths{files: r.app.receivedFilesDir}
+	paths := storageUsagePaths{files: r.app.fileCacheRoots()}
 	if database, err := r.databaseFile(); err == nil {
 		paths.database = database
 	}
 	return paths
+}
+
+// cleanFileCache 在界面线程之外测量收到的文件，并按保留期限与配额挑出该删的记录。
+// 结果经 Window.Update 回到界面线程，删记录与落盘仍在那里做。
+func (r *applicationRuntime) cleanFileCache(entries []filescache.Entry, policy filescache.Policy) {
+	go func() {
+		removed := filescache.Plan(filescache.Measure(entries), policy, time.Now())
+		r.update(func() { r.app.applyFileCacheCleanup(removed) })
+	}()
 }
 
 // update 在窗口存在时把结果送回界面线程。窗口可能已经关闭（退出过程中），所以

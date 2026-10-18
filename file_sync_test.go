@@ -98,13 +98,15 @@ func TestDiscardReceivedFilesOnlyTouchesReceivedItems(t *testing.T) {
 	app, _ := syncApp()
 	app.receivedFilesDir = t.TempDir()
 
-	if _, ok := app.receivedFilesPath(history.Item{ID: "abc", Kind: kindFile, Text: "/Users/me/report.pdf"}); ok {
+	if _, ok := receivedFilesPath(history.Item{ID: "abc", Kind: kindFile, Text: "/Users/me/report.pdf"}); ok {
 		t.Error("a locally captured file item must not own a directory")
 	}
-	if _, ok := app.receivedFilesPath(history.Item{ID: "abc", Kind: kindImage, SourceDeviceID: "peer-a"}); ok {
+	if _, ok := receivedFilesPath(history.Item{ID: "abc", Kind: kindImage, SourceDeviceID: "peer-a"}); ok {
 		t.Error("only file items own a directory")
 	}
-	dir, ok := app.receivedFilesPath(history.Item{ID: "abc", Kind: kindFile, SourceDeviceID: "peer-a"})
+	item := history.Item{ID: "abc", Kind: kindFile, SourceDeviceID: "peer-a",
+		Text: filepath.Join(app.receivedFilesDir, "abc", "report.pdf")}
+	dir, ok := receivedFilesPath(item)
 	if !ok {
 		t.Fatal("a received file item must own a directory")
 	}
@@ -163,10 +165,14 @@ func TestClearHistoryRemovesReceivedFiles(t *testing.T) {
 
 	app.clearHistory()
 
+	// 只删记录自己的目录：保存位置本身可能是用户自己的文件夹，不能被整棵删掉。
 	waitUntil(t, func() bool {
-		_, err := os.Stat(app.receivedFilesDir)
+		_, err := os.Stat(filepath.Dir(local))
 		return errors.Is(err, os.ErrNotExist)
 	})
+	if _, err := os.Stat(app.receivedFilesDir); err != nil {
+		t.Errorf("保存位置的根目录不该被整棵删掉: %v", err)
+	}
 }
 
 // TestFileSyncLimitDefaultsAndEditing 检查上限的默认值、非法输入保留上一个有效值、

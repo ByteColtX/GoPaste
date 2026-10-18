@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"gopaste/internal/filescache"
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
 
@@ -209,6 +210,10 @@ type application struct {
 	// Window.Update 回填（见 applyStorageUsage）。为 nil 时（测试、没有窗口）不测，
 	// 用量区显示上一次的结果。参数非空时先等它关闭再统计。
 	onMeasureStorageUsage func(after <-chan struct{})
+	// onCleanFileCache 由运行时安装：在界面线程之外测量收到的文件、按规则挑出该删
+	// 的记录，结果经 Window.Update 回填（见 applyFileCacheCleanup）。为 nil 时
+	// （测试、没有窗口）不清理。
+	onCleanFileCache func(entries []filescache.Entry, policy filescache.Policy)
 	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
 	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
 	onZoomChanged func(zoom float32)
@@ -283,8 +288,13 @@ type application struct {
 	fileQuotaBytes int64
 	// fileRetentionHours 是收到的文件保留多少小时，0 表示不限；fileAutoClean 决定
 	// 到期是否自动删除。
-	fileRetentionHours     int
-	fileAutoClean          bool
+	fileRetentionHours int
+	fileAutoClean      bool
+	// fileCachePending 表示已经请运行时去测一遍文件缓存、结果还没回来：它挡住重复
+	// 请求，也让「立即清理」按钮在跑的时候置灰。fileCacheManual 记住这一趟是不是
+	// 手动触发的，决定没有可清理的东西时要不要提示。
+	fileCachePending       bool
+	fileCacheManual        bool
 	pairedDevices          []pairedDevice
 	deviceDiscovery        deviceDiscoveryState
 	deviceDiscoveryMessage string

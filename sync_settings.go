@@ -29,6 +29,8 @@ func (a *application) editFileQuota(text string) {
 	}
 	a.fileQuotaBytes = settings.FileQuotaBytes(megabytes)
 	a.saveSettings()
+	// 配额调低的那一刻就可能要删东西，与历史保留策略改完就裁同一个约定。
+	a.requestFileCacheCleanup(false)
 }
 
 // editFileRetention 处理保留期限下拉的变化：0 是「不限」，其余是小时数。改完立刻
@@ -36,12 +38,17 @@ func (a *application) editFileQuota(text string) {
 func (a *application) editFileRetention(hours int) {
 	a.fileRetentionHours = max(hours, 0)
 	a.saveSettings()
+	a.requestFileCacheCleanup(false)
 }
 
 // editFileAutoClean 开关「自动清理」。
 func (a *application) editFileAutoClean(enabled bool) {
 	a.fileAutoClean = enabled
 	a.saveSettings()
+	if enabled {
+		// 刚打开就该把已经过期的文件清掉，而不是等下一份文件进来。
+		a.requestFileCacheCleanup(false)
+	}
 }
 
 // setDefaultFilesDir 记下默认目录，并据此解析当前真正落盘的根目录。运行时在启动
@@ -69,6 +76,8 @@ func (a *application) applyFileSyncDir(dir string) {
 func (a *application) setFileSyncDir(dir string) {
 	a.applyFileSyncDir(dir)
 	a.saveSettings()
+	// 换目录之后旧的根目录仍占着盘，按同一份规则再裁一次。
+	a.requestFileCacheCleanup(false)
 }
 
 // resetFileSyncDir 把保存位置恢复成默认目录。
