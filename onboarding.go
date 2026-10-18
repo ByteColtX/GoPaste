@@ -45,6 +45,7 @@ func (a *application) startOnboarding() {
 	a.onboardingName = a.deviceDisplayName()
 	a.pairingCode = ""
 	a.pairingCodeRejected = false
+	a.confirmSkipOnboarding = false
 }
 
 // onboardingVisible 报告向导是否正显示着。模态弹窗期间窗口快捷键不该再开别的
@@ -86,9 +87,20 @@ func (a *application) backOnboarding() {
 	}
 }
 
-// dismissOnboarding 处理弹窗被关掉：Escape、点弹窗外部和「跳过」都到这里。
-// 第三步已经没有任何要放弃的输入，关掉等同于「开始使用」；前两步等同于跳过。
+// requestSkipOnboarding 处理「跳过」与 Escape。跳过之后向导不会再自动出现，所以前
+// 两步先弹一句确认；第三步已经没有任何可跳过的输入，关掉它等同于「开始使用」。
+func (a *application) requestSkipOnboarding() {
+	if a.onboarding == onboardingStepDone {
+		a.finishOnboarding(false)
+		return
+	}
+	a.confirmSkipOnboarding = true
+}
+
+// dismissOnboarding 真正结束向导。它只由确认框里的「仍然跳过」调用：Escape 和
+// 「跳过」现在都先走 requestSkipOnboarding，不会直接跳过。
 func (a *application) dismissOnboarding() {
+	a.confirmSkipOnboarding = false
 	a.finishOnboarding(a.onboarding != onboardingStepDone)
 }
 
@@ -113,6 +125,7 @@ func (a *application) finishOnboarding(skip bool) {
 	a.onboardingCompleted = true
 	a.pairingCode = ""
 	a.pairingCodeRejected = false
+	a.confirmSkipOnboarding = false
 	a.saveSettings()
 	a.setPage(pageDevices)
 }

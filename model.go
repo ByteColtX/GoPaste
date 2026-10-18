@@ -256,6 +256,9 @@ type application struct {
 	// pairingCodeRejected 记录用户已经用回车提交过一次非法配对码，用来把字段
 	// 下方的说明行转成错误提示。
 	pairingCodeRejected bool
+	// confirmSkipOnboarding 是「跳过首次设置？」确认框的展开状态。跳过会让向导
+	// 不再出现，所以先问一句。
+	confirmSkipOnboarding bool
 	// pendingPairing 是一条等待配对服务的请求。它不是已配对设备：不进
 	// pairedDevices，不进托盘，也不出现在来源筛选里。
 	pendingPairing *settings.PendingPairing

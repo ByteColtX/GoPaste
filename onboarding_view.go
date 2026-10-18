@@ -15,7 +15,10 @@ import (
 // Escape 等于跳过：以前由弹窗自己处理，整页之后由这里注册。向导期间没有别的
 // 快捷键，所以不存在和输入框争抢 Escape 的情况。
 func (a *application) onboardingPage(c *ui.Context, theme *ui.Theme) {
-	c.OnShortcut(0, ui.KeyEscape, a.dismissOnboarding)
+	// 确认框展开时不再注册 Escape：确认框自己处理，关掉的是那一层，而不是整个向导。
+	if !a.confirmSkipOnboarding {
+		c.OnShortcut(0, ui.KeyEscape, a.requestSkipOnboarding)
+	}
 	// 内容至少和可视区一样高，中间那层才能把向导纵向居中；内容比可视区高时
 	// MinHeight 被自然高度顶开，滚动容器接手，不会裁掉按钮行。
 	_, windowHeight := c.Size()
@@ -269,7 +272,7 @@ func (a *application) onboardingActions(c *ui.Context, theme *ui.Theme) {
 			keycap(c, theme, shortcutKeyLabel(ui.KeyEscape), primaryText(theme))
 		})
 		if skip.Clicked() {
-			a.dismissOnboarding()
+			a.requestSkipOnboarding()
 		}
 	}
 
@@ -289,6 +292,32 @@ func (a *application) onboardingActions(c *ui.Context, theme *ui.Theme) {
 	if primary.Clicked() {
 		a.advanceOnboarding()
 	}
+}
+
+// onboardingSkipConfirmation 是「跳过首次设置？」的二次确认。跳过之后向导不会再
+// 自动出现，所以先问一句，并把「稍后去哪里做」说清楚。
+//
+// 焦点落在「继续设置」上，所以 Return 不会把人送出向导；Escape 与它一样，只关掉
+// 这一层，回到向导。
+func (a *application) onboardingSkipConfirmation(c *ui.Context, theme *ui.Theme) {
+	if !a.confirmSkipOnboarding {
+		return
+	}
+	dialog(c, theme, &a.confirmSkipOnboarding, dialogSpec{
+		title:   a.t(msgOnboardingSkipTitle),
+		role:    ui.RoleAlertDialog,
+		message: a.t(msgOnboardingSkipMessage),
+		actions: func() {
+			stay := dialogDismissButton(c, theme, "onboarding-skip-stay", a.t(msgOnboardingSkipStay))
+			if stay.Clicked() {
+				a.confirmSkipOnboarding = false
+			}
+			skip := dialogPrimaryButton(c, theme, "onboarding-skip-confirm", a.t(msgOnboardingSkipConfirm))
+			if skip.Clicked() {
+				a.dismissOnboarding()
+			}
+		},
+	})
 }
 
 // groupPairingCode 把 6 位配对码按 3+3 分组，和另一台设备屏幕上显示的样子一致。

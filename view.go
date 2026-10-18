@@ -95,6 +95,7 @@ func (a *application) view(c *ui.Context) {
 	// 它们对应的快捷键也不注册。
 	if a.onboardingVisible() {
 		a.onboardingPage(c, theme)
+		a.onboardingSkipConfirmation(c, theme)
 		return
 	}
 	a.globalShortcuts(c)

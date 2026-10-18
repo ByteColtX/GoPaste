@@ -250,6 +250,10 @@ const (
 	msgOnboardingContinue         messageKey = "onboarding.continue"
 	msgOnboardingBack             messageKey = "onboarding.back"
 	msgOnboardingSkip             messageKey = "onboarding.skip"
+	msgOnboardingSkipTitle        messageKey = "onboarding.skip.title"
+	msgOnboardingSkipMessage      messageKey = "onboarding.skip.message"
+	msgOnboardingSkipStay         messageKey = "onboarding.skip.stay"
+	msgOnboardingSkipConfirm      messageKey = "onboarding.skip.confirm"
 	msgOnboardingPendingReminder  messageKey = "onboarding.pendingReminder"
 
 	// Sync direction.
@@ -538,6 +542,10 @@ var simplifiedChineseCatalog = catalog{
 	msgOnboardingContinue:         "继续",
 	msgOnboardingBack:             "上一步",
 	msgOnboardingSkip:             "跳过",
+	msgOnboardingSkipTitle:        "跳过首次设置？",
+	msgOnboardingSkipMessage:      "稍后可以在设备页添加设备或配对。跳过之后，这个向导不会再自动出现。",
+	msgOnboardingSkipStay:         "继续设置",
+	msgOnboardingSkipConfirm:      "仍然跳过",
 	msgOnboardingPendingReminder:  "配对请求仍在等待：配对码尾号 %s，配对服务接入后自动完成。",
 
 	msgSyncBoth:           "双向同步",
@@ -815,6 +823,10 @@ var englishCatalog = catalog{
 	msgOnboardingContinue:         "Continue",
 	msgOnboardingBack:             "Back",
 	msgOnboardingSkip:             "Skip",
+	msgOnboardingSkipTitle:        "Skip first-time setup?",
+	msgOnboardingSkipMessage:      "You can add a device or pair later on the device page. Once skipped, this wizard won't appear again on its own.",
+	msgOnboardingSkipStay:         "Keep setting up",
+	msgOnboardingSkipConfirm:      "Skip anyway",
 	msgOnboardingPendingReminder:  "Pairing request still waiting: code ending in %s. It completes once pairing is available.",
 
 	msgSyncBoth:           "Two-way",

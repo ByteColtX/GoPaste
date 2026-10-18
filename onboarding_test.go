@@ -296,9 +296,25 @@ func TestRejectedPairingCodeExplainsItself(t *testing.T) {
 	}
 }
 
-// TestSkipCompletesWithoutRecordingAnything 检查「跳过」：向导不再出现，但既不
-// 改设备名，也不记待配对请求。
-func TestSkipCompletesWithoutRecordingAnything(t *testing.T) {
+// skipThroughConfirmation 点「跳过」，并在确认框里选「仍然跳过」。
+func skipThroughConfirmation(t *testing.T, app *application, tt *ui.Tester) {
+	t.Helper()
+	if err := tt.Click(app.t(msgOnboardingSkip)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingSkip), err)
+	}
+	tt.Frame()
+	if !app.confirmSkipOnboarding {
+		t.Fatal("点「跳过」后应先弹出确认框")
+	}
+	if err := tt.Click(app.t(msgOnboardingSkipConfirm)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingSkipConfirm), err)
+	}
+	tt.Frame()
+}
+
+// TestSkipAsksForConfirmation 检查「跳过」不直接结束：先弹一句确认，并把「稍后
+// 去哪里做」说清楚。选「继续设置」回到向导，什么都没写进设置。
+func TestSkipAsksForConfirmation(t *testing.T) {
 	app, path := onboardingApp(t, settings.File{})
 	tt := onboardingTester(app)
 
@@ -306,6 +322,47 @@ func TestSkipCompletesWithoutRecordingAnything(t *testing.T) {
 		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingSkip), err)
 	}
 	tt.Frame()
+
+	if !app.confirmSkipOnboarding {
+		t.Fatal("点「跳过」后应弹出确认框")
+	}
+	if !tt.HasText(app.t(msgOnboardingSkipTitle)) {
+		t.Errorf("确认框应显示「%s」，实际显示：%q", app.t(msgOnboardingSkipTitle), tt.Texts())
+	}
+	if !tt.HasText(app.t(msgOnboardingSkipMessage)) {
+		t.Errorf("确认框应说明稍后可以去哪里做，实际显示：%q", tt.Texts())
+	}
+	if !app.onboardingVisible() {
+		t.Error("确认框展开时向导不该结束")
+	}
+	// Return 不能把人送出向导：焦点落在「继续设置」上。
+	if !tt.Focused(app.t(msgOnboardingSkipStay)) {
+		t.Errorf("确认框打开时焦点应在「%s」上", app.t(msgOnboardingSkipStay))
+	}
+
+	if err := tt.Click(app.t(msgOnboardingSkipStay)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingSkipStay), err)
+	}
+	tt.Frame()
+
+	if app.confirmSkipOnboarding {
+		t.Error("选「继续设置」后确认框应关闭")
+	}
+	if app.onboarding != onboardingStepWelcome {
+		t.Errorf("选「继续设置」后应回到向导，实际步骤 %v", app.onboarding)
+	}
+	if readSettings(t, path).Onboarding.Completed {
+		t.Error("还没跳过，不该写入完成标记")
+	}
+}
+
+// TestSkipCompletesWithoutRecordingAnything 检查「跳过」：向导不再出现，但既不
+// 改设备名，也不记待配对请求。
+func TestSkipCompletesWithoutRecordingAnything(t *testing.T) {
+	app, path := onboardingApp(t, settings.File{})
+	tt := onboardingTester(app)
+
+	skipThroughConfirmation(t, app, tt)
 
 	if app.onboardingVisible() {
 		t.Error("跳过后向导应关闭")
@@ -325,20 +382,45 @@ func TestSkipCompletesWithoutRecordingAnything(t *testing.T) {
 	}
 }
 
-// TestEscapeSkipsTheWizard 检查 Escape 与「跳过」走同一条路径：弹窗自己的 Escape
-// 处理会关掉它，向导据此结束，不留一个状态不明的弹窗。
-func TestEscapeSkipsTheWizard(t *testing.T) {
+// TestEscapeSkipsTheWizardThroughConfirmation 检查 Escape 与「跳过」走同一条路径：
+// 先弹出确认框；再按 Escape 只关掉确认框、回到向导；确认后才算跳过。
+func TestEscapeSkipsTheWizardThroughConfirmation(t *testing.T) {
 	app, path := onboardingApp(t, settings.File{})
 	tt := onboardingTester(app)
 
 	tt.Key(0, ui.KeyEscape)
 	tt.Frame()
+	if !app.confirmSkipOnboarding {
+		t.Fatal("Escape 应先弹出确认框")
+	}
+	if !app.onboardingVisible() {
+		t.Error("第一次 Escape 不该直接结束向导")
+	}
 
+	// 确认框自己处理 Escape：关掉的是这一层。
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if app.confirmSkipOnboarding {
+		t.Error("第二次 Escape 应关闭确认框")
+	}
+	if app.onboarding != onboardingStepWelcome {
+		t.Errorf("关掉确认框后应回到向导，实际步骤 %v", app.onboarding)
+	}
+	if readSettings(t, path).Onboarding.Completed {
+		t.Error("还没确认跳过，不该写入完成标记")
+	}
+
+	tt.Key(0, ui.KeyEscape)
+	tt.Frame()
+	if err := tt.Click(app.t(msgOnboardingSkipConfirm)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingSkipConfirm), err)
+	}
+	tt.Frame()
 	if app.onboardingVisible() {
-		t.Error("Escape 后向导应关闭")
+		t.Error("确认跳过后向导应关闭")
 	}
 	if !readSettings(t, path).Onboarding.Completed {
-		t.Error("Escape 也算完成，应写入完成标记")
+		t.Error("跳过也算完成，应写入完成标记")
 	}
 }
 
@@ -521,10 +603,7 @@ func TestWizardReplacesTheWholeWindow(t *testing.T) {
 		}
 	}
 
-	if err := tt.Click(app.t(msgOnboardingSkip)); err != nil {
-		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingSkip), err)
-	}
-	tt.Frame()
+	skipThroughConfirmation(t, app, tt)
 
 	if !tt.HasText(app.t(msgHistoryRecent)) {
 		t.Errorf("跳过后应回到三栏界面，实际显示：%q", tt.Texts())
