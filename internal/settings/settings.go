@@ -135,8 +135,17 @@ func (f File) FileAutoCleanEnabled() bool { return onByDefault(f.files().AutoCle
 // string when the application's default location is used.
 func (f File) FileSyncDir() string { return f.files().Dir }
 
+// FileQuotaMB returns the effective cache quota in MiB.
+func (f File) FileQuotaMB() int {
+	megabytes := f.files().QuotaMB
+	if megabytes < MinFileQuotaMB {
+		return DefaultFileQuotaMB
+	}
+	return megabytes
+}
+
 // FileQuotaBytes returns the effective cache quota in bytes.
-func (f File) FileQuotaBytes() int64 { return FileQuotaBytes(f.files().QuotaMB) }
+func (f File) FileQuotaBytes() int64 { return FileQuotaBytes(f.FileQuotaMB()) }
 
 // FileRetentionHours returns how long a received file is kept, in hours; zero
 // means no age limit. An absent value means DefaultFileRetentionHours.

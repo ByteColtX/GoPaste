@@ -223,12 +223,12 @@ func TestSaveSettingsWritesTheFileSyncLimit(t *testing.T) {
 	}
 }
 
-// TestSettingsStorageShowsTheFileSyncLimit 检查设置页「存储」分栏渲染出上限输入框。
-// 测试器在 key 重复时会 panic，所以这也是新控件的一次冒烟检查。
-func TestSettingsStorageShowsTheFileSyncLimit(t *testing.T) {
+// TestSettingsSyncShowsTheFileSyncLimit 检查上限输入框跟着文件同步一起搬到了
+// 「同步」分栏。测试器在 key 重复时会 panic，所以这也是新控件的一次冒烟检查。
+func TestSettingsSyncShowsTheFileSyncLimit(t *testing.T) {
 	app := previewApp("")
 	app.setPage(pageSettings)
-	app.settingsArea = settingsStorage
+	app.settingsArea = settingsSync
 
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 
@@ -238,7 +238,7 @@ func TestSettingsStorageShowsTheFileSyncLimit(t *testing.T) {
 		app.t(msgSettingsFileSyncLimitUnit),
 	} {
 		if !tt.HasText(want) {
-			t.Errorf("存储分栏应显示 %q，实际显示：%q", want, tt.Texts())
+			t.Errorf("同步分栏应显示 %q，实际显示：%q", want, tt.Texts())
 		}
 	}
 	// 输入框里的值不参与文本列表，所以直接看状态：默认值就是设置文件缺省时的值。

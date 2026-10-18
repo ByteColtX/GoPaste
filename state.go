@@ -29,8 +29,11 @@ func newApplication() *application {
 		history:            history.New(nil),
 		retention:          defaultRetention(),
 		devicePlatform:     localPlatformName(),
-		deviceSyncEnabled:  true,
-		deviceFileSync:     true,
+		syncEnabled:        true,
+		autoSendEnabled:    true,
+		fileSyncEnabled:    true,
+		fileAutoClean:      true,
+		fileRetentionHours: settings.DefaultFileRetentionHours,
 		pairedDevices:      previewDevices(),
 		languagePreference: languagePreferenceSystem,
 		language:           languageSimplifiedChinese,
@@ -45,8 +48,9 @@ func newApplication() *application {
 	// 自己起一个。设备页显示时再去掉 .local 后缀，见 deviceDisplayName。
 	app.deviceNameDefault = defaultDeviceName(localHostname(), localPlatformSlug(), app.devicePeerID)
 	app.deviceName = app.deviceNameDefault
-	// 上限先按默认值就位：设置文件读出来之后 applySettings 会再覆盖一次。
+	// 上限与配额先按默认值就位：设置文件读出来之后 applySettings 会再覆盖一次。
 	app.applyFileSyncLimit(settings.DefaultFileSyncMaxMB)
+	app.applyFileQuota(settings.DefaultFileQuotaMB)
 	app.sortPairedDevices()
 	return app
 }
@@ -267,17 +271,31 @@ func (a *application) setTagFilter(filter historyTagFilter) {
 	}
 }
 
-// setSyncEnabled 同步更新本机、文件和所有已配对设备的同步开关。
+// setSyncEnabled 开关同步的总开关。关掉后本机既不发送也不接收内容，但每台设备
+// 自己的开关与方向原样保留——重新打开就回到原来的样子。设备页与托盘共用这里。
 func (a *application) setSyncEnabled(enabled bool) {
-	a.deviceSyncEnabled = enabled
-	a.deviceFileSync = enabled
-	for index := range a.pairedDevices {
-		a.pairedDevices[index].syncEnabled = enabled
-		if a.syncService != nil {
-			_ = a.syncService.SetDeviceSync(a.pairedDevices[index].id, enabled)
-		}
+	a.syncEnabled = enabled
+	if a.syncService != nil {
+		a.syncService.SetSyncEnabled(enabled)
 	}
+	a.saveSettings()
 	a.syncStateChanged()
+}
+
+// setAutoSendEnabled 开关「自动发送新内容」。关掉后新内容只进本地历史，需要时
+// 用条目上的重发手动发送。
+func (a *application) setAutoSendEnabled(enabled bool) {
+	a.autoSendEnabled = enabled
+	a.saveSettings()
+}
+
+// setFileSyncEnabled 开关文件类内容。关掉后文件不收不发，文字、图片与富文本照旧。
+func (a *application) setFileSyncEnabled(enabled bool) {
+	a.fileSyncEnabled = enabled
+	if a.syncService != nil {
+		a.syncService.SetFileSyncEnabled(enabled)
+	}
+	a.saveSettings()
 }
 
 // toggleDeviceSync 翻转一台已配对设备的同步开关。设备已被取消配对时不做任何事。

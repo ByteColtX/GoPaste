@@ -1,8 +1,11 @@
 package main
 
 import (
+	"os"
+
 	"gopaste/internal/history"
 
+	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -21,6 +24,7 @@ func (a *application) settingsPage(c *ui.Context, theme *ui.Theme) {
 func (a *application) settingsNavigationItems() []settingsNavItem {
 	return []settingsNavItem{
 		{area: settingsGeneral, icon: icons.settings, key: "general", title: a.t(msgSettingsGeneral)},
+		{area: settingsSync, icon: icons.lan, key: "sync", title: a.t(msgSettingsSync)},
 		{area: settingsAppearance, icon: icons.appearance, key: "appearance", title: a.t(msgSettingsAppearance)},
 		{area: settingsStorage, icon: icons.storage, key: "storage", title: a.t(msgSettingsStorage)},
 		{area: settingsAbout, icon: icons.about, key: "about", title: a.t(msgSettingsAbout)},
@@ -46,6 +50,8 @@ func (a *application) settingsDetail(c *ui.Context, theme *ui.Theme) {
 				Padding(space(theme, columnTopInset), space(theme, spacePageSide), space(theme, spacePageBottom), space(theme, spacePageSide)).
 				Gap(space(theme, spaceSection)).Children(func() {
 				switch a.settingsArea {
+				case settingsSync:
+					a.syncSettings(c, theme)
 				case settingsAppearance:
 					a.appearanceSettings(c, theme)
 				case settingsStorage:
@@ -188,6 +194,203 @@ func (a *application) appearanceLabel(appearance int) string {
 	}
 }
 
+// syncSettings 是设置 › 同步：总开关、自动发送，以及文件同步的整块参数。设备页
+// 的本地卡与这里绑定同一份状态，两处都能改。
+func (a *application) syncSettings(c *ui.Context, theme *ui.Theme) {
+	a.settingsHeader(c, a.t(msgSettingsSync), a.t(msgSettingsSyncDesc), theme)
+	a.settingsSubheading(c, a.t(msgSettingsSyncSwitches), theme)
+	settingsGroup(c, theme, "settings-sync-switches", func() {
+		a.settingsRow(c, theme, a.t(msgSettingsSyncEnabled), a.t(msgSettingsSyncEnabledDesc), func() {
+			control := ui.Switch(c.Key("settings-sync-enabled"), &a.syncEnabled).
+				Shrink(0).Label(a.t(msgSettingsSyncEnabled))
+			if control.Changed() {
+				a.setSyncEnabled(a.syncEnabled)
+			}
+		})
+		settingsRule(c, theme)
+		// 自动发送只在同步开着时有意义：总开关关着时这一行置灰，而不是让它看起来
+		// 还能改。
+		a.settingsRow(c, theme, a.t(msgSettingsAutoSend), a.t(msgSettingsAutoSendDesc), func() {
+			control := ui.Switch(c.Key("settings-auto-send"), &a.autoSendEnabled).
+				Shrink(0).Disabled(!a.syncEnabled).Label(a.t(msgSettingsAutoSend))
+			if control.Changed() {
+				a.setAutoSendEnabled(a.autoSendEnabled)
+			}
+		})
+	})
+
+	a.settingsSubheading(c, a.t(msgSettingsSyncFiles), theme)
+	settingsGroup(c, theme, "settings-file-sync-group", func() {
+		fileSyncDescription := a.t(msgSettingsFileSyncEnabledDesc)
+		if !a.syncEnabled {
+			fileSyncDescription = a.tf(msgDevicesFileSyncDisabled, fileSyncDescription)
+		}
+		a.settingsRow(c, theme, a.t(msgSettingsFileSyncEnabled), fileSyncDescription, func() {
+			control := ui.Switch(c.Key("settings-file-sync-enabled"), &a.fileSyncEnabled).
+				Shrink(0).Disabled(!a.syncEnabled).Label(a.t(msgSettingsFileSyncEnabled))
+			if control.Changed() {
+				a.setFileSyncEnabled(a.fileSyncEnabled)
+			}
+		})
+		settingsRule(c, theme)
+		a.fileSyncDirRow(c, theme)
+		settingsRule(c, theme)
+		a.fileSyncLimitRow(c, theme)
+		settingsRule(c, theme)
+		a.fileQuotaRow(c, theme)
+		settingsRule(c, theme)
+		a.fileRetentionRow(c, theme)
+		settingsRule(c, theme)
+		a.fileAutoCleanRow(c, theme)
+	})
+}
+
+// fileSyncParamsDisabled 报告文件同步的那些参数是否该置灰：总开关或文件同步任一
+// 关掉，改它们都不会生效。
+func (a *application) fileSyncParamsDisabled() bool {
+	return !a.syncEnabled || !a.fileSyncEnabled
+}
+
+// fileSyncDirRow 是「保存位置」一行：路径文本 + 选择目录 + 恢复默认。路径可能很长，
+// 所以它按可用宽度截断；只有用户自己的路径才用 SingleLine。
+func (a *application) fileSyncDirRow(c *ui.Context, theme *ui.Theme) {
+	disabled := a.fileSyncParamsDisabled()
+	path := a.receivedFilesDir
+	if path == "" {
+		path = a.t(msgSettingsFileSyncDirUnset)
+	}
+	a.settingsRow(c, theme, a.t(msgSettingsFileSyncDir), a.t(msgSettingsFileSyncDirDesc), func() {
+		ui.Column(c).Shrink(0).Gap(space(theme, 1)).Children(func() {
+			pathText := ui.Text(c, path).FontSize(font(theme, fontMeta)).
+				TextColor(secondaryText(theme)).SingleLine()
+			if a.compactDetailLayout(c, theme) {
+				pathText.FillWidth()
+			} else {
+				pathText.Width(240)
+			}
+			ui.Row(c).Shrink(0).Gap(space(theme, 1)).Children(func() {
+				chooseLabel := a.t(msgSettingsFileSyncDirChoose)
+				choose := neutralButton(c, theme, "settings-file-sync-dir-choose", chooseLabel).Disabled(disabled)
+				choose.Children(func() {
+					labelText(c, chooseLabel).FontSize(font(theme, fontControl))
+				})
+				if choose.Clicked() {
+					a.chooseFileSyncDir(c)
+				}
+				resetLabel := a.t(msgSettingsFileSyncDirReset)
+				reset := neutralButton(c, theme, "settings-file-sync-dir-reset", resetLabel).
+					Disabled(disabled || a.fileSyncDir == "")
+				reset.Children(func() {
+					labelText(c, resetLabel).FontSize(font(theme, fontControl))
+				})
+				if reset.Clicked() {
+					a.resetFileSyncDir()
+				}
+			})
+		})
+	})
+}
+
+// chooseFileSyncDir 弹出系统目录选择框，把选中的目录变成保存位置。目录先建出来
+// 并确认能写：选一个只读的位置只会让之后收到的文件全部「未送达」。
+func (a *application) chooseFileSyncDir(c *ui.Context) {
+	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+		Title:             a.t(msgSettingsFileSyncDir),
+		DefaultPath:       a.receivedFilesDir,
+		ButtonLabel:       a.t(msgSettingsFileSyncDirChoose),
+		Directory:         true,
+		CreateDirectories: true,
+	})
+	if err != nil || len(paths) == 0 {
+		return
+	}
+	dir := paths[0]
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		c.Toast(a.t(msgToastFileDirUnusable))
+		return
+	}
+	a.setFileSyncDir(dir)
+}
+
+// fileSyncLimitRow 是单个文件项的体积上限，原来在储存空间页，现在跟其它文件同步
+// 参数放在一起。
+func (a *application) fileSyncLimitRow(c *ui.Context, theme *ui.Theme) {
+	a.syncNumberRow(c, theme, "settings-file-sync-limit",
+		a.t(msgSettingsFileSyncLimit), a.t(msgSettingsFileSyncLimitDesc),
+		&a.fileSyncMaxMB, a.t(msgSettingsFileSyncLimitPlaceholder), a.t(msgSettingsFileSyncLimitUnit),
+		a.fileSyncParamsDisabled(), func() { a.editFileSyncLimit(a.fileSyncMaxMB) })
+}
+
+// fileQuotaRow 是收到的文件最多占多少磁盘。
+func (a *application) fileQuotaRow(c *ui.Context, theme *ui.Theme) {
+	a.syncNumberRow(c, theme, "settings-file-quota",
+		a.t(msgSettingsFileQuota), a.t(msgSettingsFileQuotaDesc),
+		&a.fileQuotaMB, a.t(msgSettingsFileQuotaPlaceholder), a.t(msgSettingsFileQuotaUnit),
+		a.fileSyncParamsDisabled(), func() { a.editFileQuota(a.fileQuotaMB) })
+}
+
+// syncNumberRow 渲染一行「单位是 MB 的数字输入」：上限与配额长得一样，只是绑的
+// 字段不同。输入不合法时 apply 不改值，输入框里的字留着让用户接着改。
+func (a *application) syncNumberRow(
+	c *ui.Context,
+	theme *ui.Theme,
+	key, title, description string,
+	value *string,
+	placeholder, unit string,
+	disabled bool,
+	apply func(),
+) {
+	a.settingsRow(c, theme, title, description, func() {
+		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
+			input := ui.TextInput(c.Key(key), value).
+				Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).
+				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+				Background(theme.Background).Border(1, borderColor(theme)).
+				Label(title).Placeholder(placeholder).Disabled(disabled)
+			if a.compactDetailLayout(c, theme) {
+				input.FillWidth()
+			} else {
+				input.Width(110)
+			}
+			labelText(c, unit).FontSize(font(theme, fontControl)).TextColor(secondaryText(theme))
+			// 改完立刻生效：正在运行的同步服务拿到新值，下一次投递或清理就按它判。
+			if input.Changed() {
+				apply()
+			}
+		})
+	})
+}
+
+// fileRetentionRow 是收到的文件留多久；0 是「不限」。
+func (a *application) fileRetentionRow(c *ui.Context, theme *ui.Theme) {
+	a.settingsRow(c, theme, a.t(msgSettingsFileRetention), a.t(msgSettingsFileRetentionDesc), func() {
+		control := selectField(c, theme, "settings-file-retention", &a.fileRetentionHours,
+			a.t(msgSettingsFileRetention), a.l10n().fileRetentionChoices()).
+			Disabled(a.fileSyncParamsDisabled())
+		if a.compactDetailLayout(c, theme) {
+			control.FillWidth()
+		} else {
+			control.Width(180)
+		}
+		if control.Changed() {
+			a.editFileRetention(a.fileRetentionHours)
+		}
+	})
+}
+
+// fileAutoCleanRow 是自动清理：与保留期限绑定，期限为「不限」时没有可清理的东西，
+// 开关因此置灰。
+func (a *application) fileAutoCleanRow(c *ui.Context, theme *ui.Theme) {
+	disabled := a.fileSyncParamsDisabled() || a.fileRetentionHours <= 0
+	a.settingsRow(c, theme, a.t(msgSettingsFileAutoClean), a.t(msgSettingsFileAutoCleanDesc), func() {
+		control := ui.Switch(c.Key("settings-file-auto-clean"), &a.fileAutoClean).
+			Shrink(0).Disabled(disabled).Label(a.t(msgSettingsFileAutoClean))
+		if control.Changed() {
+			a.editFileAutoClean(a.fileAutoClean)
+		}
+	})
+}
+
 func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsHeader(c, a.t(msgSettingsStorage), a.t(msgSettingsStorageDesc), theme)
 	stats := a.history.Snapshot(history.Query{})
@@ -195,8 +398,9 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	// 挤在一起——这里没有可以改的东西。
 	a.settingsSubheading(c, a.t(msgSettingsStorageUsage), theme)
 	a.storageUsageSection(c, theme, stats)
-	// 设置行按用途分三张卡：保留策略、同步文件上限，以及单独一张的清除历史。
-	// 破坏性操作不跟普通设置同卡，也不在页面中段。
+	// 设置行按用途分两张卡：保留策略，以及单独一张的清除历史。文件同步的参数
+	// 都在设置 › 同步里，这里只管历史记录。破坏性操作不跟普通设置同卡，也不在
+	// 页面中段。
 	a.settingsSubheading(c, a.t(msgSettingsData), theme)
 	// 保留策略与它的说明放在同一个列里：说明是那张卡的脚注，不该和下一张卡
 	// 等距，否则读起来分不清它属于谁。
@@ -232,29 +436,6 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 		})
 		ui.Text(c, a.t(msgSettingsRetentionNote)).
 			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
-	})
-
-	settingsGroup(c, theme, "settings-file-sync-group", func() {
-		a.settingsRow(c, theme, a.t(msgSettingsFileSyncLimit), a.t(msgSettingsFileSyncLimitDesc), func() {
-			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
-				input := ui.TextInput(c.Key("settings-file-sync-limit"), &a.fileSyncMaxMB).
-					Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).
-					Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-					Background(theme.Background).Border(1, borderColor(theme)).
-					Label(a.t(msgSettingsFileSyncLimit)).Placeholder(a.t(msgSettingsFileSyncLimitPlaceholder))
-				if a.compactDetailLayout(c, theme) {
-					input.FillWidth()
-				} else {
-					input.Width(110)
-				}
-				labelText(c, a.t(msgSettingsFileSyncLimitUnit)).FontSize(font(theme, fontControl)).
-					TextColor(secondaryText(theme))
-				// 改完立刻生效：正在运行的同步服务拿到新上限，下一次投递就按它判。
-				if input.Changed() {
-					a.editFileSyncLimit(a.fileSyncMaxMB)
-				}
-			})
-		})
 	})
 
 	settingsGroup(c, theme, "settings-clear-history-group", func() {

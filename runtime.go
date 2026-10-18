@@ -164,11 +164,11 @@ func (r *applicationRuntime) ready() {
 	})
 
 	tray, err := newSystemTray(systemTrayOptions{
-		syncEnabled: func() bool { return r.app.deviceSyncEnabled },
+		syncEnabled: func() bool { return r.app.syncEnabled },
 		devices:     r.app.trayDevices,
 		text:        r.app.t,
 		onToggleSync: func() {
-			r.app.setSyncEnabled(!r.app.deviceSyncEnabled)
+			r.app.setSyncEnabled(!r.app.syncEnabled)
 		},
 		onToggleDeviceSync: r.app.toggleDeviceSync,
 		onOpen:             r.showMainWindow,
@@ -491,12 +491,14 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		r.publishDiscoveryFailure(r.app.t(msgDevicesDiscoveryUnavailable))
 		return
 	}
-	// 收到的文件落在数据目录下，与历史数据库、配对信息同一处。拿不到位置就
-	// 不接收文件（其它类型的同步照常），而不是把文件写到某个猜出来的地方。
+	// 收到的文件默认落在数据目录下，与历史数据库、配对信息同一处；用户在同步页
+	// 选过别的目录就用那一个。拿不到默认位置又不接收文件时，其它类型的同步照常，
+	// 而不是把文件写到某个猜出来的地方。
 	if dir, err := receivedFilesDirectory(); err != nil {
 		log.Printf("无法确定接收文件的位置，本次不接收同步文件: %v", err)
+		r.app.setDefaultFilesDir("")
 	} else {
-		r.app.receivedFilesDir = dir
+		r.app.setDefaultFilesDir(dir)
 	}
 	options := lansync.Options{
 		StorePath:      path,
@@ -543,6 +545,10 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		return
 	}
 	r.app.syncService = service
+	// 服务构造时拿到的是初始值；设置文件里关掉的开关在这里补推一次，否则重启后
+	// 界面显示关闭、服务却照常收发。
+	service.SetSyncEnabled(r.app.syncEnabled)
+	service.SetFileSyncEnabled(r.app.fileSyncEnabled)
 	r.app.devicePeerID = service.Identity().ID
 	r.app.deviceDiscovery = deviceDiscoveryLoading
 	r.update(func() { r.app.applySyncDevices(service.Devices()) })

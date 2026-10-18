@@ -173,6 +173,9 @@ const (
 	msgToastLaunchAtLoginOn            messageKey = "toast.launchAtLoginOn"
 	msgToastLaunchAtLoginOff           messageKey = "toast.launchAtLoginOff"
 	msgToastDeviceDiscoveryUnavailable messageKey = "toast.deviceDiscoveryUnavailable"
+	msgToastFileDirUnusable            messageKey = "toast.fileDirUnusable"
+	msgToastFileCacheCleaned           messageKey = "toast.fileCacheCleaned"
+	msgToastFileCacheNothing           messageKey = "toast.fileCacheNothing"
 
 	// Devices.
 	msgDevicesPaired               messageKey = "devices.paired"
@@ -204,6 +207,7 @@ const (
 	msgDevicesFileSync             messageKey = "devices.fileSync"
 	msgDevicesFileSyncDesc         messageKey = "devices.fileSyncDesc"
 	msgDevicesFileSyncDisabled     messageKey = "devices.fileSyncDisabled"
+	msgDevicesSyncPageOffNote      messageKey = "devices.syncPageOffNote"
 	msgDevicesSyncWith             messageKey = "devices.syncWith"
 	msgDevicesSyncWithDesc         messageKey = "devices.syncWithDesc"
 	msgDevicesSyncContent          messageKey = "devices.syncContent"
@@ -276,6 +280,7 @@ const (
 	msgSyncOff            messageKey = "sync.off"
 	msgSyncDirectionLabel messageKey = "sync.directionLabel"
 	msgSyncDescSyncOff    messageKey = "sync.desc.syncOff"
+	msgSyncDescPageOff    messageKey = "sync.desc.pageOff"
 	msgSyncDescOffline    messageKey = "sync.desc.offline"
 	msgSyncDescNormal     messageKey = "sync.desc.normal"
 	msgSyncThisDevice     messageKey = "sync.thisDevice"
@@ -384,6 +389,34 @@ const (
 	msgSettingsPrivacy                  messageKey = "settings.privacy"
 	msgSettingsPrivacyDesc              messageKey = "settings.privacyDesc"
 	msgSettingsStoredLocally            messageKey = "settings.storedLocally"
+	msgSettingsSync                     messageKey = "settings.sync"
+	msgSettingsSyncDesc                 messageKey = "settings.syncDesc"
+	msgSettingsSyncSwitches             messageKey = "settings.syncSwitches"
+	msgSettingsSyncEnabled              messageKey = "settings.syncEnabled"
+	msgSettingsSyncEnabledDesc          messageKey = "settings.syncEnabledDesc"
+	msgSettingsAutoSend                 messageKey = "settings.autoSend"
+	msgSettingsAutoSendDesc             messageKey = "settings.autoSendDesc"
+	msgSettingsSyncFiles                messageKey = "settings.syncFiles"
+	msgSettingsFileSyncEnabled          messageKey = "settings.fileSyncEnabled"
+	msgSettingsFileSyncEnabledDesc      messageKey = "settings.fileSyncEnabledDesc"
+	msgSettingsFileSyncDir              messageKey = "settings.fileSyncDir"
+	msgSettingsFileSyncDirDesc          messageKey = "settings.fileSyncDirDesc"
+	msgSettingsFileSyncDirChoose        messageKey = "settings.fileSyncDirChoose"
+	msgSettingsFileSyncDirReset         messageKey = "settings.fileSyncDirReset"
+	msgSettingsFileSyncDirUnset         messageKey = "settings.fileSyncDirUnset"
+	msgSettingsFileQuota                messageKey = "settings.fileQuota"
+	msgSettingsFileQuotaDesc            messageKey = "settings.fileQuotaDesc"
+	msgSettingsFileQuotaUnit            messageKey = "settings.fileQuotaUnit"
+	msgSettingsFileQuotaPlaceholder     messageKey = "settings.fileQuotaPlaceholder"
+	msgSettingsFileRetention            messageKey = "settings.fileRetention"
+	msgSettingsFileRetentionDesc        messageKey = "settings.fileRetentionDesc"
+	msgSettingsFileRetentionHours       messageKey = "settings.fileRetentionHours"
+	msgSettingsFileRetentionHoursOne    messageKey = "settings.fileRetentionHoursOne"
+	msgSettingsFileAutoClean            messageKey = "settings.fileAutoClean"
+	msgSettingsFileAutoCleanDesc        messageKey = "settings.fileAutoCleanDesc"
+	msgSettingsFileCacheUsage           messageKey = "settings.fileCacheUsage"
+	msgSettingsFileCacheUsageDesc       messageKey = "settings.fileCacheUsageDesc"
+	msgSettingsFileCacheClean           messageKey = "settings.fileCacheClean"
 
 	// Destructive-action dialogs.
 	msgDangerClearTitle          messageKey = "danger.clear.title"
@@ -499,6 +532,9 @@ var simplifiedChineseCatalog = catalog{
 	msgToastLaunchAtLoginOn:            "GoPaste 将在登录时打开",
 	msgToastLaunchAtLoginOff:           "GoPaste 将不再在登录时打开",
 	msgToastDeviceDiscoveryUnavailable: "设备发现功能尚未开放",
+	msgToastFileDirUnusable:            "无法使用这个目录，保存位置没有改变。",
+	msgToastFileCacheCleaned:           "已清理 %d 条过期文件记录",
+	msgToastFileCacheNothing:           "没有需要清理的文件",
 
 	msgDevicesPaired:               "已配对的设备",
 	msgDevicesRefresh:              "刷新设备列表",
@@ -529,6 +565,7 @@ var simplifiedChineseCatalog = catalog{
 	msgDevicesFileSync:             "文件同步",
 	msgDevicesFileSyncDesc:         "允许在设备之间传输文件",
 	msgDevicesFileSyncDisabled:     "%s。请先打开设备同步。",
+	msgDevicesSyncPageOffNote:      "同步已在设置 › 同步里关闭，下面的开关与方向在重新打开之前不生效。",
 	msgDevicesSyncWith:             "与 %s 同步",
 	msgDevicesSyncWithDesc:         "在任一设备上拷贝的内容都会自动同步。",
 	msgDevicesSyncContent:          "同步内容",
@@ -599,6 +636,7 @@ var simplifiedChineseCatalog = catalog{
 	msgSyncOff:            "不同步",
 	msgSyncDirectionLabel: "%s的同步方向",
 	msgSyncDescSyncOff:    "设备同步已关闭。打开后可设置%s的同步方向。",
+	msgSyncDescPageOff:    "设置 › 同步里的总开关已关闭。打开后可设置%s的同步方向。",
 	msgSyncDescOffline:    "设备已离线。重新建立直连后可设置%s的同步方向。",
 	msgSyncDescNormal:     "仅影响此设备上的%s内容。",
 	msgSyncThisDevice:     "该设备",
@@ -705,6 +743,34 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsPrivacy:                  "隐私",
 	msgSettingsPrivacyDesc:              "剪贴板内容仅储存在此设备，不会写入日志或发送给第三方服务",
 	msgSettingsStoredLocally:            "储存在此设备",
+	msgSettingsSync:                     "同步",
+	msgSettingsSyncDesc:                 "在局域网内把剪贴板内容直接送到已配对的设备。没有中继，也不经过云端。",
+	msgSettingsSyncSwitches:             "同步开关",
+	msgSettingsSyncEnabled:              "启用同步",
+	msgSettingsSyncEnabledDesc:          "关掉后本机既不发送也不接收，每台设备自己的开关与方向都保留，重新打开即恢复。",
+	msgSettingsAutoSend:                 "自动发送新内容",
+	msgSettingsAutoSendDesc:             "新的剪贴板内容自动发给已配对设备；关掉后只在条目上手动重发。",
+	msgSettingsSyncFiles:                "文件同步",
+	msgSettingsFileSyncEnabled:          "同步文件",
+	msgSettingsFileSyncEnabledDesc:      "在设备之间传输文件；关掉后文件类内容不收不发，文字与图片照旧。",
+	msgSettingsFileSyncDir:              "保存位置",
+	msgSettingsFileSyncDirDesc:          "收到的文件落在哪个目录。改过之后只影响新收到的文件，旧文件留在原处。",
+	msgSettingsFileSyncDirChoose:        "选择…",
+	msgSettingsFileSyncDirReset:         "恢复默认",
+	msgSettingsFileSyncDirUnset:         "没有可用的目录",
+	msgSettingsFileQuota:                "缓存配额",
+	msgSettingsFileQuotaDesc:            "收到的文件最多占多少磁盘；超出后从最旧的记录开始删，直到回到配额以内。",
+	msgSettingsFileQuotaUnit:            "MB",
+	msgSettingsFileQuotaPlaceholder:     "2048",
+	msgSettingsFileRetention:            "保留期限",
+	msgSettingsFileRetentionDesc:        "收到的文件留多久；到期后记录和文件一起删。",
+	msgSettingsFileRetentionHours:       "%d 小时",
+	msgSettingsFileRetentionHoursOne:    "%d 小时",
+	msgSettingsFileAutoClean:            "自动清理",
+	msgSettingsFileAutoCleanDesc:        "与保留期限绑定：开启时自动删掉过期的文件。",
+	msgSettingsFileCacheUsage:           "缓存占用",
+	msgSettingsFileCacheUsageDesc:       "收到的文件当前占用的磁盘空间。",
+	msgSettingsFileCacheClean:           "立即清理",
 
 	msgDangerClearTitle:          "清除历史记录？",
 	msgDangerClearMessage:        "此设备上保存的全部剪贴板历史记录都将被删除。此操作无法撤销。",
@@ -812,6 +878,9 @@ var englishCatalog = catalog{
 	msgToastLaunchAtLoginOn:            "GoPaste will open at login",
 	msgToastLaunchAtLoginOff:           "GoPaste will no longer open at login",
 	msgToastDeviceDiscoveryUnavailable: "Device discovery isn't available yet",
+	msgToastFileDirUnusable:            "That directory cannot be used; the save location is unchanged.",
+	msgToastFileCacheCleaned:           "Removed %d expired file records",
+	msgToastFileCacheNothing:           "Nothing to clean up",
 
 	msgDevicesPaired:               "Paired devices",
 	msgDevicesRefresh:              "Refresh device list",
@@ -842,6 +911,7 @@ var englishCatalog = catalog{
 	msgDevicesFileSync:             "File sync",
 	msgDevicesFileSyncDesc:         "Transfer files between paired devices",
 	msgDevicesFileSyncDisabled:     "%s. Turn on device sync first.",
+	msgDevicesSyncPageOffNote:      "Sync is off in Settings › Sync. The switches and directions below do nothing until it is turned back on.",
 	msgDevicesSyncWith:             "Sync with %s",
 	msgDevicesSyncWithDesc:         "Content copied on either device syncs automatically.",
 	msgDevicesSyncContent:          "Content to sync",
@@ -912,6 +982,7 @@ var englishCatalog = catalog{
 	msgSyncOff:            "Don't sync",
 	msgSyncDirectionLabel: "Sync direction for %s",
 	msgSyncDescSyncOff:    "Device sync is off. Turn it on to set the sync direction for %s.",
+	msgSyncDescPageOff:    "The master switch in Settings › Sync is off. Turn it on to set the sync direction for %s.",
 	msgSyncDescOffline:    "The device is offline. Reconnect over a direct link to set the sync direction for %s.",
 	msgSyncDescNormal:     "Affects only %s content on this device.",
 	msgSyncThisDevice:     "the device",
@@ -1018,6 +1089,34 @@ var englishCatalog = catalog{
 	msgSettingsPrivacy:                  "Privacy",
 	msgSettingsPrivacyDesc:              "Clipboard content stays on this device and is never written to logs or sent to third-party services",
 	msgSettingsStoredLocally:            "Stored on this device",
+	msgSettingsSync:                     "Sync",
+	msgSettingsSyncDesc:                 "Send clipboard content straight to paired devices on the same network. No relay, no cloud.",
+	msgSettingsSyncSwitches:             "Switches",
+	msgSettingsSyncEnabled:              "Enable sync",
+	msgSettingsSyncEnabledDesc:          "Off means this device neither sends nor receives; each device keeps its own switches and directions, and turning it back on restores them.",
+	msgSettingsAutoSend:                 "Send new content automatically",
+	msgSettingsAutoSendDesc:             "New clipboard content goes to paired devices on its own; with this off, send an item manually from its preview.",
+	msgSettingsSyncFiles:                "File sync",
+	msgSettingsFileSyncEnabled:          "Sync files",
+	msgSettingsFileSyncEnabledDesc:      "Transfer files between devices; off stops file content in both directions while text and images keep flowing.",
+	msgSettingsFileSyncDir:              "Save location",
+	msgSettingsFileSyncDirDesc:          "Where received files are stored. Changing it affects only new files; existing ones stay where they are.",
+	msgSettingsFileSyncDirChoose:        "Choose…",
+	msgSettingsFileSyncDirReset:         "Use default",
+	msgSettingsFileSyncDirUnset:         "No usable directory",
+	msgSettingsFileQuota:                "Cache quota",
+	msgSettingsFileQuotaDesc:            "Most disk the received files may take; past it, the oldest records are deleted until the cache fits again.",
+	msgSettingsFileQuotaUnit:            "MB",
+	msgSettingsFileQuotaPlaceholder:     "2048",
+	msgSettingsFileRetention:            "Retention",
+	msgSettingsFileRetentionDesc:        "How long a received file is kept; when it expires, the record and its files go together.",
+	msgSettingsFileRetentionHours:       "%d hours",
+	msgSettingsFileRetentionHoursOne:    "%d hour",
+	msgSettingsFileAutoClean:            "Auto cleanup",
+	msgSettingsFileAutoCleanDesc:        "Tied to the retention limit: when on, expired files are deleted automatically.",
+	msgSettingsFileCacheUsage:           "Cache usage",
+	msgSettingsFileCacheUsageDesc:       "Disk space the received files take right now.",
+	msgSettingsFileCacheClean:           "Clean up now",
 
 	msgDangerClearTitle:          "Clear history?",
 	msgDangerClearMessage:        "All clipboard history saved on this device will be deleted. This action can't be undone.",
@@ -1159,6 +1258,29 @@ func (l localizer) retentionDayChoices() []option[int] {
 		{value: 365, label: l.retentionDayLabel(365)},
 		{value: 0, label: l.retentionDayLabel(0)},
 	}
+}
+
+// fileRetentionChoices lists the age limits the file sync block offers, in
+// hours. Zero comes last and means no limit at all.
+func (l localizer) fileRetentionChoices() []option[int] {
+	return []option[int]{
+		{value: 1, label: l.fileRetentionLabel(1)},
+		{value: 6, label: l.fileRetentionLabel(6)},
+		{value: 24, label: l.fileRetentionLabel(24)},
+		{value: 72, label: l.fileRetentionLabel(72)},
+		{value: 168, label: l.fileRetentionLabel(168)},
+		{value: 0, label: l.text(msgSettingsRetentionUnlimited)},
+	}
+}
+
+// fileRetentionLabel names a "keep received files for at most N hours" choice.
+// Whole days read better than 72 or 168 hours, so those turn into days.
+func (l localizer) fileRetentionLabel(hours int) string {
+	if hours >= 24 && hours%24 == 0 {
+		days := hours / 24
+		return l.pluralFormat(days, msgSettingsRetentionDaysOne, msgSettingsRetentionDays, days)
+	}
+	return l.pluralFormat(hours, msgSettingsFileRetentionHoursOne, msgSettingsFileRetentionHours, hours)
 }
 
 // retentionItemLabel names a "keep at most N records" choice; zero is no limit.

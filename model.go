@@ -55,6 +55,7 @@ type settingsArea uint8
 
 const (
 	settingsGeneral settingsArea = iota
+	settingsSync
 	settingsAppearance
 	settingsStorage
 	settingsAbout
@@ -259,14 +260,31 @@ type application struct {
 	syncService *lansync.Service
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：
 	// 浮层由指针悬停状态标记展开，指针移开标记与浮层后收起。
-	syncPopoverItem        string
-	syncPopoverOpen        bool
-	deviceName             string
-	deviceNameDefault      string // 启动时算出的默认名（主机名），设备页据此判断是否仍是默认值
-	devicePeerID           string
-	devicePlatform         string
-	deviceSyncEnabled      bool
-	deviceFileSync         bool
+	syncPopoverItem   string
+	syncPopoverOpen   bool
+	deviceName        string
+	deviceNameDefault string // 启动时算出的默认名（主机名），设备页据此判断是否仍是默认值
+	devicePeerID      string
+	devicePlatform    string
+	// syncEnabled 是同步页的总开关，autoSendEnabled 决定新内容是否自动投递，
+	// fileSyncEnabled 是文件类内容自己的开关。三个都跨启动保留，设备页的本地卡与
+	// 同步页绑定同一份状态。
+	syncEnabled     bool
+	autoSendEnabled bool
+	fileSyncEnabled bool
+	// fileSyncDir 是用户选的文件保存位置，空表示用 fileSyncDirDefault。
+	// receivedFilesDir 是当前真正落盘的那个根目录：它是两者之一，同步服务、用量
+	// 统计与清理都看它。
+	fileSyncDir        string
+	fileSyncDirDefault string
+	// fileQuotaMB 是配额输入框里的文本，fileQuotaBytes 是它解析后的有效值，两者
+	// 的关系与 fileSyncMaxMB/fileSyncLimitBytes 相同。
+	fileQuotaMB    string
+	fileQuotaBytes int64
+	// fileRetentionHours 是收到的文件保留多少小时，0 表示不限；fileAutoClean 决定
+	// 到期是否自动删除。
+	fileRetentionHours     int
+	fileAutoClean          bool
 	pairedDevices          []pairedDevice
 	deviceDiscovery        deviceDiscoveryState
 	deviceDiscoveryMessage string
