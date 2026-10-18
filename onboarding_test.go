@@ -448,6 +448,64 @@ func TestWizardLayoutHoldsTogether(t *testing.T) {
 	}
 }
 
+// TestBackButtonLetsTheUserChangeTheirMind 检查第二步能退回第一步换一条路径。向导
+// 没有重开入口，选错路径必须能当场改；换路径后也不该带着上一次的输入。
+func TestBackButtonLetsTheUserChangeTheirMind(t *testing.T) {
+	app, _ := onboardingApp(t, settings.File{})
+	tt := onboardingTester(app)
+
+	if err := tt.Click(app.t(msgOnboardingPathJoinTitle)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingPathJoinTitle), err)
+	}
+	tt.Frame()
+	if err := tt.Click(app.t(msgOnboardingContinue)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingContinue), err)
+	}
+	tt.Frame()
+	if app.onboarding != onboardingStepDetail || app.onboardingPath != onboardingJoinExisting {
+		t.Fatalf("应停在配对码那一步，实际步骤 %v、路径 %v", app.onboarding, app.onboardingPath)
+	}
+
+	if err := tt.Click(app.t(msgOnboardingBack)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingBack), err)
+	}
+	tt.Frame()
+	if app.onboarding != onboardingStepWelcome {
+		t.Fatalf("退回后步骤 = %v，期望第一步", app.onboarding)
+	}
+
+	if err := tt.Click(app.t(msgOnboardingPathFirstTitle)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingPathFirstTitle), err)
+	}
+	tt.Frame()
+	if err := tt.Click(app.t(msgOnboardingContinue)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingContinue), err)
+	}
+	tt.Frame()
+
+	if app.onboardingPath != onboardingFirstDevice {
+		t.Errorf("改选后路径 = %v，期望「这是我的第一台设备」", app.onboardingPath)
+	}
+	if app.pairingCode != "" {
+		t.Errorf("换路径后不该留着上一次的配对码，实际 %q", app.pairingCode)
+	}
+}
+
+// TestWizardBlocksTheAddDeviceShortcut 检查向导开着时 Cmd+N 不会再叠一个配对
+// 弹窗：模态已经挡住了指针，快捷键不该绕过它。
+func TestWizardBlocksTheAddDeviceShortcut(t *testing.T) {
+	app, _ := onboardingApp(t, settings.File{})
+	tt := onboardingTester(app)
+
+	tt.Key(ui.Cmd, ui.KeyN)
+	if app.addDeviceDialog {
+		t.Error("向导开着时 Cmd+N 不应打开配对弹窗")
+	}
+	if !app.onboardingVisible() {
+		t.Error("向导不应被快捷键关掉")
+	}
+}
+
 // TestWizardFollowsTheInterfaceLanguage 检查向导跟着界面语言走：英文界面下没有
 // 中文残留。
 func TestWizardFollowsTheInterfaceLanguage(t *testing.T) {
