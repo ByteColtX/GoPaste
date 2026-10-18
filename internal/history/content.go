@@ -1,4 +1,4 @@
-package capture
+package history
 
 import (
 	"bytes"
@@ -10,16 +10,26 @@ import (
 	"image/draw"
 	"io"
 	"strings"
-
-	"gopaste/internal/history"
 )
 
-// The digest is what makes a captured item's ID content-derived. Writing a
-// stored item back to the clipboard reads back as the same content, resolves
-// to the same ID, and history.Store.Append rejects it as a duplicate instead
-// of keeping the copy twice. The domain tag keeps the same bytes under
-// different kinds apart, so a file list and the text with those bytes never
-// collide.
+// Content is a clipboard payload in the form item identity is derived from. The
+// capture path builds one from a clipboard reading and the sync path builds one
+// from a peer's message, so both sides derive the same ID for the same content.
+type Content struct {
+	Kind Kind
+	// Text is the plain-text representation, empty when absent.
+	Text string
+	// HTML is the markup of a rich-text payload, empty for every other kind.
+	HTML string
+	// Image is the image payload, nil for every other kind.
+	Image *Image
+	// Files are the paths of a file payload, in clipboard order. A file item
+	// stores them joined as Text, so identity needs the list itself.
+	Files []string
+}
+
+// The domain tag keeps the same bytes under different kinds apart, so a file
+// list and the text with those bytes never collide.
 const (
 	domainText     = "text"
 	domainRichText = "richtext"
@@ -27,7 +37,15 @@ const (
 	domainImage    = "image"
 )
 
-// digest is the content digest of the reading, hex encoded for Item.ID.
+// ContentID is the content-derived ID an item with this content carries, hex
+// encoded.
+//
+// It is what makes an item's ID stable: writing a stored item back to the
+// clipboard reads back as the same content, resolves to the same ID, and
+// Store.Append rejects it as a duplicate instead of keeping the copy twice. The
+// same property holds across devices, so the receiver of a synced payload
+// derives the ID itself rather than trusting one a peer sends, and the same
+// content copied on two machines becomes one ID rather than two records.
 //
 // It is SHA-256 over a domain-separated encoding of the kind and the canonical
 // content. The domain tag is written first, followed by a NUL byte, then the
@@ -38,21 +56,23 @@ const (
 //   - image: the decoded pixels (width, height, RGBA bytes), so a PNG the
 //     platform re-encoded still hashes the same; a PNG that cannot be decoded
 //     falls back to its own bytes.
-func (s Snapshot) digest() string {
+func ContentID(c Content) string {
 	h := sha256.New()
-	switch s.Kind {
-	case history.KindText:
+	switch c.Kind {
+	case KindText:
 		writeDomain(h, domainText)
-		h.Write(canonicalText([]byte(s.Text)))
-	case history.KindRichText:
+		h.Write(canonicalText([]byte(c.Text)))
+	case KindRichText:
 		writeDomain(h, domainRichText)
-		h.Write(canonicalText([]byte(s.HTML)))
-	case history.KindFile:
+		h.Write(canonicalText([]byte(c.HTML)))
+	case KindFile:
 		writeDomain(h, domainFile)
-		io.WriteString(h, strings.Join(s.Files, "\n"))
-	case history.KindImage:
+		io.WriteString(h, strings.Join(c.Files, "\n"))
+	case KindImage:
 		writeDomain(h, domainImage)
-		writeImageDigest(h, s.Image.PNG)
+		if c.Image != nil {
+			writeImageDigest(h, c.Image.PNG)
+		}
 	}
 	return hex.EncodeToString(h.Sum(nil))
 }
