@@ -203,7 +203,7 @@ func (a *application) onboardingDeviceName() string {
 	if name := strings.TrimSpace(a.onboardingName); name != "" {
 		return name
 	}
-	return a.deviceName
+	return a.deviceDisplayName()
 }
 
 // onboardingActions 是按钮行：上一步（第二步才有）、跳过（第三步没有，因为那时

@@ -37,11 +37,12 @@ const (
 // pairingCodeTailLength 是启动提示里露出的配对码位数。
 const pairingCodeTailLength = 3
 
-// startOnboarding 从第一步开始向导，并用当前设备名预填名字草稿。
+// startOnboarding 从第一步开始向导，并用当前设备名预填名字草稿。预填的是设备页
+// 显示的那个名字（默认名会去掉 .local），用户看到的就是以后会看到的样子。
 func (a *application) startOnboarding() {
 	a.onboarding = onboardingStepWelcome
 	a.onboardingPath = onboardingFirstDevice
-	a.onboardingName = a.deviceName
+	a.onboardingName = a.deviceDisplayName()
 	a.pairingCode = ""
 	a.pairingCodeRejected = false
 }
@@ -62,7 +63,7 @@ func (a *application) advanceOnboarding() {
 		a.pairingCode = ""
 		a.pairingCodeRejected = false
 		if a.onboardingName == "" {
-			a.onboardingName = a.deviceName
+			a.onboardingName = a.deviceDisplayName()
 		}
 	case onboardingStepDetail:
 		if a.onboardingPath == onboardingJoinExisting {
@@ -103,7 +104,8 @@ func (a *application) finishOnboarding(skip bool) {
 			if code, ok := settings.PairingCode(a.pairingCode); ok {
 				a.pendingPairing = &settings.PendingPairing{Code: code, CreatedAt: time.Now().UTC()}
 			}
-		} else if name := strings.TrimSpace(a.onboardingName); name != "" {
+		} else if name := strings.TrimSpace(a.onboardingName); name != "" && name != a.deviceDisplayName() {
+			// 和预填的名字一样就什么都不做：默认名继续跟着系统主机名走。
 			a.deviceName = name
 		}
 	}

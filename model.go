@@ -223,25 +223,25 @@ type application struct {
 	onResendItem func(itemID, deviceID string)
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：
 	// 浮层由指针悬停状态标记展开，指针移开标记与浮层后收起。
-	syncPopoverItem          string
-	syncPopoverOpen          bool
-	deviceName               string
-	deviceNameDefault        string // 启动时算出的默认名（主机名），设备页据此判断是否仍是默认值
-	devicePeerID             string
-	devicePlatform           string
-	deviceSyncEnabled        bool
-	deviceFileSync           bool
-	pairedDevices            []pairedDevice
-	deviceDiscovery          deviceDiscoveryState
-	deviceDiscoveryMessage   string
-	onRefreshDevices         func()
-	deviceRefreshSpinUntil   time.Time
-	selectedDeviceID         string
-	deviceInfoExpanded       bool
-	addDeviceDialog          bool
-	pairingPending           bool
-	pairingError             string
-	onStartPairing           func()
+	syncPopoverItem        string
+	syncPopoverOpen        bool
+	deviceName             string
+	deviceNameDefault      string // 启动时算出的默认名（主机名），设备页据此判断是否仍是默认值
+	devicePeerID           string
+	devicePlatform         string
+	deviceSyncEnabled      bool
+	deviceFileSync         bool
+	pairedDevices          []pairedDevice
+	deviceDiscovery        deviceDiscoveryState
+	deviceDiscoveryMessage string
+	onRefreshDevices       func()
+	deviceRefreshSpinUntil time.Time
+	selectedDeviceID       string
+	deviceInfoExpanded     bool
+	addDeviceDialog        bool
+	pairingPending         bool
+	pairingError           string
+	onStartPairing         func()
 
 	// 首次启动向导。onboarding 是当前步骤，onboardingStepNone 表示不显示；
 	// onboardingCompleted 是已经落盘的那个事实，跳过也算完成，因此向导不会
