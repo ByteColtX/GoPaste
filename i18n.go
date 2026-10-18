@@ -344,6 +344,11 @@ const (
 	msgToastZoom                        messageKey = "toast.zoom"
 	msgSettingsStorage                  messageKey = "settings.storage"
 	msgSettingsStorageDesc              messageKey = "settings.storageDesc"
+	msgSettingsStorageTotal             messageKey = "settings.storageTotal"
+	msgSettingsStorageRefresh           messageKey = "settings.storageRefresh"
+	msgSettingsStorageDatabase          messageKey = "settings.storageDatabase"
+	msgSettingsStorageFiles             messageKey = "settings.storageFiles"
+	msgSettingsStorageSettings          messageKey = "settings.storageSettings"
 	msgSettingsData                     messageKey = "settings.data"
 	msgSettingsHistoryRow               messageKey = "settings.historyRow"
 	msgSettingsHistoryRowDesc           messageKey = "settings.historyRowDesc"
@@ -662,6 +667,11 @@ var simplifiedChineseCatalog = catalog{
 	msgToastZoom:                        "界面缩放：%s",
 	msgSettingsStorage:                  "储存空间",
 	msgSettingsStorageDesc:              "查看并清除储存在此设备上的历史记录。",
+	msgSettingsStorageTotal:             "总计",
+	msgSettingsStorageRefresh:           "重新统计磁盘占用",
+	msgSettingsStorageDatabase:          "数据库",
+	msgSettingsStorageFiles:             "收到的文件",
+	msgSettingsStorageSettings:          "设置与配对",
 	msgSettingsData:                     "数据",
 	msgSettingsHistoryRow:               "历史记录",
 	msgSettingsHistoryRowDesc:           "此设备上保存的剪贴板记录",
@@ -972,6 +982,11 @@ var englishCatalog = catalog{
 	msgToastZoom:                        "Interface zoom: %s",
 	msgSettingsStorage:                  "Storage",
 	msgSettingsStorageDesc:              "View and clear history saved on this device.",
+	msgSettingsStorageTotal:             "total",
+	msgSettingsStorageRefresh:           "Measure disk usage again",
+	msgSettingsStorageDatabase:          "Database",
+	msgSettingsStorageFiles:             "Received files",
+	msgSettingsStorageSettings:          "Settings & pairing",
 	msgSettingsData:                     "Data",
 	msgSettingsHistoryRow:               "History",
 	msgSettingsHistoryRowDesc:           "Clipboard records saved on this device",

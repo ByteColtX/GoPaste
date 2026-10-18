@@ -490,7 +490,7 @@ func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 		labelText(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
 			TextColor(secondaryText(theme))
 		ui.Spacer(c)
-		a.sidebarIconAction(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), a.deviceRefreshSpinning(c.Now()), func() {
+		a.iconActionButton(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), a.deviceRefreshSpinning(c.Now()), func() {
 			a.refreshDevices(c)
 		})
 	})
