@@ -90,6 +90,7 @@ type Discovery struct {
 	platform string
 	port     func() int
 	onUpdate func([]Peer)
+	onSight  func(Peer)
 
 	mu    sync.Mutex
 	peers map[string]Peer
@@ -123,6 +124,12 @@ type DiscoveryOptions struct {
 	// on a discovery goroutine: a caller that owns UI state must hand the
 	// result to the UI thread itself.
 	OnUpdate func([]Peer)
+	// OnSight is called for every sighting, including the ones that leave the
+	// list unchanged. Presence decays on a clock — a device is offline once it
+	// has not been heard from for peerExpiry — so a caller that decides
+	// reachability must refresh what it knows on every sighting, not only when
+	// the published list changes. It runs on a discovery goroutine.
+	OnSight func(Peer)
 }
 
 // NewDiscovery builds a Discovery. Call Start to begin advertising and
@@ -135,6 +142,7 @@ func NewDiscovery(options DiscoveryOptions) *Discovery {
 		platform: options.Platform,
 		port:     options.Port,
 		onUpdate: options.OnUpdate,
+		onSight:  options.OnSight,
 		peers:    map[string]Peer{},
 	}
 }
@@ -344,6 +352,10 @@ func (d *Discovery) expire(ctx context.Context) {
 }
 
 // sighted records one sighting and publishes the peer list if it changed.
+//
+// The sighting itself is always reported through OnSight: the published list
+// deliberately ignores timestamps, so a device that keeps announcing would
+// otherwise look stale to a caller that reads only the list.
 func (d *Discovery) sighted(peer Peer) {
 	if peer.ID == d.identity.ID {
 		return
@@ -351,7 +363,11 @@ func (d *Discovery) sighted(peer Peer) {
 	peer.Seen = time.Now()
 	d.mu.Lock()
 	d.peers[peer.ID] = peer
+	onSight := d.onSight
 	d.mu.Unlock()
+	if onSight != nil {
+		onSight(peer)
+	}
 	d.publish(false)
 }
 

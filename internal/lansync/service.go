@@ -345,6 +345,7 @@ func (s *Service) Start(ctx context.Context) error {
 		Version:  s.options.Version,
 		Port:     s.portOf,
 		OnUpdate: s.peersChanged,
+		OnSight:  s.peerSighted,
 	})
 	if err := s.discovery.Start(runCtx); err != nil {
 		return err
@@ -795,6 +796,16 @@ func (s *Service) deviceAt(address string) (Device, bool) {
 		return device, true
 	}
 	return Device{}, false
+}
+
+// peerSighted records one sighting. Presence decays on a clock, so the device
+// list must see every sighting rather than only the ones that change the
+// published peer list; otherwise a device that keeps announcing looks offline
+// as soon as the last published list is older than peerExpiry.
+func (s *Service) peerSighted(peer Peer) {
+	s.mu.Lock()
+	s.peers[peer.ID] = peer
+	s.mu.Unlock()
 }
 
 // peersChanged handles a discovery update: presence is merged into the paired

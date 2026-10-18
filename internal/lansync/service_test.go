@@ -427,6 +427,92 @@ func TestDevicesMergePresence(t *testing.T) {
 	}
 }
 
+// fakeClock is a controllable clock for the presence tests.
+type fakeClock struct {
+	mu sync.Mutex
+	at time.Time
+}
+
+func (c *fakeClock) now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.at
+}
+
+func (c *fakeClock) advance(by time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.at = c.at.Add(by)
+}
+
+// TestPresenceStaysFreshWhileThePeerKeepsAnnouncing 检查在线状态既不早退也不滞留：
+// 设备一直在公告就一直在线上（即使已经超过 peerExpiry），停止公告 peerExpiry 之后
+// 才转为离线。只按「列表变化」刷新的话，设备会在最后一次发布之后 20 秒莫名其妙变成
+// 离线，同步于是静悄悄地停掉。
+func TestPresenceStaysFreshWhileThePeerKeepsAnnouncing(t *testing.T) {
+	clock := &fakeClock{at: time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)}
+	identity, err := NewIdentity()
+	if err != nil {
+		t.Fatalf("NewIdentity: %v", err)
+	}
+	service, err := NewService(Options{
+		StorePath: filepath.Join(t.TempDir(), "devices.json"),
+		Name:      "MacBook Pro",
+		Platform:  "macOS",
+		Version:   "test",
+		Now:       clock.now,
+	})
+	if err != nil {
+		t.Fatalf("NewService: %v", err)
+	}
+	service.noDiscovery = true
+	if err := service.Start(context.Background()); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+	defer service.Stop()
+
+	device := Device{
+		ID:          identity.ID,
+		Name:        "工作室 PC",
+		Platform:    "Windows",
+		PublicKey:   identity.Public,
+		SyncEnabled: true,
+	}
+	if err := service.store.Put(device); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	peer := Peer{
+		ID:        identity.ID,
+		Name:      "工作室 PC",
+		Platform:  "Windows",
+		PublicKey: identity.Public,
+		Addr:      net.ParseIP("192.168.12.10"),
+		Port:      47823,
+		Seen:      clock.now(),
+	}
+
+	service.peerSighted(peer)
+	clock.advance(15 * time.Second)
+	peer.Seen = clock.now()
+	service.peerSighted(peer)
+
+	// 距第一次 30 秒，但距最近一次只有 15 秒：仍然在线。
+	clock.advance(15 * time.Second)
+	devices := service.Devices()
+	if len(devices) != 1 {
+		t.Fatalf("devices = %d, want 1", len(devices))
+	}
+	if !devices[0].Online {
+		t.Error("a device that keeps announcing must stay online past peerExpiry")
+	}
+
+	// 停止公告之后再过 peerExpiry，才算离线。
+	clock.advance(peerExpiry)
+	if devices := service.Devices(); devices[0].Online {
+		t.Error("a device that stopped announcing must go offline")
+	}
+}
+
 // TestUnpairAndUndo 检查取消配对返回被移除的记录，撤销后设备回到列表。
 func TestUnpairAndUndo(t *testing.T) {
 	sender := newTestService(t, "MacBook Pro")

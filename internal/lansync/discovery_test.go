@@ -169,6 +169,42 @@ func TestPeerFingerprintTracksWhatTheUIShows(t *testing.T) {
 	}
 }
 
+// TestDiscoveryReportsEverySighting 检查每一次「看到设备」都上报，而列表只在界面上
+// 看得见的东西变了才发布：在线状态按时间衰减，读列表的一方必须能刷新时间戳。
+func TestDiscoveryReportsEverySighting(t *testing.T) {
+	discovery := announcingDiscovery(t, "本机")
+	other, err := NewIdentity()
+	if err != nil {
+		t.Fatalf("NewIdentity: %v", err)
+	}
+	sights, updates := 0, 0
+	discovery.onSight = func(Peer) { sights++ }
+	discovery.onUpdate = func([]Peer) { updates++ }
+	peer := Peer{
+		ID:        other.ID,
+		Name:      "另一台",
+		Platform:  "Windows",
+		PublicKey: other.Public,
+		Addr:      net.ParseIP("192.168.12.10"),
+		Port:      47823,
+	}
+
+	discovery.sighted(peer)
+	discovery.sighted(peer)
+
+	if sights != 2 {
+		t.Errorf("sightings reported = %d, want 2", sights)
+	}
+	if updates != 1 {
+		t.Errorf("list updates = %d, want 1: the list did not change", updates)
+	}
+	// 自己的公告不当作设备。
+	discovery.sighted(Peer{ID: discovery.identity.ID, Addr: net.ParseIP("192.168.12.25"), Port: 47823})
+	if sights != 2 {
+		t.Errorf("sightings reported after our own announcement = %d, want 2", sights)
+	}
+}
+
 // TestUsableInterfacesFindsTheLAN 检查这台机器上至少能找到一张可用于组播的网卡；
 // 一张都没有时发现层要报 ErrNoInterfaces，界面据此显示错误状态而不是空列表。
 func TestUsableInterfacesFindsTheLAN(t *testing.T) {
