@@ -232,6 +232,9 @@ type application struct {
 	// clipboardEcho 记录应用自己刚写到剪贴板的读数 ID，见 recordClipboardWrite。
 	persistence   *historyPersistence
 	clipboardEcho map[string]struct{}
+	// retention 是当前的自动清理上限，见 pruneHistory。默认值由
+	// defaultRetention 给出，用户改过才落盘。
+	retention history.RetentionPolicy
 	// historyReady 表示持久化的历史已经装载进 history。在此之前收到的同步内容先
 	// 排进 pendingClips：装载结果会整份替换内存里的历史，直接写进去的条目会连同
 	// 剪贴板里已有的内容一起丢掉。

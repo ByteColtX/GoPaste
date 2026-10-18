@@ -302,6 +302,8 @@ func (a *application) installHistory(items []history.Item, persistence *historyP
 		a.persistItem(item)
 	}
 	a.pendingClips = nil
+	// 装载完就先裁一次：升级后第一次启动，超过上限的旧记录在这一刻消失。
+	a.pruneHistory()
 }
 
 // appendCaptured 把一次捕获结果并入历史记录。
@@ -322,6 +324,8 @@ func (a *application) appendCaptured(item history.Item) {
 	if a.syncService != nil {
 		a.syncService.Send(item)
 	}
+	// 每来一条新内容就裁一次：条数上限靠它维持。
+	a.pruneHistory()
 }
 
 // recordClipboardWrite 记下应用自己写到剪贴板的读数 ID，让紧接着的捕获忽略它。

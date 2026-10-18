@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -61,7 +62,97 @@ func TestSaveOmitsEmptyFields(t *testing.T) {
 	if _, ok := fields["deviceName"]; ok {
 		t.Errorf("没改过的设备名不应写进文件: %s", data)
 	}
+	// 没动过的保留策略不落盘：默认值将来变了，没选过的人应当跟着变。
+	if _, ok := fields["retention"]; ok {
+		t.Errorf("没改过的保留策略不应写进文件: %s", data)
+	}
 }
+
+// TestLoadLeavesRetentionUnset 检查旧版本写的文件读回来是 nil：调用方据此套用
+// 自己的默认上限，而不是把「缺字段」读成「不限」。
+func TestLoadLeavesRetentionUnset(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := os.WriteFile(path, []byte(`{"onboarding":{"completed":true}}`), 0o600); err != nil {
+		t.Fatalf("写入旧版本设置出错: %v", err)
+	}
+	file, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if file.Retention != nil {
+		t.Errorf("缺 retention 字段时应读成 nil，实际 %+v", file.Retention)
+	}
+}
+
+// TestRetentionRoundTrip 检查两个上限都能写进文件再原样读回来。
+func TestRetentionRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	want := &Retention{MaxItems: retentionInt(500), MaxDays: retentionInt(30)}
+	if err := Save(path, File{Onboarding: Onboarding{Completed: true}, Retention: want}); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.Retention == nil {
+		t.Fatal("保存过的保留策略读回来是 nil")
+	}
+	if got.Retention.MaxItems == nil || *got.Retention.MaxItems != 500 {
+		t.Errorf("条数上限 = %v，期望 500", got.Retention.MaxItems)
+	}
+	if got.Retention.MaxDays == nil || *got.Retention.MaxDays != 30 {
+		t.Errorf("天数上限 = %v，期望 30", got.Retention.MaxDays)
+	}
+}
+
+// TestRetentionSavesOnlyTheChosenDimension 检查只改过一项时另一项不被写进文件：
+// 没选过的维度应当继续跟着程序的默认值走，而不是被冻在这一刻。
+func TestRetentionSavesOnlyTheChosenDimension(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := Save(path, File{Retention: &Retention{MaxItems: retentionInt(500)}}); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.Retention == nil || got.Retention.MaxItems == nil || *got.Retention.MaxItems != 500 {
+		t.Fatalf("条数上限 = %+v，期望 500", got.Retention)
+	}
+	if got.Retention.MaxDays != nil {
+		t.Errorf("没改过的天数上限不应写进文件: %v", *got.Retention.MaxDays)
+	}
+}
+
+// TestRetentionZeroSurvivesTheRoundTrip 检查「不限」是明确的 0，而不是被省略掉的
+// 空值：这是 Retention 用指针而不是两个 int 的全部理由。
+func TestRetentionZeroSurvivesTheRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := Save(path, File{Retention: &Retention{MaxItems: retentionInt(0)}}); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("读取写入的文件出错: %v", err)
+	}
+	if !strings.Contains(string(data), `"maxItems": 0`) {
+		t.Fatalf("选过「不限」时 maxItems 不应被省略: %s", data)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.Retention == nil || got.Retention.MaxItems == nil {
+		t.Fatal("选过「不限」的条数上限读回来是 nil，会被当成没设过")
+	}
+	if *got.Retention.MaxItems != 0 {
+		t.Errorf("条数上限 = %d，期望 0（不限）", *got.Retention.MaxItems)
+	}
+}
+
+// retentionInt 返回 v 的地址，用来构造设置文件里的「设过的」上限。
+func retentionInt(v int) *int { return &v }
 
 // TestSaveCreatesAPrivateFile 检查目录和文件的权限：设置文件里有配对码，只有当前
 // 用户能读。同时确认写入用过的临时文件没有留在目录里。

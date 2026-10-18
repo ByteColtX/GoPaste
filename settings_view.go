@@ -187,6 +187,34 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsSubheading(c, a.t(msgSettingsData), theme)
 	stats := a.history.Snapshot(history.Query{})
 	settingsGroup(c, theme, "settings-storage-group", func() {
+		// 保留策略两行：条数与天数各自可单独关掉（不限），改完立即生效，
+		// 见 applyRetention。
+		a.settingsRow(c, theme, a.t(msgSettingsRetentionItemsRow), a.t(msgSettingsRetentionItemsRowDesc), func() {
+			control := selectField(c, theme, "settings-retention-items", &a.retention.MaxItems,
+				a.t(msgSettingsRetentionItemsRow), a.l10n().retentionItemChoices())
+			if a.compactDetailLayout(c, theme) {
+				control.FillWidth()
+			} else {
+				control.Width(180)
+			}
+			if control.Changed() {
+				a.applyRetention()
+			}
+		})
+		settingsRule(c, theme)
+		a.settingsRow(c, theme, a.t(msgSettingsRetentionDaysRow), a.t(msgSettingsRetentionDaysRowDesc), func() {
+			control := selectField(c, theme, "settings-retention-days", &a.retention.MaxDays,
+				a.t(msgSettingsRetentionDaysRow), a.l10n().retentionDayChoices())
+			if a.compactDetailLayout(c, theme) {
+				control.FillWidth()
+			} else {
+				control.Width(180)
+			}
+			if control.Changed() {
+				a.applyRetention()
+			}
+		})
+		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsHistoryRow), a.t(msgSettingsHistoryRowDesc), func() {
 			ui.Column(c).Shrink(0).AlignItems(ui.End).Gap(space(theme, 0.5)).Children(func() {
 				labelText(c, a.l10n().storageRecord(stats.Total)).FontSize(font(theme, fontControl)).
@@ -210,6 +238,9 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 			}
 		})
 	})
+	ui.Text(c, a.t(msgSettingsRetentionNote)).
+		FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).
+		Padding(space(theme, 1), 0, 0, 0).Wrap()
 	if stats.Total == 0 {
 		ui.Text(c, a.t(msgSettingsNoHistoryNote)).
 			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).
