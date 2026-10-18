@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"runtime"
+	"time"
 
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
@@ -452,7 +453,7 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		r.publishDiscoveryFailure(r.app.t(msgDevicesDiscoveryUnavailable))
 		return
 	}
-	service, err := lansync.NewService(lansync.Options{
+	options := lansync.Options{
 		StorePath: path,
 		Name:      r.app.deviceName,
 		Platform:  r.app.devicePlatform,
@@ -484,6 +485,9 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		OnDelivery: func(itemID string, deliveries []history.DeviceDelivery) {
 			r.update(func() { r.app.applyDelivery(itemID, deliveries) })
 		},
+	}
+	service, err := openSyncService(ctx, func() (*lansync.Service, error) {
+		return lansync.NewService(options)
 	})
 	if err != nil {
 		// 配对信息读不出来时不覆盖原文件：修好之后还能接着用。
@@ -511,6 +515,36 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 			})
 		}
 	}()
+}
+
+// 身份文件被另一个实例短暂占用时重试的次数与间隔。一个实例正在退出、热重载刚重启、
+// 或者用户快速点两下图标，都会让下一个实例在启动时撞上这个锁；Windows 上读一个正被
+// 独占打开的文件直接报错。为了一次几百毫秒的争用就让整次运行没有同步，不值得。
+const (
+	syncServiceOpenAttempts = 10
+	syncServiceOpenDelay    = 300 * time.Millisecond
+)
+
+// openSyncService 打开同步服务，遇到「文件暂时被占用」这类可恢复的错误就短暂重试。
+// 内容本身读不出来（ErrStoreUnreadable）时立刻放弃：那不是等一等就会好的事。
+func openSyncService(ctx context.Context, open func() (*lansync.Service, error)) (*lansync.Service, error) {
+	var err error
+	for attempt := 0; attempt < syncServiceOpenAttempts; attempt++ {
+		var service *lansync.Service
+		service, err = open()
+		if err == nil {
+			return service, nil
+		}
+		if errors.Is(err, lansync.ErrStoreUnreadable) {
+			return nil, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(syncServiceOpenDelay):
+		}
+	}
+	return nil, err
 }
 
 // stopSync 停止局域网同步服务。返回后不会再有同步回调。

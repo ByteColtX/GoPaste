@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ed25519"
 	"errors"
 	"net"
@@ -394,5 +395,61 @@ func TestSyncActionsNeedTheService(t *testing.T) {
 	app.setDeviceDirection("peer-a", lansync.ContentText, syncDirectionOff)
 	if app.pairingError != "" {
 		t.Errorf("pairing error = %q, want nothing without a service", app.pairingError)
+	}
+}
+
+// TestOpenSyncServiceRetriesWhileTheFileIsBusy 检查身份文件被短暂占用时会重试，而不是
+// 让整次运行没有同步：重启、热重载都可能撞上这个锁。
+func TestOpenSyncServiceRetriesWhileTheFileIsBusy(t *testing.T) {
+	busy := errors.New("The process cannot access the file because it is being used by another process")
+	attempts := 0
+	service, err := openSyncService(context.Background(), func() (*lansync.Service, error) {
+		attempts++
+		if attempts < 3 {
+			return nil, busy
+		}
+		return &lansync.Service{}, nil
+	})
+	if err != nil {
+		t.Fatalf("openSyncService: %v", err)
+	}
+	if service == nil {
+		t.Fatal("a service must come back once the file is free")
+	}
+	if attempts != 3 {
+		t.Errorf("attempts = %d, want 3", attempts)
+	}
+}
+
+// TestOpenSyncServiceGivesUpOnUnreadableData 检查内容本身读不出来时不重试：等一等
+// 不会让它变好，只会让用户多等三秒。
+func TestOpenSyncServiceGivesUpOnUnreadableData(t *testing.T) {
+	attempts := 0
+	_, err := openSyncService(context.Background(), func() (*lansync.Service, error) {
+		attempts++
+		return nil, lansync.ErrStoreUnreadable
+	})
+	if !errors.Is(err, lansync.ErrStoreUnreadable) {
+		t.Fatalf("err = %v, want ErrStoreUnreadable", err)
+	}
+	if attempts != 1 {
+		t.Errorf("attempts = %d, want 1", attempts)
+	}
+}
+
+// TestOpenSyncServiceStopsWhenTheAppQuits 检查退出时重试会停下，不会拖住关闭流程。
+func TestOpenSyncServiceStopsWhenTheAppQuits(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	attempts := 0
+	_, err := openSyncService(ctx, func() (*lansync.Service, error) {
+		attempts++
+		return nil, errors.New("busy")
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v, want context.Canceled", err)
+	}
+	if attempts > 1 {
+		t.Errorf("attempts = %d, want the retry to stop immediately", attempts)
 	}
 }
