@@ -196,7 +196,7 @@ func TestEveryPageRenders(t *testing.T) {
 		app.setPage(page)
 		tt.Frame()
 	}
-	for _, area := range []settingsArea{settingsGeneral, settingsAppearance, settingsStorage, settingsAbout} {
+	for _, area := range []settingsArea{settingsGeneral, settingsSync, settingsAppearance, settingsStorage, settingsAbout} {
 		app.settingsArea = area
 		tt.Frame()
 	}
@@ -204,7 +204,7 @@ func TestEveryPageRenders(t *testing.T) {
 	// 缩放到最大档再走一遍：放大后布局下限同步变大，页面仍需正常构建。
 	app.setZoom(zoomMaximum)
 	tt.Frame()
-	for _, area := range []settingsArea{settingsGeneral, settingsAppearance, settingsStorage, settingsAbout} {
+	for _, area := range []settingsArea{settingsGeneral, settingsSync, settingsAppearance, settingsStorage, settingsAbout} {
 		app.settingsArea = area
 		tt.Frame()
 	}

@@ -33,6 +33,42 @@ type File struct {
 	// DefaultFileSyncMaxMB: a limit of zero would mean "send nothing", which is
 	// not a value this file expresses.
 	FileSyncMaxMB int `json:"fileSyncMaxMB,omitempty"`
+	// Sync is the sync page's settings. It is nil while every one of them is
+	// still the default, so a file that never saw a change stays small.
+	Sync *Sync `json:"sync,omitempty"`
+}
+
+// Sync is the sync page: the master switch, the automatic sending of new
+// clipboard content, and the file sync block. Every switch defaults to on, so
+// an absent field reads back as on; the pointers keep "never changed" apart
+// from an explicit off.
+type Sync struct {
+	Enabled  *bool      `json:"enabled,omitempty"`
+	AutoSend *bool      `json:"autoSend,omitempty"`
+	Files    *SyncFiles `json:"files,omitempty"`
+}
+
+// SyncFiles is the file sync block: its own switch plus where received files
+// land and how long the cache may grow.
+type SyncFiles struct {
+	// Enabled is file sync's own switch: off stops file content in both
+	// directions while text, images and rich text keep flowing.
+	Enabled *bool `json:"enabled,omitempty"`
+	// Dir is the directory received files are stored in. Empty means the
+	// application's default location beside the history database.
+	Dir string `json:"dir,omitempty"`
+	// QuotaMB bounds the received-file cache in MiB. Absent or below
+	// MinFileQuotaMB means DefaultFileQuotaMB; there is no "unlimited" value,
+	// because a quota of zero would mean "keep nothing".
+	QuotaMB int `json:"quotaMB,omitempty"`
+	// RetentionHours is how long a received file is kept. A nil pointer means
+	// the user never chose, so the application's default applies; a present 0
+	// means "keep until the history record goes" (no age limit). Both cases
+	// must be distinguishable, exactly like Retention's two dimensions.
+	RetentionHours *int `json:"retentionHours,omitempty"`
+	// AutoClean is the switch that lets the retention limit delete expired
+	// files on its own. Off leaves them alone until the user cleans manually.
+	AutoClean *bool `json:"autoClean,omitempty"`
 }
 
 // UI is the interface preferences the settings page records. Every zero value
@@ -71,6 +107,83 @@ const (
 	MinFileSyncMaxMB     = 1
 )
 
+// The received-file cache: how much disk it may take, and how long one file
+// stays before it counts as expired. The quota is in the same league as the
+// per-file limit, so one maximum-size file fits inside it.
+const (
+	DefaultFileQuotaMB        = 2048
+	MinFileQuotaMB            = 1
+	DefaultFileRetentionHours = 24
+)
+
+// SyncEnabled reports whether sync is on. An absent object or field means on.
+func (f File) SyncEnabled() bool { return onByDefault(f.sync().Enabled) }
+
+// AutoSendEnabled reports whether new clipboard content is sent to other
+// devices on its own. An absent field means on.
+func (f File) AutoSendEnabled() bool { return onByDefault(f.sync().AutoSend) }
+
+// FileSyncEnabled reports whether file content may travel. An absent field
+// means on.
+func (f File) FileSyncEnabled() bool { return onByDefault(f.files().Enabled) }
+
+// FileAutoCleanEnabled reports whether expired files are deleted on their own.
+// An absent field means on.
+func (f File) FileAutoCleanEnabled() bool { return onByDefault(f.files().AutoClean) }
+
+// FileSyncDir returns the configured directory for received files, or the empty
+// string when the application's default location is used.
+func (f File) FileSyncDir() string { return f.files().Dir }
+
+// FileQuotaMB returns the effective cache quota in MiB.
+func (f File) FileQuotaMB() int {
+	megabytes := f.files().QuotaMB
+	if megabytes < MinFileQuotaMB {
+		return DefaultFileQuotaMB
+	}
+	return megabytes
+}
+
+// FileQuotaBytes returns the effective cache quota in bytes.
+func (f File) FileQuotaBytes() int64 { return FileQuotaBytes(f.FileQuotaMB()) }
+
+// FileRetentionHours returns how long a received file is kept, in hours; zero
+// means no age limit. An absent value means DefaultFileRetentionHours.
+func (f File) FileRetentionHours() int {
+	if hours := f.files().RetentionHours; hours != nil {
+		return *hours
+	}
+	return DefaultFileRetentionHours
+}
+
+// sync returns the sync object, or its zero value when the file never had one.
+func (f File) sync() Sync {
+	if f.Sync == nil {
+		return Sync{}
+	}
+	return *f.Sync
+}
+
+// files returns the file sync object, or its zero value when absent.
+func (f File) files() SyncFiles {
+	if f.Sync == nil || f.Sync.Files == nil {
+		return SyncFiles{}
+	}
+	return *f.Sync.Files
+}
+
+// onByDefault reads a switch whose absent value is on.
+func onByDefault(value *bool) bool { return value == nil || *value }
+
+// FileQuotaBytes converts a configured cache quota in MiB into bytes, applying
+// the default when the number is not usable.
+func FileQuotaBytes(megabytes int) int64 {
+	if megabytes < MinFileQuotaMB {
+		megabytes = DefaultFileQuotaMB
+	}
+	return megabytesToBytes(megabytes)
+}
+
 // FileSyncMaxBytes returns the effective limit in bytes: the configured number
 // of MiB, or the default when the file does not name a usable one.
 func (f File) FileSyncMaxBytes() int64 { return FileSyncMaxBytes(f.FileSyncMaxMB) }
@@ -81,8 +194,14 @@ func FileSyncMaxBytes(megabytes int) int64 {
 	if megabytes < MinFileSyncMaxMB {
 		megabytes = DefaultFileSyncMaxMB
 	}
+	return megabytesToBytes(megabytes)
+}
+
+// megabytesToBytes converts MiB to bytes, clamping a number so large that the
+// shift would wrap into a negative value.
+func megabytesToBytes(megabytes int) int64 {
 	if int64(megabytes) > math.MaxInt64>>20 {
-		// A limit this large is "no limit" in practice; clamping keeps the
+		// A value this large is "no limit" in practice; clamping keeps the
 		// conversion from wrapping into a negative limit.
 		return math.MaxInt64
 	}

@@ -16,9 +16,9 @@ tags: [network, security, sync]
 
 它是应用里唯一碰网络的包。界面只通过 `Service` 使用它：`Devices` / `Peers` /
 `Pair` / `ConfirmPairing` / `Send` / `Resend` / `SetDeviceSync` / `SetDirection` /
-`SetFileLimitBytes` / `RemoveDevice`，结果全部经 `Options` 里的回调返回。慢活
-（发现、配对、投递、文件收发）都在自己的 goroutine 上，回调也发生在那里——调用方
-自己负责搬到界面线程。
+`SetSyncEnabled` / `SetFileSyncEnabled` / `SetFilesDir` / `SetFileLimitBytes` /
+`RemoveDevice`，结果全部经 `Options` 里的回调返回。慢活（发现、配对、投递、文件收发）
+都在自己的 goroutine 上，回调也发生在那里——调用方自己负责搬到界面线程。
 
 ## 边界
 
@@ -28,7 +28,9 @@ tags: [network, security, sync]
   设备的同步开关与四种内容类型的方向。
 - 自己拥有接收文件的目录 `FilesDir`：每条内容一个以内容 ID 命名的子目录，另有
   `.staging` 中转区。目录归它管，因为它要边收边写、解包、失败时清理；应用只知道
-  最终路径。
+  最终路径。`SetFilesDir` 可以在运行中换掉它，下一次接收就落到新目录；已经开始的
+  传输记住自己起步时的根目录，在原来的位置完成——跨文件系统的 `rename` 会失败，
+  换目录不该让一条正在传的文件掉在半路。
 - 不拥有历史记录，也不决定某条内容该不该进历史：收到的内容以 `Clip` 交给调用方，
   由应用决定怎么存、要不要写剪贴板。
 
@@ -66,6 +68,12 @@ mDNS 全部丢失，普通子网广播却照常通过。只依赖 mDNS 会让那
 
 **条目身份。** 载荷按「能算出内容 ID 的形态」（`Clip`）传输，接收端自己用
 `history.ContentID` 算 ID，不信任发送端的 ID。同一内容在两台设备上落到同一条记录。
+
+**开关。** 总开关与文件同步开关是应用层设置的闸门，由服务执行：关掉后 `Send` /
+`Resend` 直接返回，`/v1/clip` 与文件 offer 回 `ignored` + 理由 `sync`，发送端因此
+记成「待发送」而不是已送达。发现、配对与设备列表不受影响——关掉同步不等于关掉网络，
+否则关过一次就再也配不上对。文件同步开关只管文件类内容，文字、图片与富文本照旧。
+两个开关默认开，运行中可改，不需要重启服务。
 
 **投递。** 目标是「设备开关打开 + 该内容类型方向允许发送」的设备，并行投递，
 结果一次性回报为 `history.DeviceDelivery`：收到 / 离线 / 未送达（对方拒收）/ 文件

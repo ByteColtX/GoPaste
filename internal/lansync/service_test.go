@@ -752,3 +752,63 @@ func TestServiceStartsRealDiscovery(t *testing.T) {
 	service.Refresh()
 	service.Stop()
 }
+
+// TestSendDoesNothingWhileSyncIsOff 检查总开关关掉后本机不发送：既没有投递结果，
+// 对端也收不到东西。
+func TestSendDoesNothingWhileSyncIsOff(t *testing.T) {
+	sender := newTestService(t, "MacBook Pro")
+	receiver := newTestService(t, "工作室 PC")
+	pairWith(t, sender, receiver)
+	sender.service.SetSyncEnabled(false)
+
+	item := textItem(t, "not sent while sync is off")
+	sender.service.Send(item)
+	// 没有任何投递 goroutine 被启动，所以只要等一小会儿就足以证明「什么都没发生」。
+	time.Sleep(100 * time.Millisecond)
+
+	sender.mu.Lock()
+	deliveries := len(sender.deliveries[item.ID])
+	sender.mu.Unlock()
+	if deliveries != 0 {
+		t.Errorf("sync off 时仍记录了 %d 条投递结果", deliveries)
+	}
+	if clips := receiver.received(); len(clips) != 0 {
+		t.Errorf("sync off 时对端仍收到 %d 条内容", len(clips))
+	}
+}
+
+// TestResendDoesNothingWhileSyncIsOff 检查手动重发也过总开关：关掉同步之后界面上的
+// 重发按钮不能绕过它。
+func TestResendDoesNothingWhileSyncIsOff(t *testing.T) {
+	sender := newTestService(t, "MacBook Pro")
+	receiver := newTestService(t, "工作室 PC")
+	pairWith(t, sender, receiver)
+
+	item := textItem(t, "resent after sync went off")
+	sender.service.SetSyncEnabled(false)
+	sender.service.Resend(item, receiver.service.Identity().ID)
+	time.Sleep(100 * time.Millisecond)
+
+	if clips := receiver.received(); len(clips) != 0 {
+		t.Errorf("sync off 时重发仍送达了 %d 条内容", len(clips))
+	}
+}
+
+// TestClipRefusedWhileSyncIsOff 检查接收端关掉总开关时如实拒收：发送端看到的是
+// 「待发送」，而不是以为已经送达。
+func TestClipRefusedWhileSyncIsOff(t *testing.T) {
+	sender := newTestService(t, "MacBook Pro")
+	receiver := newTestService(t, "工作室 PC")
+	pairWith(t, sender, receiver)
+	receiver.service.SetSyncEnabled(false)
+
+	item := textItem(t, "refused by the receiver")
+	sender.service.Send(item)
+
+	if got, want := sender.deliveryFor(t, item.ID, receiver.service.Identity().ID), history.DeliveryPending; got != want {
+		t.Fatalf("delivery state = %v, want %v", got, want)
+	}
+	if clips := receiver.received(); len(clips) != 0 {
+		t.Errorf("关掉总开关的接收端仍存下了 %d 条内容", len(clips))
+	}
+}

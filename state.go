@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net"
 	"os"
-	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -29,8 +28,11 @@ func newApplication() *application {
 		history:            history.New(nil),
 		retention:          defaultRetention(),
 		devicePlatform:     localPlatformName(),
-		deviceSyncEnabled:  true,
-		deviceFileSync:     true,
+		syncEnabled:        true,
+		autoSendEnabled:    true,
+		fileSyncEnabled:    true,
+		fileAutoClean:      true,
+		fileRetentionHours: settings.DefaultFileRetentionHours,
 		pairedDevices:      previewDevices(),
 		languagePreference: languagePreferenceSystem,
 		language:           languageSimplifiedChinese,
@@ -45,8 +47,9 @@ func newApplication() *application {
 	// 自己起一个。设备页显示时再去掉 .local 后缀，见 deviceDisplayName。
 	app.deviceNameDefault = defaultDeviceName(localHostname(), localPlatformSlug(), app.devicePeerID)
 	app.deviceName = app.deviceNameDefault
-	// 上限先按默认值就位：设置文件读出来之后 applySettings 会再覆盖一次。
+	// 上限与配额先按默认值就位：设置文件读出来之后 applySettings 会再覆盖一次。
 	app.applyFileSyncLimit(settings.DefaultFileSyncMaxMB)
+	app.applyFileQuota(settings.DefaultFileQuotaMB)
 	app.sortPairedDevices()
 	return app
 }
@@ -162,6 +165,9 @@ func (a *application) setPage(next page) {
 	if next == pageSettings && a.settingsArea == settingsStorage {
 		a.requestStorageUsage(nil)
 	}
+	if next == pageSettings && a.settingsArea == settingsSync {
+		a.requestStorageUsage(nil)
+	}
 	if a.onPageChanged != nil {
 		a.onPageChanged()
 	}
@@ -174,7 +180,9 @@ func (a *application) setSettingsArea(area settingsArea) {
 		return
 	}
 	a.settingsArea = area
-	if area == settingsStorage {
+	// 「储存空间」与「同步」两页都显示磁盘占用：一出现就该有数字，而不是等用户
+	// 去点刷新。
+	if area == settingsStorage || area == settingsSync {
 		a.requestStorageUsage(nil)
 	}
 }
@@ -267,17 +275,31 @@ func (a *application) setTagFilter(filter historyTagFilter) {
 	}
 }
 
-// setSyncEnabled 同步更新本机、文件和所有已配对设备的同步开关。
+// setSyncEnabled 开关同步的总开关。关掉后本机既不发送也不接收内容，但每台设备
+// 自己的开关与方向原样保留——重新打开就回到原来的样子。设备页与托盘共用这里。
 func (a *application) setSyncEnabled(enabled bool) {
-	a.deviceSyncEnabled = enabled
-	a.deviceFileSync = enabled
-	for index := range a.pairedDevices {
-		a.pairedDevices[index].syncEnabled = enabled
-		if a.syncService != nil {
-			_ = a.syncService.SetDeviceSync(a.pairedDevices[index].id, enabled)
-		}
+	a.syncEnabled = enabled
+	if a.syncService != nil {
+		a.syncService.SetSyncEnabled(enabled)
 	}
+	a.saveSettings()
 	a.syncStateChanged()
+}
+
+// setAutoSendEnabled 开关「自动发送新内容」。关掉后新内容只进本地历史，需要时
+// 用条目上的重发手动发送。
+func (a *application) setAutoSendEnabled(enabled bool) {
+	a.autoSendEnabled = enabled
+	a.saveSettings()
+}
+
+// setFileSyncEnabled 开关文件类内容。关掉后文件不收不发，文字、图片与富文本照旧。
+func (a *application) setFileSyncEnabled(enabled bool) {
+	a.fileSyncEnabled = enabled
+	if a.syncService != nil {
+		a.syncService.SetFileSyncEnabled(enabled)
+	}
+	a.saveSettings()
 }
 
 // toggleDeviceSync 翻转一台已配对设备的同步开关。设备已被取消配对时不做任何事。
@@ -402,10 +424,11 @@ func (a *application) clearHistory() {
 	for _, item := range view.Items {
 		ids = append(ids, item.ID)
 	}
+	// 目录要从 Store 里的条目反推，所以必须在清空之前收集。
+	removed := a.clearReceivedFiles()
 	a.history.Clear()
 	a.historyBitmaps = nil
 	a.codeHighlights = nil
-	removed := a.clearReceivedFiles()
 	a.persistDelete(ids...)
 	// 文件在后台删，用量等它们真的没了再测，否则刚清掉的那一份还会被算进去。
 	a.requestStorageUsage(removed)
@@ -556,7 +579,7 @@ func (a *application) restoreHistoryItem(item history.Item) {
 // discardReceivedFiles 删掉一条收到的文件记录落盘的文件。它只在撤销机会结束后执行，
 // 所以窗口内撤销时记录和文件都还在。
 func (a *application) discardReceivedFiles(item history.Item) {
-	dir, ok := a.receivedFilesPath(item)
+	dir, ok := receivedFilesPath(item)
 	if !ok {
 		return
 	}
@@ -564,30 +587,23 @@ func (a *application) discardReceivedFiles(item history.Item) {
 	go func() { _ = os.RemoveAll(dir) }()
 }
 
-// receivedFilesPath 返回一条收到的文件记录在本机落盘的目录。只有来自设备的文件条目
-// 才有这个目录：本机捕获的文件项只是指向用户自己的文件，不能删。
-func (a *application) receivedFilesPath(item history.Item) (string, bool) {
-	if a.receivedFilesDir == "" || item.Kind != kindFile || item.SourceDeviceID == "" {
-		return "", false
-	}
-	if item.ID == "" || strings.ContainsAny(item.ID, `/\`) {
-		return "", false
-	}
-	return filepath.Join(a.receivedFilesDir, item.ID), true
-}
-
 // clearReceivedFiles 清空收到的同步文件。清空历史没有撤销，所以文件跟着立刻走。
 // 返回的通道在目录删完后关闭，用量统计据此等文件真的没了再测；没有文件可删时返回
 // nil。
+//
+// 只删每条记录自己的目录，不删保存位置的整个根目录：用户可能把保存位置选在自己
+// 的文件夹里，整棵删掉会连他的东西一起删。
 func (a *application) clearReceivedFiles() <-chan struct{} {
-	if a.receivedFilesDir == "" {
+	entries := a.receivedFileEntries()
+	if len(entries) == 0 {
 		return nil
 	}
-	dir := a.receivedFilesDir
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		_ = os.RemoveAll(dir)
+		for _, entry := range entries {
+			_ = os.RemoveAll(entry.Dir)
+		}
 	}()
 	return done
 }
@@ -873,6 +889,10 @@ func (a *application) receiveClip(clip lansync.Clip, from lansync.Device) {
 		return
 	}
 	a.persistItem(item)
+	if item.Kind == kindFile {
+		// 新收到的文件可能一下就顶到配额：立刻按规则裁一次。
+		a.requestFileCacheCleanup(false)
+	}
 }
 
 // maxPendingClips 是装载历史之前最多先收下多少条同步内容。正常情况下这个窗口只有

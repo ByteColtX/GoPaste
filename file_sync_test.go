@@ -98,13 +98,15 @@ func TestDiscardReceivedFilesOnlyTouchesReceivedItems(t *testing.T) {
 	app, _ := syncApp()
 	app.receivedFilesDir = t.TempDir()
 
-	if _, ok := app.receivedFilesPath(history.Item{ID: "abc", Kind: kindFile, Text: "/Users/me/report.pdf"}); ok {
+	if _, ok := receivedFilesPath(history.Item{ID: "abc", Kind: kindFile, Text: "/Users/me/report.pdf"}); ok {
 		t.Error("a locally captured file item must not own a directory")
 	}
-	if _, ok := app.receivedFilesPath(history.Item{ID: "abc", Kind: kindImage, SourceDeviceID: "peer-a"}); ok {
+	if _, ok := receivedFilesPath(history.Item{ID: "abc", Kind: kindImage, SourceDeviceID: "peer-a"}); ok {
 		t.Error("only file items own a directory")
 	}
-	dir, ok := app.receivedFilesPath(history.Item{ID: "abc", Kind: kindFile, SourceDeviceID: "peer-a"})
+	item := history.Item{ID: "abc", Kind: kindFile, SourceDeviceID: "peer-a",
+		Text: filepath.Join(app.receivedFilesDir, "abc", "report.pdf")}
+	dir, ok := receivedFilesPath(item)
 	if !ok {
 		t.Fatal("a received file item must own a directory")
 	}
@@ -163,10 +165,14 @@ func TestClearHistoryRemovesReceivedFiles(t *testing.T) {
 
 	app.clearHistory()
 
+	// 只删记录自己的目录：保存位置本身可能是用户自己的文件夹，不能被整棵删掉。
 	waitUntil(t, func() bool {
-		_, err := os.Stat(app.receivedFilesDir)
+		_, err := os.Stat(filepath.Dir(local))
 		return errors.Is(err, os.ErrNotExist)
 	})
+	if _, err := os.Stat(app.receivedFilesDir); err != nil {
+		t.Errorf("保存位置的根目录不该被整棵删掉: %v", err)
+	}
 }
 
 // TestFileSyncLimitDefaultsAndEditing 检查上限的默认值、非法输入保留上一个有效值、
@@ -223,12 +229,12 @@ func TestSaveSettingsWritesTheFileSyncLimit(t *testing.T) {
 	}
 }
 
-// TestSettingsStorageShowsTheFileSyncLimit 检查设置页「存储」分栏渲染出上限输入框。
-// 测试器在 key 重复时会 panic，所以这也是新控件的一次冒烟检查。
-func TestSettingsStorageShowsTheFileSyncLimit(t *testing.T) {
+// TestSettingsSyncShowsTheFileSyncLimit 检查上限输入框跟着文件同步一起搬到了
+// 「同步」分栏。测试器在 key 重复时会 panic，所以这也是新控件的一次冒烟检查。
+func TestSettingsSyncShowsTheFileSyncLimit(t *testing.T) {
 	app := previewApp("")
 	app.setPage(pageSettings)
-	app.settingsArea = settingsStorage
+	app.settingsArea = settingsSync
 
 	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 
@@ -238,7 +244,7 @@ func TestSettingsStorageShowsTheFileSyncLimit(t *testing.T) {
 		app.t(msgSettingsFileSyncLimitUnit),
 	} {
 		if !tt.HasText(want) {
-			t.Errorf("存储分栏应显示 %q，实际显示：%q", want, tt.Texts())
+			t.Errorf("同步分栏应显示 %q，实际显示：%q", want, tt.Texts())
 		}
 	}
 	// 输入框里的值不参与文本列表，所以直接看状态：默认值就是设置文件缺省时的值。

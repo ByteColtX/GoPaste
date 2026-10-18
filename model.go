@@ -4,6 +4,7 @@ import (
 	"strings"
 	"time"
 
+	"gopaste/internal/filescache"
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
 
@@ -55,6 +56,7 @@ type settingsArea uint8
 
 const (
 	settingsGeneral settingsArea = iota
+	settingsSync
 	settingsAppearance
 	settingsStorage
 	settingsAbout
@@ -208,6 +210,14 @@ type application struct {
 	// Window.Update 回填（见 applyStorageUsage）。为 nil 时（测试、没有窗口）不测，
 	// 用量区显示上一次的结果。参数非空时先等它关闭再统计。
 	onMeasureStorageUsage func(after <-chan struct{})
+	// onCleanFileCache 由运行时安装：在界面线程之外测量收到的文件、按规则挑出该删
+	// 的记录，结果经 Window.Update 回填（见 applyFileCacheCleanup）。为 nil 时
+	// （测试、没有窗口）不清理。
+	onCleanFileCache func(entries []filescache.Entry, policy filescache.Policy)
+	// onChooseDirectory 由运行时安装：在界面线程之外打开系统目录选择框，选完经
+	// Window.Update 回到 applyDirectoryChoice。为 nil 时（测试、没有窗口）按钮什么
+	// 都不做。
+	onChooseDirectory func(defaultPath string)
 	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
 	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
 	onZoomChanged func(zoom float32)
@@ -259,14 +269,36 @@ type application struct {
 	syncService *lansync.Service
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：
 	// 浮层由指针悬停状态标记展开，指针移开标记与浮层后收起。
-	syncPopoverItem        string
-	syncPopoverOpen        bool
-	deviceName             string
-	deviceNameDefault      string // 启动时算出的默认名（主机名），设备页据此判断是否仍是默认值
-	devicePeerID           string
-	devicePlatform         string
-	deviceSyncEnabled      bool
-	deviceFileSync         bool
+	syncPopoverItem   string
+	syncPopoverOpen   bool
+	deviceName        string
+	deviceNameDefault string // 启动时算出的默认名（主机名），设备页据此判断是否仍是默认值
+	devicePeerID      string
+	devicePlatform    string
+	// syncEnabled 是同步页的总开关，autoSendEnabled 决定新内容是否自动投递，
+	// fileSyncEnabled 是文件类内容自己的开关。三个都跨启动保留，设备页的本地卡与
+	// 同步页绑定同一份状态。
+	syncEnabled     bool
+	autoSendEnabled bool
+	fileSyncEnabled bool
+	// fileSyncDir 是用户选的文件保存位置，空表示用 fileSyncDirDefault。
+	// receivedFilesDir 是当前真正落盘的那个根目录：它是两者之一，同步服务、用量
+	// 统计与清理都看它。
+	fileSyncDir        string
+	fileSyncDirDefault string
+	// fileQuotaMB 是配额输入框里的文本，fileQuotaBytes 是它解析后的有效值，两者
+	// 的关系与 fileSyncMaxMB/fileSyncLimitBytes 相同。
+	fileQuotaMB    string
+	fileQuotaBytes int64
+	// fileRetentionHours 是收到的文件保留多少小时，0 表示不限；fileAutoClean 决定
+	// 到期是否自动删除。
+	fileRetentionHours int
+	fileAutoClean      bool
+	// fileCachePending 表示已经请运行时去测一遍文件缓存、结果还没回来：它挡住重复
+	// 请求，也让「立即清理」按钮在跑的时候置灰。fileCacheManual 记住这一趟是不是
+	// 手动触发的，决定没有可清理的东西时要不要提示。
+	fileCachePending       bool
+	fileCacheManual        bool
 	pairedDevices          []pairedDevice
 	deviceDiscovery        deviceDiscoveryState
 	deviceDiscoveryMessage string

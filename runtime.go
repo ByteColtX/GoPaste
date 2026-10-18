@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"gopaste/internal/filescache"
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
 
@@ -106,6 +107,8 @@ func (r *applicationRuntime) ready() {
 	r.app.onFilterRailToggled = r.filterRailToggled
 	r.app.onPageChanged = r.pageChanged
 	r.app.onMeasureStorageUsage = r.measureStorageUsage
+	r.app.onCleanFileCache = r.cleanFileCache
+	r.app.onChooseDirectory = r.chooseDirectory
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
@@ -164,11 +167,11 @@ func (r *applicationRuntime) ready() {
 	})
 
 	tray, err := newSystemTray(systemTrayOptions{
-		syncEnabled: func() bool { return r.app.deviceSyncEnabled },
+		syncEnabled: func() bool { return r.app.syncEnabled },
 		devices:     r.app.trayDevices,
 		text:        r.app.t,
 		onToggleSync: func() {
-			r.app.setSyncEnabled(!r.app.deviceSyncEnabled)
+			r.app.setSyncEnabled(!r.app.syncEnabled)
 		},
 		onToggleDeviceSync: r.app.toggleDeviceSync,
 		onOpen:             r.showMainWindow,
@@ -491,12 +494,14 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		r.publishDiscoveryFailure(r.app.t(msgDevicesDiscoveryUnavailable))
 		return
 	}
-	// 收到的文件落在数据目录下，与历史数据库、配对信息同一处。拿不到位置就
-	// 不接收文件（其它类型的同步照常），而不是把文件写到某个猜出来的地方。
+	// 收到的文件默认落在数据目录下，与历史数据库、配对信息同一处；用户在同步页
+	// 选过别的目录就用那一个。拿不到默认位置又不接收文件时，其它类型的同步照常，
+	// 而不是把文件写到某个猜出来的地方。
 	if dir, err := receivedFilesDirectory(); err != nil {
 		log.Printf("无法确定接收文件的位置，本次不接收同步文件: %v", err)
+		r.app.setDefaultFilesDir("")
 	} else {
-		r.app.receivedFilesDir = dir
+		r.app.setDefaultFilesDir(dir)
 	}
 	options := lansync.Options{
 		StorePath:      path,
@@ -543,6 +548,10 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		return
 	}
 	r.app.syncService = service
+	// 服务构造时拿到的是初始值；设置文件里关掉的开关在这里补推一次，否则重启后
+	// 界面显示关闭、服务却照常收发。
+	service.SetSyncEnabled(r.app.syncEnabled)
+	service.SetFileSyncEnabled(r.app.fileSyncEnabled)
 	r.app.devicePeerID = service.Identity().ID
 	r.app.deviceDiscovery = deviceDiscoveryLoading
 	r.update(func() { r.app.applySyncDevices(service.Devices()) })
@@ -631,13 +640,48 @@ func (r *applicationRuntime) measureStorageUsage(after <-chan struct{}) {
 }
 
 // storageUsagePaths 返回用量统计要看的几个位置。拿不到的位置留空，对应那一类按 0
-// 算：没有数据目录时本来就什么都没落盘。
+// 算：没有数据目录时本来就什么都没落盘。文件那一类可能有多个根目录，见
+// fileCacheRoots。
 func (r *applicationRuntime) storageUsagePaths() storageUsagePaths {
-	paths := storageUsagePaths{files: r.app.receivedFilesDir}
+	paths := storageUsagePaths{files: r.app.fileCacheRoots()}
 	if database, err := r.databaseFile(); err == nil {
 		paths.database = database
 	}
 	return paths
+}
+
+// chooseDirectory 在界面线程之外打开系统目录选择框，选完经 Window.Update 回到界面
+// 线程。
+//
+// 对话框会阻塞到用户作出选择，所以不能直接在手势回调里等它：那会让界面线程卡在
+// 事件循环里重入，实测有概率根本弹不出来。窗口作为 Parent 传进去，macOS 上它是窗口的
+// sheet，不会跑到别的窗口后面。
+func (r *applicationRuntime) chooseDirectory(defaultPath string) {
+	title := r.app.t(msgSettingsFileSyncDir)
+	button := r.app.t(msgSettingsFileSyncDirChoose)
+	go func() {
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+			Parent:            r.window,
+			Title:             title,
+			DefaultPath:       defaultPath,
+			ButtonLabel:       button,
+			Directory:         true,
+			CreateDirectories: true,
+		})
+		if err != nil || len(paths) == 0 {
+			return
+		}
+		r.update(func() { r.app.applyDirectoryChoice(paths[0]) })
+	}()
+}
+
+// cleanFileCache 在界面线程之外测量收到的文件，并按保留期限与配额挑出该删的记录。
+// 结果经 Window.Update 回到界面线程，删记录与落盘仍在那里做。
+func (r *applicationRuntime) cleanFileCache(entries []filescache.Entry, policy filescache.Policy) {
+	go func() {
+		removed := filescache.Plan(filescache.Measure(entries), policy, time.Now())
+		r.update(func() { r.app.applyFileCacheCleanup(removed) })
+	}()
 }
 
 // update 在窗口存在时把结果送回界面线程。窗口可能已经关闭（退出过程中），所以

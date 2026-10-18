@@ -183,7 +183,7 @@ func TestFileTransferNeedsAReceiverFilesDirectory(t *testing.T) {
 	sender := newTestService(t, "MacBook Pro")
 	receiver := newTestService(t, "工作室 PC")
 	pairWith(t, sender, receiver)
-	receiver.service.options.FilesDir = ""
+	receiver.service.SetFilesDir("")
 
 	source := writeFile(t, filepath.Join(t.TempDir(), "notes.txt"), "kept here")
 	item := fileItem(source)
@@ -425,5 +425,82 @@ func TestFileTransferKeepsOneDirectoryPerContent(t *testing.T) {
 	}
 	if len(entries) != 1 {
 		t.Errorf("the item directory holds %d entries, want one copy", len(entries))
+	}
+}
+
+// TestFileTransferRefusesWhileFileSyncIsOff 检查文件同步关掉后文件项被拒收，而
+// 文字照常通过：两个开关互不牵连。
+func TestFileTransferRefusesWhileFileSyncIsOff(t *testing.T) {
+	sender := newTestService(t, "MacBook Pro")
+	receiver := newTestService(t, "工作室 PC")
+	pairWith(t, sender, receiver)
+	receiver.service.SetFileSyncEnabled(false)
+
+	source := writeFile(t, filepath.Join(t.TempDir(), "notes.txt"), "kept here")
+	item := fileItem(source)
+	sender.service.Send(item)
+
+	if got, want := sender.deliveryFor(t, item.ID, receiver.service.Identity().ID), history.DeliveryPending; got != want {
+		t.Fatalf("delivery state = %v, want %v", got, want)
+	}
+	if clips := receiver.received(); len(clips) != 0 {
+		t.Errorf("the receiver got %d payloads, want none", len(clips))
+	}
+
+	// 文字不受文件同步开关影响。
+	text := textItem(t, "still flowing")
+	sender.service.Send(text)
+	if got, want := sender.deliveryFor(t, text.ID, receiver.service.Identity().ID), history.DeliveryReceived; got != want {
+		t.Fatalf("text delivery state = %v, want %v", got, want)
+	}
+}
+
+// TestFileTransferRefusesWhileSyncIsOff 检查总开关关掉后连 offer 都不接。
+func TestFileTransferRefusesWhileSyncIsOff(t *testing.T) {
+	sender := newTestService(t, "MacBook Pro")
+	receiver := newTestService(t, "工作室 PC")
+	pairWith(t, sender, receiver)
+	receiver.service.SetSyncEnabled(false)
+
+	source := writeFile(t, filepath.Join(t.TempDir(), "notes.txt"), "kept here")
+	item := fileItem(source)
+	sender.service.Send(item)
+
+	if got, want := sender.deliveryFor(t, item.ID, receiver.service.Identity().ID), history.DeliveryPending; got != want {
+		t.Fatalf("delivery state = %v, want %v", got, want)
+	}
+}
+
+// TestSetFilesDirMovesTheNextItem 检查运行中换目录后，下一次接收的文件落在新目录，
+// 已经收到的文件不动。
+func TestSetFilesDirMovesTheNextItem(t *testing.T) {
+	sender := newTestService(t, "MacBook Pro")
+	receiver := newTestService(t, "工作室 PC")
+	pairWith(t, sender, receiver)
+
+	first := fileItem(writeFile(t, filepath.Join(t.TempDir(), "first.txt"), "one"))
+	sender.service.Send(first)
+	waitFor(t, func() bool { return len(receiver.received()) == 1 })
+	firstLocal := receiver.received()[0].LocalFiles
+	if len(firstLocal) != 1 {
+		t.Fatalf("first item landed at %v", firstLocal)
+	}
+
+	moved := t.TempDir()
+	receiver.service.SetFilesDir(moved)
+
+	second := fileItem(writeFile(t, filepath.Join(t.TempDir(), "second.txt"), "two"))
+	sender.service.Send(second)
+	waitFor(t, func() bool { return len(receiver.received()) == 2 })
+	secondLocal := receiver.received()[1].LocalFiles
+	if len(secondLocal) != 1 {
+		t.Fatalf("second item landed at %v", secondLocal)
+	}
+	if !strings.HasPrefix(secondLocal[0], moved+string(filepath.Separator)) {
+		t.Errorf("second item landed at %q, want under %q", secondLocal[0], moved)
+	}
+	// 已经收到的文件留在原处，不跟着搬家。
+	if _, err := os.Stat(firstLocal[0]); err != nil {
+		t.Errorf("the first item moved away: %v", err)
 	}
 }

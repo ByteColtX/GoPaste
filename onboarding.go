@@ -125,6 +125,7 @@ func (a *application) applySettings(file settings.File) {
 	a.onboardingCompleted = file.Onboarding.Completed
 	a.applyRetentionSettings(file.Retention)
 	a.applyFileSyncLimit(file.FileSyncMaxMB)
+	a.applySyncSettings(file.Sync)
 	if !a.onboardingCompleted {
 		a.startOnboarding()
 	}
@@ -169,6 +170,7 @@ func (a *application) saveSettings() {
 		Onboarding: settings.Onboarding{Completed: a.onboardingCompleted},
 		UI:         a.preferences(),
 		Retention:  a.retentionSettings(),
+		Sync:       a.syncSettingsFile(),
 	}
 	// 默认名不落盘：它跟着系统主机名走，写进文件会把这一刻的主机名冻住，用户
 	// 之后改主机名就不再生效。只有用户真的改过名字才记下来。

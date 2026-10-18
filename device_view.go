@@ -117,7 +117,7 @@ func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
 		func() { deviceRowTile(c, theme, iconForPlatform(a.devicePlatform), selected) },
 		func() {
 			ui.Text(c, name).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
-			deviceSyncStatus(c, theme, a.deviceSyncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
+			deviceSyncStatus(c, theme, a.syncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
 		})
 	if entry.Clicked() {
 		a.selectedDeviceID = ""
@@ -258,7 +258,7 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 	name := a.deviceDisplayName()
 	platform := a.devicePlatform
 	online := true
-	syncEnabled := a.deviceSyncEnabled
+	syncEnabled := a.syncEnabled
 	if paired {
 		name = device.name
 		platform = device.platform
@@ -341,18 +341,36 @@ func (a *application) deviceSyncSettings(c *ui.Context, theme *ui.Theme) {
 			a.pairedSyncRows(c, theme, device)
 			return
 		}
-		a.deviceSwitchRow(c, theme, a.t(msgDevicesEnableSync), a.t(msgDevicesEnableSyncDesc), "local-sync", &a.deviceSyncEnabled, false)
+		a.deviceSwitchRow(c, theme, a.t(msgDevicesEnableSync), a.t(msgDevicesEnableSyncDesc), "local-sync", &a.syncEnabled, false)
 		deviceDivider(c, theme)
 		fileSyncDescription := a.t(msgDevicesFileSyncDesc)
-		if !a.deviceSyncEnabled {
+		if !a.syncEnabled {
 			fileSyncDescription = a.tf(msgDevicesFileSyncDisabled, fileSyncDescription)
 		}
-		a.deviceSwitchRow(c, theme, a.t(msgDevicesFileSync), fileSyncDescription, "local-file-sync", &a.deviceFileSync, !a.deviceSyncEnabled)
+		a.deviceSwitchRow(c, theme, a.t(msgDevicesFileSync), fileSyncDescription, "local-file-sync", &a.fileSyncEnabled, !a.syncEnabled)
+	})
+}
+
+// deviceSyncOffNote 说明这一页的开关为什么是灰的：总开关在设置 › 同步里关着，
+// 这里的选择只是保留着，等总开关打开才生效。
+func (a *application) deviceSyncOffNote(c *ui.Context, theme *ui.Theme) {
+	ui.Row(c.Key("device-sync-page-off")).FillWidth().Shrink(0).AlignItems(ui.Center).
+		Gap(space(theme, 2)).Padding(space(theme, 3.5), space(theme, 4)).Children(func() {
+		ui.Icon(c, icons.about).Size(space(theme, 4), space(theme, 4)).Shrink(0).
+			TextColor(secondaryText(theme))
+		ui.Text(c, a.t(msgDevicesSyncPageOffNote)).FontSize(font(theme, fontMeta)).
+			TextColor(secondaryText(theme)).Wrap()
 	})
 }
 
 func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pairedDevice) {
-	a.deviceSwitchRow(c, theme, a.tf(msgDevicesSyncWith, device.name), a.t(msgDevicesSyncWithDesc), device.id+"-sync", &device.syncEnabled, false)
+	// 总开关关着时这台设备的开关与方向都不生效：置灰只读，并在卡片顶部说明原因，
+	// 免得用户改了半天才发现没有用。
+	if !a.syncEnabled {
+		a.deviceSyncOffNote(c, theme)
+		deviceDivider(c, theme)
+	}
+	a.deviceSwitchRow(c, theme, a.tf(msgDevicesSyncWith, device.name), a.t(msgDevicesSyncWithDesc), device.id+"-sync", &device.syncEnabled, !a.syncEnabled)
 	deviceDivider(c, theme)
 
 	ui.Row(c.Key(device.id+"-sync-content-mode")).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
@@ -396,7 +414,7 @@ func (a *application) syncDirectionRow(
 	setting syncContentSetting,
 	directions []option[syncDirection],
 ) {
-	disabled := !device.syncEnabled || !device.online
+	disabled := !a.syncEnabled || !device.syncEnabled || !device.online
 	description := a.syncDirectionDescription(device, setting.label)
 	selectLabel := a.tf(msgSyncDirectionLabel, setting.label)
 	if a.compactDetailLayout(c, theme) {
@@ -435,6 +453,9 @@ func (a *application) syncDirectionRow(
 }
 
 func (a *application) syncDirectionDescription(device *pairedDevice, label string) string {
+	if !a.syncEnabled {
+		return a.tf(msgSyncDescPageOff, label)
+	}
 	if !device.syncEnabled {
 		return a.tf(msgSyncDescSyncOff, label)
 	}
@@ -476,10 +497,11 @@ func (a *application) deviceSwitchRow(
 		if switchControl.Changed() {
 			switch key {
 			case "local-sync":
-				// 页面开关和托盘开关共用同一条状态更新路径，避免设备状态不一致。
-				a.setSyncEnabled(a.deviceSyncEnabled)
+				// 设备页与同步页的总开关绑定同一份状态，两处入口共用一条更新路径。
+				a.setSyncEnabled(a.syncEnabled)
 			case "local-file-sync":
-				// 本机的文件同步开关只影响本机，没有要写回的服务状态。
+				// 文件同步开关同样与同步页绑定，改动会落盘并推给正在运行的服务。
+				a.setFileSyncEnabled(a.fileSyncEnabled)
 			default:
 				// 单台设备的开关：写回同步服务并落盘。
 				a.toggleDeviceSync(strings.TrimSuffix(key, "-sync"))
