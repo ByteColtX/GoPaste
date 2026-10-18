@@ -225,6 +225,7 @@ type application struct {
 	syncPopoverItem          string
 	syncPopoverOpen          bool
 	deviceName               string
+	deviceNameDefault        string // 启动时算出的默认名（主机名），设备页据此判断是否仍是默认值
 	devicePeerID             string
 	devicePlatform           string
 	deviceSyncEnabled        bool
