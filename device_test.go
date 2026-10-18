@@ -29,9 +29,9 @@ func TestDeviceSidebarHeaderFitsItsRefreshButton(t *testing.T) {
 	if !ok {
 		t.Fatalf("设备页应显示刷新按钮 %q，实际显示：%q", app.t(msgDevicesRefresh), tt.Texts())
 	}
-	local, ok := tt.Find(app.deviceName)
+	local, ok := tt.Find(app.deviceDisplayName())
 	if !ok {
-		t.Fatalf("设备页应显示本机条目 %q，实际显示：%q", app.deviceName, tt.Texts())
+		t.Fatalf("设备页应显示本机条目 %q，实际显示：%q", app.deviceDisplayName(), tt.Texts())
 	}
 	first, ok := tt.Find("MacBook Pro")
 	if !ok {

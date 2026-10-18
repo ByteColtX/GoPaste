@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"time"
 
 	"github.com/egoist/mygo/ui"
@@ -97,12 +98,23 @@ func (a *application) deviceRefreshSpinning(now time.Time) bool {
 	return a.deviceDiscovery == deviceDiscoveryLoading || now.Before(a.deviceRefreshSpinUntil)
 }
 
+// deviceDisplayName 返回设备页显示的本机名称。默认名就是系统主机名，macOS 上
+// 带 .local 后缀，设备页显示时去掉它；设置页的输入框仍显示完整主机名。用户改
+// 过的名字原样显示，不受后缀影响。
+func (a *application) deviceDisplayName() string {
+	if a.deviceName == a.deviceNameDefault {
+		return strings.TrimSuffix(a.deviceName, ".local")
+	}
+	return a.deviceName
+}
+
 func (a *application) localDeviceEntry(c *ui.Context, theme *ui.Theme) {
+	name := a.deviceDisplayName()
 	selected := a.selectedDeviceID == ""
-	entry := listRow(c, theme, "local-device", a.deviceName, selected,
+	entry := listRow(c, theme, "local-device", name, selected,
 		func() { deviceRowTile(c, theme, iconForPlatform(a.devicePlatform), selected) },
 		func() {
-			ui.Text(c, a.deviceName).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+			ui.Text(c, name).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			deviceSyncStatus(c, theme, a.deviceSyncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
 		})
 	if entry.Clicked() {
@@ -230,7 +242,7 @@ func (a *application) deviceConnectionNotice(c *ui.Context, theme *ui.Theme) {
 
 func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 	device, paired := a.selectedPairedDevice()
-	name := a.deviceName
+	name := a.deviceDisplayName()
 	platform := a.devicePlatform
 	online := true
 	syncEnabled := a.deviceSyncEnabled

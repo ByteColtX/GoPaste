@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"runtime"
 	"slices"
 	"sort"
@@ -20,7 +21,6 @@ func newApplication() *application {
 		historyPaneWidth: defaultHistoryPaneWidth,
 		// 历史记录由 SQLite 仓库异步装载，见 startHistoryPersistence。
 		history:            history.New(nil),
-		deviceName:         newLocalizer(languageSimplifiedChinese).text(msgDevicesBadgeLocal),
 		devicePlatform:     localPlatformName(),
 		deviceSyncEnabled:  true,
 		deviceFileSync:     true,
@@ -34,8 +34,47 @@ func newApplication() *application {
 		// 设置页的「删除前确认」开关可以再打开。
 		confirmBeforeDelete: true,
 	}
+	// 设备名默认就是这台机器在局域网里的名字：别的机器看到的就是它，用户不必
+	// 自己起一个。设备页显示时再去掉 .local 后缀，见 deviceDisplayName。
+	app.deviceNameDefault = defaultDeviceName(localHostname(), localPlatformSlug(), app.devicePeerID)
+	app.deviceName = app.deviceNameDefault
 	app.sortPairedDevices()
 	return app
+}
+
+// defaultDeviceName 返回本机设备名的默认值。系统主机名直接拿来用：macOS 上是
+// 带 .local 的局域网名，Windows 上是计算机名。读不到主机名时退回「平台名-peer
+// ID 前 6 位」，peer ID 也还没有时只剩平台名。
+func defaultDeviceName(hostname, platformSlug, peerID string) string {
+	if name := strings.TrimSpace(hostname); name != "" {
+		return name
+	}
+	if prefix := peerIDPrefix(peerID); prefix != "" {
+		return platformSlug + "-" + prefix
+	}
+	return platformSlug
+}
+
+// peerIDPrefixLength 是兜底设备名里带几位设备 ID。
+const peerIDPrefixLength = 6
+
+// peerIDPrefix 取设备 ID 的前几个字符，用作兜底设备名的后缀；设备 ID 为空时
+// 返回空串。
+func peerIDPrefix(peerID string) string {
+	runes := []rune(peerID)
+	if len(runes) <= peerIDPrefixLength {
+		return peerID
+	}
+	return string(runes[:peerIDPrefixLength])
+}
+
+// localHostname 返回系统主机名。读不到时返回空串，交给 defaultDeviceName 兜底。
+func localHostname() string {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return hostname
 }
 
 // sortPairedDevices 让在线设备排在离线设备之前，同组内保持原有顺序。
@@ -56,6 +95,22 @@ func localPlatformName() string {
 		return "Linux"
 	default:
 		return runtime.GOOS
+	}
+}
+
+// localPlatformSlug 返回平台名的小写形式，用来拼兜底的设备名：
+// macOS → macos、Windows → windows、Linux → linux。不从展示用的
+// localPlatformName 反推，避免改展示文案时连带改掉兜底名。
+func localPlatformSlug() string {
+	switch runtime.GOOS {
+	case "darwin":
+		return "macos"
+	case "windows":
+		return "windows"
+	case "linux":
+		return "linux"
+	default:
+		return strings.ToLower(runtime.GOOS)
 	}
 }
 
@@ -209,32 +264,14 @@ func (a *application) loadSystemSettings() {
 }
 
 // applyLanguage 把保存的语言偏好解析成实际使用的界面语言，再刷新派生状态：
-// 默认设备名称、托盘和窗口。启动时偏好是默认的「跟随系统」，设置页切换时选择
-// 控件已经写入了新偏好，两个入口都走这里。
+// 托盘和窗口。启动时偏好是默认的「跟随系统」，设置页切换时选择控件已经写入了
+// 新偏好，两个入口都走这里。设备名不跟着语言走：默认名是主机名，与界面语言
+// 无关，切换语言时保持不动。
 func (a *application) applyLanguage() {
 	a.language = a.languagePreference.language(mygo.App.Locale)
-	a.renameDefaultDevice()
 	if a.onLanguageChanged != nil {
 		a.onLanguageChanged()
 	}
-}
-
-// renameDefaultDevice 只在设备名称仍是某个语言的默认名时才替换，
-// 避免覆盖用户自定义的名称。
-func (a *application) renameDefaultDevice() {
-	if a.isDefaultDeviceName(a.deviceName) {
-		a.deviceName = a.t(msgDevicesBadgeLocal)
-	}
-}
-
-// isDefaultDeviceName 判断名称是否等于任一支持语言下的默认本机名称。
-func (a *application) isDefaultDeviceName(name string) bool {
-	for _, l := range []language{languageSimplifiedChinese, languageEnglish} {
-		if name == newLocalizer(l).text(msgDevicesBadgeLocal) {
-			return true
-		}
-	}
-	return false
 }
 
 func (a *application) applyAppearance() {
