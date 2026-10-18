@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 )
@@ -20,6 +21,33 @@ import (
 type File struct {
 	Onboarding Onboarding `json:"onboarding"`
 	DeviceName string     `json:"deviceName,omitempty"`
+	// FileSyncMaxMB is the size limit for one file item delivered to a paired
+	// device, in MiB. Absent or below MinFileSyncMaxMB means
+	// DefaultFileSyncMaxMB: a limit of zero would mean "send nothing", which is
+	// not a value this file expresses.
+	FileSyncMaxMB int `json:"fileSyncMaxMB,omitempty"`
+}
+
+// The file-sync size limit. The default is what one LAN transfer finishes
+// within minutes and one disk absorbs, and it covers ordinary clipboard use.
+const (
+	DefaultFileSyncMaxMB = 2048
+	MinFileSyncMaxMB     = 1
+)
+
+// FileSyncMaxBytes returns the effective limit in bytes: the configured number
+// of MiB, or the default when the file does not name a usable one.
+func (f File) FileSyncMaxBytes() int64 {
+	megabytes := f.FileSyncMaxMB
+	if megabytes < MinFileSyncMaxMB {
+		megabytes = DefaultFileSyncMaxMB
+	}
+	if int64(megabytes) > math.MaxInt64>>20 {
+		// A limit this large is "no limit" in practice; clamping keeps the
+		// conversion from wrapping into a negative limit.
+		return math.MaxInt64
+	}
+	return int64(megabytes) << 20
 }
 
 // Onboarding records what the first-run wizard came to. Completed covers the
