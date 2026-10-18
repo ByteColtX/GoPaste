@@ -21,13 +21,17 @@ tags:
 ```json
 {
   "onboarding": { "completed": true },
-  "deviceName": "bytecolt-mbp"
+  "deviceName": "bytecolt-mbp",
+  "fileSyncMaxMB": 2048
 }
 ```
 
 - 缺字段即默认值，所以旧版本写的文件仍能读。
 - `deviceName` 为空时不写进文件（`omitempty`）：空字段和「没设过」是同一件事，写出来
   只会让文件多一行噪音。
+- `fileSyncMaxMB` 是单个文件项发往另一台设备的体积上限（MiB）。缺省或小于 1 时
+  取默认 2048；没有「不限」这一档，因为 0 意味着「什么都传不了」，不是一个可表达的
+  选择。改回默认值时同样不写进文件。上限在界面上的位置与即时生效见 `gopaste`。
 - 配对码不在这里：配对由 `internal/lansync` 的设备页流程完成，配对结果落在
   `devices.json`（身份与钉住的公钥）。
 

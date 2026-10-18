@@ -286,10 +286,12 @@ const (
 	msgSyncStatePartial        messageKey = "sync.status.partial"
 	msgSyncStateOffline        messageKey = "sync.status.offline"
 	msgSyncStateReplaced       messageKey = "sync.status.replaced"
+	msgSyncStateTooLarge       messageKey = "sync.status.tooLarge"
 	msgSyncStateNone           messageKey = "sync.status.none"
 	msgSyncDeliveryReceived    messageKey = "sync.delivery.received"
 	msgSyncDeliveryOffline     messageKey = "sync.delivery.offline"
 	msgSyncDeliveryPending     messageKey = "sync.delivery.pending"
+	msgSyncDeliveryTooLarge    messageKey = "sync.delivery.tooLarge"
 	msgSyncDeliveryNotSent     messageKey = "sync.delivery.notSent"
 	msgSyncResendAll           messageKey = "sync.resend.all"
 	msgSyncResendAllAccess     messageKey = "sync.resend.allAccess"
@@ -303,68 +305,72 @@ const (
 	msgHistorySourceLanFormat  messageKey = "history.source.lanFormat"
 
 	// Settings.
-	msgSettingsGeneral               messageKey = "settings.general"
-	msgSettingsGeneralDesc           messageKey = "settings.generalDesc"
-	msgSettingsBasics                messageKey = "settings.basics"
-	msgSettingsDeviceName            messageKey = "settings.deviceName"
-	msgSettingsDeviceNameDesc        messageKey = "settings.deviceNameDesc"
-	msgSettingsDeviceNamePlaceholder messageKey = "settings.deviceNamePlaceholder"
-	msgSettingsLaunchAtLogin         messageKey = "settings.launchAtLogin"
-	msgSettingsLaunchAtLoginDesc     messageKey = "settings.launchAtLoginDesc"
-	msgSettingsLanguage              messageKey = "settings.language"
-	msgSettingsLanguageSystem        messageKey = "settings.language.system"
-	msgSettingsLanguageDesc          messageKey = "settings.languageDesc"
-	msgSettingsConfirmDelete         messageKey = "settings.confirmDelete"
-	msgSettingsConfirmDeleteDesc     messageKey = "settings.confirmDeleteDesc"
-	msgSettingsAppearance            messageKey = "settings.appearance"
-	msgSettingsAppearanceDesc        messageKey = "settings.appearanceDesc"
-	msgSettingsVisualStyle           messageKey = "settings.visualStyle"
-	msgSettingsMode                  messageKey = "settings.mode"
-	msgSettingsModeDesc              messageKey = "settings.modeDesc"
-	msgSettingsThemeSystem           messageKey = "settings.theme.system"
-	msgSettingsThemeLight            messageKey = "settings.theme.light"
-	msgSettingsThemeDark             messageKey = "settings.theme.dark"
-	msgSettingsCurrentAppearance     messageKey = "settings.currentAppearance"
-	msgSettingsThemeLightName        messageKey = "settings.theme.lightName"
-	msgSettingsThemeDarkName         messageKey = "settings.theme.darkName"
-	msgSettingsThemeSystemName       messageKey = "settings.theme.systemName"
-	msgSettingsInterface             messageKey = "settings.interface"
-	msgSettingsZoom                  messageKey = "settings.zoom"
-	msgSettingsZoomDesc              messageKey = "settings.zoomDesc"
-	msgSettingsZoomOut               messageKey = "settings.zoomOut"
-	msgSettingsZoomIn                messageKey = "settings.zoomIn"
-	msgSettingsZoomReset             messageKey = "settings.zoomReset"
-	msgMenuView                      messageKey = "menu.view"
-	msgMenuUndo                      messageKey = "menu.undo"
-	msgMenuZoomIn                    messageKey = "menu.zoomIn"
-	msgMenuZoomOut                   messageKey = "menu.zoomOut"
-	msgMenuZoomReset                 messageKey = "menu.zoomReset"
-	msgToastZoom                     messageKey = "toast.zoom"
-	msgSettingsStorage               messageKey = "settings.storage"
-	msgSettingsStorageDesc           messageKey = "settings.storageDesc"
-	msgSettingsData                  messageKey = "settings.data"
-	msgSettingsHistoryRow            messageKey = "settings.historyRow"
-	msgSettingsHistoryRowDesc        messageKey = "settings.historyRowDesc"
-	msgSettingsNoRecords             messageKey = "settings.noRecords"
-	msgSettingsRecordCount           messageKey = "settings.recordCount"
-	msgSettingsRecordCountOne        messageKey = "settings.recordCountOne"
-	msgSettingsImageCount            messageKey = "settings.imageCount"
-	msgSettingsImageCountOne         messageKey = "settings.imageCountOne"
-	msgSettingsClearHistoryRow       messageKey = "settings.clearHistoryRow"
-	msgSettingsClearHistoryRowDesc   messageKey = "settings.clearHistoryRowDesc"
-	msgSettingsClearHistory          messageKey = "settings.clearHistory"
-	msgSettingsNothingToClear        messageKey = "settings.nothingToClear"
-	msgSettingsNoHistoryNote         messageKey = "settings.noHistoryNote"
-	msgSettingsAbout                 messageKey = "settings.about"
-	msgSettingsAboutDesc             messageKey = "settings.aboutDesc"
-	msgSettingsAppInfo               messageKey = "settings.appInfo"
-	msgSettingsVersion               messageKey = "settings.version"
-	msgSettingsVersionDesc           messageKey = "settings.versionDesc"
-	msgSettingsSyncScope             messageKey = "settings.syncScope"
-	msgSettingsSyncScopeDesc         messageKey = "settings.syncScopeDesc"
-	msgSettingsPrivacy               messageKey = "settings.privacy"
-	msgSettingsPrivacyDesc           messageKey = "settings.privacyDesc"
-	msgSettingsStoredLocally         messageKey = "settings.storedLocally"
+	msgSettingsGeneral                  messageKey = "settings.general"
+	msgSettingsGeneralDesc              messageKey = "settings.generalDesc"
+	msgSettingsBasics                   messageKey = "settings.basics"
+	msgSettingsDeviceName               messageKey = "settings.deviceName"
+	msgSettingsDeviceNameDesc           messageKey = "settings.deviceNameDesc"
+	msgSettingsDeviceNamePlaceholder    messageKey = "settings.deviceNamePlaceholder"
+	msgSettingsLaunchAtLogin            messageKey = "settings.launchAtLogin"
+	msgSettingsLaunchAtLoginDesc        messageKey = "settings.launchAtLoginDesc"
+	msgSettingsLanguage                 messageKey = "settings.language"
+	msgSettingsLanguageSystem           messageKey = "settings.language.system"
+	msgSettingsLanguageDesc             messageKey = "settings.languageDesc"
+	msgSettingsConfirmDelete            messageKey = "settings.confirmDelete"
+	msgSettingsConfirmDeleteDesc        messageKey = "settings.confirmDeleteDesc"
+	msgSettingsAppearance               messageKey = "settings.appearance"
+	msgSettingsAppearanceDesc           messageKey = "settings.appearanceDesc"
+	msgSettingsVisualStyle              messageKey = "settings.visualStyle"
+	msgSettingsMode                     messageKey = "settings.mode"
+	msgSettingsModeDesc                 messageKey = "settings.modeDesc"
+	msgSettingsThemeSystem              messageKey = "settings.theme.system"
+	msgSettingsThemeLight               messageKey = "settings.theme.light"
+	msgSettingsThemeDark                messageKey = "settings.theme.dark"
+	msgSettingsCurrentAppearance        messageKey = "settings.currentAppearance"
+	msgSettingsThemeLightName           messageKey = "settings.theme.lightName"
+	msgSettingsThemeDarkName            messageKey = "settings.theme.darkName"
+	msgSettingsThemeSystemName          messageKey = "settings.theme.systemName"
+	msgSettingsInterface                messageKey = "settings.interface"
+	msgSettingsZoom                     messageKey = "settings.zoom"
+	msgSettingsZoomDesc                 messageKey = "settings.zoomDesc"
+	msgSettingsZoomOut                  messageKey = "settings.zoomOut"
+	msgSettingsZoomIn                   messageKey = "settings.zoomIn"
+	msgSettingsZoomReset                messageKey = "settings.zoomReset"
+	msgMenuView                         messageKey = "menu.view"
+	msgMenuUndo                         messageKey = "menu.undo"
+	msgMenuZoomIn                       messageKey = "menu.zoomIn"
+	msgMenuZoomOut                      messageKey = "menu.zoomOut"
+	msgMenuZoomReset                    messageKey = "menu.zoomReset"
+	msgToastZoom                        messageKey = "toast.zoom"
+	msgSettingsStorage                  messageKey = "settings.storage"
+	msgSettingsStorageDesc              messageKey = "settings.storageDesc"
+	msgSettingsData                     messageKey = "settings.data"
+	msgSettingsHistoryRow               messageKey = "settings.historyRow"
+	msgSettingsHistoryRowDesc           messageKey = "settings.historyRowDesc"
+	msgSettingsNoRecords                messageKey = "settings.noRecords"
+	msgSettingsRecordCount              messageKey = "settings.recordCount"
+	msgSettingsRecordCountOne           messageKey = "settings.recordCountOne"
+	msgSettingsImageCount               messageKey = "settings.imageCount"
+	msgSettingsImageCountOne            messageKey = "settings.imageCountOne"
+	msgSettingsClearHistoryRow          messageKey = "settings.clearHistoryRow"
+	msgSettingsFileSyncLimit            messageKey = "settings.fileSyncLimit"
+	msgSettingsFileSyncLimitDesc        messageKey = "settings.fileSyncLimitDesc"
+	msgSettingsFileSyncLimitPlaceholder messageKey = "settings.fileSyncLimitPlaceholder"
+	msgSettingsFileSyncLimitUnit        messageKey = "settings.fileSyncLimitUnit"
+	msgSettingsClearHistoryRowDesc      messageKey = "settings.clearHistoryRowDesc"
+	msgSettingsClearHistory             messageKey = "settings.clearHistory"
+	msgSettingsNothingToClear           messageKey = "settings.nothingToClear"
+	msgSettingsNoHistoryNote            messageKey = "settings.noHistoryNote"
+	msgSettingsAbout                    messageKey = "settings.about"
+	msgSettingsAboutDesc                messageKey = "settings.aboutDesc"
+	msgSettingsAppInfo                  messageKey = "settings.appInfo"
+	msgSettingsVersion                  messageKey = "settings.version"
+	msgSettingsVersionDesc              messageKey = "settings.versionDesc"
+	msgSettingsSyncScope                messageKey = "settings.syncScope"
+	msgSettingsSyncScopeDesc            messageKey = "settings.syncScopeDesc"
+	msgSettingsPrivacy                  messageKey = "settings.privacy"
+	msgSettingsPrivacyDesc              messageKey = "settings.privacyDesc"
+	msgSettingsStoredLocally            messageKey = "settings.storedLocally"
 
 	// Destructive-action dialogs.
 	msgDangerClearTitle          messageKey = "danger.clear.title"
@@ -589,10 +595,12 @@ var simplifiedChineseCatalog = catalog{
 	msgSyncStatePartial:        "部分同步",
 	msgSyncStateOffline:        "对方设备离线",
 	msgSyncStateReplaced:       "已被替代",
+	msgSyncStateTooLarge:       "文件过大",
 	msgSyncStateNone:           "未同步",
 	msgSyncDeliveryReceived:    "已接收",
 	msgSyncDeliveryOffline:     "对方设备离线",
 	msgSyncDeliveryPending:     "待发送",
+	msgSyncDeliveryTooLarge:    "未送达（文件过大）",
 	msgSyncDeliveryNotSent:     "未送达",
 	msgSyncResendAll:           "全部重发",
 	msgSyncResendAllAccess:     "重发到全部设备",
@@ -605,68 +613,72 @@ var simplifiedChineseCatalog = catalog{
 	msgHistorySourceLanDevice:  "局域网设备",
 	msgHistorySourceLanFormat:  "来自 %s",
 
-	msgSettingsGeneral:               "通用",
-	msgSettingsGeneralDesc:           "设备名称和 GoPaste 的基本偏好设置。",
-	msgSettingsBasics:                "基本设置",
-	msgSettingsDeviceName:            "设备名称",
-	msgSettingsDeviceNameDesc:        "用于在设备列表中识别此设备",
-	msgSettingsDeviceNamePlaceholder: "输入设备名称",
-	msgSettingsLaunchAtLogin:         "登录时打开",
-	msgSettingsLaunchAtLoginDesc:     "登录时自动打开 GoPaste",
-	msgSettingsLanguage:              "语言",
-	msgSettingsLanguageSystem:        "跟随系统",
-	msgSettingsLanguageDesc:          "选择界面语言",
-	msgSettingsConfirmDelete:         "删除前确认",
-	msgSettingsConfirmDeleteDesc:     "删除单条记录前先询问。关闭后删除将立即执行，清除历史记录和取消配对仍会先确认。",
-	msgSettingsAppearance:            "外观",
-	msgSettingsAppearanceDesc:        "选择 GoPaste 的颜色主题。",
-	msgSettingsVisualStyle:           "视觉风格",
-	msgSettingsMode:                  "模式",
-	msgSettingsModeDesc:              "自动跟随系统，或始终使用浅色或深色",
-	msgSettingsThemeSystem:           "自动",
-	msgSettingsThemeLight:            "浅色",
-	msgSettingsThemeDark:             "深色",
-	msgSettingsCurrentAppearance:     "当前使用：%s",
-	msgSettingsThemeLightName:        "浅色主题",
-	msgSettingsThemeDarkName:         "深色主题",
-	msgSettingsThemeSystemName:       "自动",
-	msgSettingsInterface:             "界面",
-	msgSettingsZoom:                  "界面缩放",
-	msgSettingsZoomDesc:              "放大或缩小整个界面。快捷键：⌘=、⌘- 和 ⌘0",
-	msgSettingsZoomOut:               "缩小",
-	msgSettingsZoomIn:                "放大",
-	msgSettingsZoomReset:             "实际大小",
-	msgMenuView:                      "视图",
-	msgMenuUndo:                      "撤销",
-	msgMenuZoomIn:                    "放大",
-	msgMenuZoomOut:                   "缩小",
-	msgMenuZoomReset:                 "实际大小",
-	msgToastZoom:                     "界面缩放：%s",
-	msgSettingsStorage:               "储存空间",
-	msgSettingsStorageDesc:           "查看并清除储存在此设备上的历史记录。",
-	msgSettingsData:                  "数据",
-	msgSettingsHistoryRow:            "历史记录",
-	msgSettingsHistoryRowDesc:        "此设备上保存的剪贴板记录",
-	msgSettingsNoRecords:             "暂无记录",
-	msgSettingsRecordCount:           "%d 条",
-	msgSettingsRecordCountOne:        "%d 条",
-	msgSettingsImageCount:            "%d 张图像",
-	msgSettingsImageCountOne:         "%d 张图像",
-	msgSettingsClearHistoryRow:       "清除历史记录",
-	msgSettingsClearHistoryRowDesc:   "删除此设备上保存的所有记录",
-	msgSettingsClearHistory:          "清除历史记录",
-	msgSettingsNothingToClear:        "没有可清除的记录",
-	msgSettingsNoHistoryNote:         "此设备上暂无历史记录。拷贝内容后，记录会自动出现在“历史记录”页面。",
-	msgSettingsAbout:                 "关于",
-	msgSettingsAboutDesc:             "剪贴板历史记录与局域网同步工具。",
-	msgSettingsAppInfo:               "应用信息",
-	msgSettingsVersion:               "版本",
-	msgSettingsVersionDesc:           "当前应用版本",
-	msgSettingsSyncScope:             "同步范围",
-	msgSettingsSyncScopeDesc:         "仅在已配对的设备之间建立直连",
-	msgSettingsPrivacy:               "隐私",
-	msgSettingsPrivacyDesc:           "剪贴板内容仅储存在此设备，不会写入日志或发送给第三方服务",
-	msgSettingsStoredLocally:         "储存在此设备",
+	msgSettingsGeneral:                  "通用",
+	msgSettingsGeneralDesc:              "设备名称和 GoPaste 的基本偏好设置。",
+	msgSettingsBasics:                   "基本设置",
+	msgSettingsDeviceName:               "设备名称",
+	msgSettingsDeviceNameDesc:           "用于在设备列表中识别此设备",
+	msgSettingsDeviceNamePlaceholder:    "输入设备名称",
+	msgSettingsLaunchAtLogin:            "登录时打开",
+	msgSettingsLaunchAtLoginDesc:        "登录时自动打开 GoPaste",
+	msgSettingsLanguage:                 "语言",
+	msgSettingsLanguageSystem:           "跟随系统",
+	msgSettingsLanguageDesc:             "选择界面语言",
+	msgSettingsConfirmDelete:            "删除前确认",
+	msgSettingsConfirmDeleteDesc:        "删除单条记录前先询问。关闭后删除将立即执行，清除历史记录和取消配对仍会先确认。",
+	msgSettingsAppearance:               "外观",
+	msgSettingsAppearanceDesc:           "选择 GoPaste 的颜色主题。",
+	msgSettingsVisualStyle:              "视觉风格",
+	msgSettingsMode:                     "模式",
+	msgSettingsModeDesc:                 "自动跟随系统，或始终使用浅色或深色",
+	msgSettingsThemeSystem:              "自动",
+	msgSettingsThemeLight:               "浅色",
+	msgSettingsThemeDark:                "深色",
+	msgSettingsCurrentAppearance:        "当前使用：%s",
+	msgSettingsThemeLightName:           "浅色主题",
+	msgSettingsThemeDarkName:            "深色主题",
+	msgSettingsThemeSystemName:          "自动",
+	msgSettingsInterface:                "界面",
+	msgSettingsZoom:                     "界面缩放",
+	msgSettingsZoomDesc:                 "放大或缩小整个界面。快捷键：⌘=、⌘- 和 ⌘0",
+	msgSettingsZoomOut:                  "缩小",
+	msgSettingsZoomIn:                   "放大",
+	msgSettingsZoomReset:                "实际大小",
+	msgMenuView:                         "视图",
+	msgMenuUndo:                         "撤销",
+	msgMenuZoomIn:                       "放大",
+	msgMenuZoomOut:                      "缩小",
+	msgMenuZoomReset:                    "实际大小",
+	msgToastZoom:                        "界面缩放：%s",
+	msgSettingsStorage:                  "储存空间",
+	msgSettingsStorageDesc:              "查看并清除储存在此设备上的历史记录。",
+	msgSettingsData:                     "数据",
+	msgSettingsHistoryRow:               "历史记录",
+	msgSettingsHistoryRowDesc:           "此设备上保存的剪贴板记录",
+	msgSettingsNoRecords:                "暂无记录",
+	msgSettingsRecordCount:              "%d 条",
+	msgSettingsRecordCountOne:           "%d 条",
+	msgSettingsImageCount:               "%d 张图像",
+	msgSettingsImageCountOne:            "%d 张图像",
+	msgSettingsClearHistoryRow:          "清除历史记录",
+	msgSettingsFileSyncLimit:            "同步文件大小上限",
+	msgSettingsFileSyncLimitDesc:        "单个文件项发往其它设备的体积上限，单位 MB，至少 1。超过上限的文件不传，同步状态会显示「文件过大」。",
+	msgSettingsFileSyncLimitPlaceholder: "2048",
+	msgSettingsFileSyncLimitUnit:        "MB",
+	msgSettingsClearHistoryRowDesc:      "删除此设备上保存的所有记录",
+	msgSettingsClearHistory:             "清除历史记录",
+	msgSettingsNothingToClear:           "没有可清除的记录",
+	msgSettingsNoHistoryNote:            "此设备上暂无历史记录。拷贝内容后，记录会自动出现在“历史记录”页面。",
+	msgSettingsAbout:                    "关于",
+	msgSettingsAboutDesc:                "剪贴板历史记录与局域网同步工具。",
+	msgSettingsAppInfo:                  "应用信息",
+	msgSettingsVersion:                  "版本",
+	msgSettingsVersionDesc:              "当前应用版本",
+	msgSettingsSyncScope:                "同步范围",
+	msgSettingsSyncScopeDesc:            "仅在已配对的设备之间建立直连",
+	msgSettingsPrivacy:                  "隐私",
+	msgSettingsPrivacyDesc:              "剪贴板内容仅储存在此设备，不会写入日志或发送给第三方服务",
+	msgSettingsStoredLocally:            "储存在此设备",
 
 	msgDangerClearTitle:          "清除历史记录？",
 	msgDangerClearMessage:        "此设备上保存的全部剪贴板历史记录都将被删除。此操作无法撤销。",
@@ -883,10 +895,12 @@ var englishCatalog = catalog{
 	msgSyncStatePartial:        "Partially synced",
 	msgSyncStateOffline:        "Other device offline",
 	msgSyncStateReplaced:       "Replaced",
+	msgSyncStateTooLarge:       "File too large",
 	msgSyncStateNone:           "Not synced",
 	msgSyncDeliveryReceived:    "Received",
 	msgSyncDeliveryOffline:     "Other device offline",
 	msgSyncDeliveryPending:     "Waiting to send",
+	msgSyncDeliveryTooLarge:    "Not sent (file too large)",
 	msgSyncDeliveryNotSent:     "Not delivered",
 	msgSyncResendAll:           "Resend all",
 	msgSyncResendAllAccess:     "Resend to all devices",
@@ -899,68 +913,72 @@ var englishCatalog = catalog{
 	msgHistorySourceLanDevice:  "LAN device",
 	msgHistorySourceLanFormat:  "From %s",
 
-	msgSettingsGeneral:               "General",
-	msgSettingsGeneralDesc:           "Your device name and basic GoPaste preferences.",
-	msgSettingsBasics:                "Basics",
-	msgSettingsDeviceName:            "Device name",
-	msgSettingsDeviceNameDesc:        "Identifies this device in the device list",
-	msgSettingsDeviceNamePlaceholder: "Enter a device name",
-	msgSettingsLaunchAtLogin:         "Open at Login",
-	msgSettingsLaunchAtLoginDesc:     "Open GoPaste automatically when you log in",
-	msgSettingsLanguage:              "Language",
-	msgSettingsLanguageSystem:        "System Default",
-	msgSettingsLanguageDesc:          "Choose the interface language",
-	msgSettingsConfirmDelete:         "Confirm before deleting",
-	msgSettingsConfirmDeleteDesc:     "Ask before deleting a single record. When off, records are deleted right away; clearing history and unpairing still ask first.",
-	msgSettingsAppearance:            "Appearance",
-	msgSettingsAppearanceDesc:        "Choose the color theme for GoPaste.",
-	msgSettingsVisualStyle:           "Visual style",
-	msgSettingsMode:                  "Mode",
-	msgSettingsModeDesc:              "Follow the system, or always use light or dark",
-	msgSettingsThemeSystem:           "Auto",
-	msgSettingsThemeLight:            "Light",
-	msgSettingsThemeDark:             "Dark",
-	msgSettingsCurrentAppearance:     "Currently using %s",
-	msgSettingsThemeLightName:        "Light theme",
-	msgSettingsThemeDarkName:         "Dark theme",
-	msgSettingsThemeSystemName:       "Auto",
-	msgSettingsInterface:             "Interface",
-	msgSettingsZoom:                  "Interface zoom",
-	msgSettingsZoomDesc:              "Zoom the whole interface with ⌘=, ⌘- and ⌘0",
-	msgSettingsZoomOut:               "Zoom out",
-	msgSettingsZoomIn:                "Zoom in",
-	msgSettingsZoomReset:             "Actual size",
-	msgMenuView:                      "View",
-	msgMenuUndo:                      "Undo",
-	msgMenuZoomIn:                    "Zoom in",
-	msgMenuZoomOut:                   "Zoom out",
-	msgMenuZoomReset:                 "Actual size",
-	msgToastZoom:                     "Interface zoom: %s",
-	msgSettingsStorage:               "Storage",
-	msgSettingsStorageDesc:           "View and clear history saved on this device.",
-	msgSettingsData:                  "Data",
-	msgSettingsHistoryRow:            "History",
-	msgSettingsHistoryRowDesc:        "Clipboard records saved on this device",
-	msgSettingsNoRecords:             "No records",
-	msgSettingsRecordCount:           "%d records",
-	msgSettingsRecordCountOne:        "%d record",
-	msgSettingsImageCount:            "%d images",
-	msgSettingsImageCountOne:         "%d image",
-	msgSettingsClearHistoryRow:       "Clear history",
-	msgSettingsClearHistoryRowDesc:   "Delete all records saved on this device",
-	msgSettingsClearHistory:          "Clear history",
-	msgSettingsNothingToClear:        "Nothing to clear",
-	msgSettingsNoHistoryNote:         "No history on this device yet. Content you copy appears on the History page automatically.",
-	msgSettingsAbout:                 "About",
-	msgSettingsAboutDesc:             "A clipboard history and LAN sync tool.",
-	msgSettingsAppInfo:               "App info",
-	msgSettingsVersion:               "Version",
-	msgSettingsVersionDesc:           "Current app version",
-	msgSettingsSyncScope:             "Sync scope",
-	msgSettingsSyncScopeDesc:         "Direct connections only between paired devices",
-	msgSettingsPrivacy:               "Privacy",
-	msgSettingsPrivacyDesc:           "Clipboard content stays on this device and is never written to logs or sent to third-party services",
-	msgSettingsStoredLocally:         "Stored on this device",
+	msgSettingsGeneral:                  "General",
+	msgSettingsGeneralDesc:              "Your device name and basic GoPaste preferences.",
+	msgSettingsBasics:                   "Basics",
+	msgSettingsDeviceName:               "Device name",
+	msgSettingsDeviceNameDesc:           "Identifies this device in the device list",
+	msgSettingsDeviceNamePlaceholder:    "Enter a device name",
+	msgSettingsLaunchAtLogin:            "Open at Login",
+	msgSettingsLaunchAtLoginDesc:        "Open GoPaste automatically when you log in",
+	msgSettingsLanguage:                 "Language",
+	msgSettingsLanguageSystem:           "System Default",
+	msgSettingsLanguageDesc:             "Choose the interface language",
+	msgSettingsConfirmDelete:            "Confirm before deleting",
+	msgSettingsConfirmDeleteDesc:        "Ask before deleting a single record. When off, records are deleted right away; clearing history and unpairing still ask first.",
+	msgSettingsAppearance:               "Appearance",
+	msgSettingsAppearanceDesc:           "Choose the color theme for GoPaste.",
+	msgSettingsVisualStyle:              "Visual style",
+	msgSettingsMode:                     "Mode",
+	msgSettingsModeDesc:                 "Follow the system, or always use light or dark",
+	msgSettingsThemeSystem:              "Auto",
+	msgSettingsThemeLight:               "Light",
+	msgSettingsThemeDark:                "Dark",
+	msgSettingsCurrentAppearance:        "Currently using %s",
+	msgSettingsThemeLightName:           "Light theme",
+	msgSettingsThemeDarkName:            "Dark theme",
+	msgSettingsThemeSystemName:          "Auto",
+	msgSettingsInterface:                "Interface",
+	msgSettingsZoom:                     "Interface zoom",
+	msgSettingsZoomDesc:                 "Zoom the whole interface with ⌘=, ⌘- and ⌘0",
+	msgSettingsZoomOut:                  "Zoom out",
+	msgSettingsZoomIn:                   "Zoom in",
+	msgSettingsZoomReset:                "Actual size",
+	msgMenuView:                         "View",
+	msgMenuUndo:                         "Undo",
+	msgMenuZoomIn:                       "Zoom in",
+	msgMenuZoomOut:                      "Zoom out",
+	msgMenuZoomReset:                    "Actual size",
+	msgToastZoom:                        "Interface zoom: %s",
+	msgSettingsStorage:                  "Storage",
+	msgSettingsStorageDesc:              "View and clear history saved on this device.",
+	msgSettingsData:                     "Data",
+	msgSettingsHistoryRow:               "History",
+	msgSettingsHistoryRowDesc:           "Clipboard records saved on this device",
+	msgSettingsNoRecords:                "No records",
+	msgSettingsRecordCount:              "%d records",
+	msgSettingsRecordCountOne:           "%d record",
+	msgSettingsImageCount:               "%d images",
+	msgSettingsImageCountOne:            "%d image",
+	msgSettingsClearHistoryRow:          "Clear history",
+	msgSettingsFileSyncLimit:            "File sync size limit",
+	msgSettingsFileSyncLimitDesc:        "Largest file item sent to another device, in MB, at least 1. Larger files are not sent and show as “file too large”.",
+	msgSettingsFileSyncLimitPlaceholder: "2048",
+	msgSettingsFileSyncLimitUnit:        "MB",
+	msgSettingsClearHistoryRowDesc:      "Delete all records saved on this device",
+	msgSettingsClearHistory:             "Clear history",
+	msgSettingsNothingToClear:           "Nothing to clear",
+	msgSettingsNoHistoryNote:            "No history on this device yet. Content you copy appears on the History page automatically.",
+	msgSettingsAbout:                    "About",
+	msgSettingsAboutDesc:                "A clipboard history and LAN sync tool.",
+	msgSettingsAppInfo:                  "App info",
+	msgSettingsVersion:                  "Version",
+	msgSettingsVersionDesc:              "Current app version",
+	msgSettingsSyncScope:                "Sync scope",
+	msgSettingsSyncScopeDesc:            "Direct connections only between paired devices",
+	msgSettingsPrivacy:                  "Privacy",
+	msgSettingsPrivacyDesc:              "Clipboard content stays on this device and is never written to logs or sent to third-party services",
+	msgSettingsStoredLocally:            "Stored on this device",
 
 	msgDangerClearTitle:          "Clear history?",
 	msgDangerClearMessage:        "All clipboard history saved on this device will be deleted. This action can't be undone.",

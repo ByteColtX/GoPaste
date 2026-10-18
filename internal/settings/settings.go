@@ -37,8 +37,11 @@ const (
 
 // FileSyncMaxBytes returns the effective limit in bytes: the configured number
 // of MiB, or the default when the file does not name a usable one.
-func (f File) FileSyncMaxBytes() int64 {
-	megabytes := f.FileSyncMaxMB
+func (f File) FileSyncMaxBytes() int64 { return FileSyncMaxBytes(f.FileSyncMaxMB) }
+
+// FileSyncMaxBytes converts a configured limit in MiB into bytes, applying the
+// default when the number is not usable.
+func FileSyncMaxBytes(megabytes int) int64 {
 	if megabytes < MinFileSyncMaxMB {
 		megabytes = DefaultFileSyncMaxMB
 	}

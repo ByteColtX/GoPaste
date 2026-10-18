@@ -59,6 +59,7 @@ func TestLivePeerSync(t *testing.T) {
 		Name:      name,
 		Platform:  runtime.GOOS,
 		Version:   "live",
+		FilesDir:  filepath.Join(t.TempDir(), "Files"),
 		OnClip: func(clip Clip, _ Device) {
 			select {
 			case received <- clip:
@@ -107,7 +108,7 @@ func TestLivePeerSync(t *testing.T) {
 		liveText(name),
 		liveRichText(name),
 		liveImage(name),
-		liveFile(name),
+		liveFile(t, name),
 	}
 	for _, payload := range payloads {
 		waitForDelivery(t, service, delivered, payload, peer.ID, 90*time.Second)
@@ -182,13 +183,22 @@ func liveRichText(name string) history.Item {
 	}
 }
 
-// liveFile is the file payload this side delivers: the paths a file manager
-// would put on the clipboard. Only the paths travel.
-func liveFile(name string) history.Item {
-	paths := []string{
-		filepath.Join(os.TempDir(), name+"-report.txt"),
-		filepath.Join(os.TempDir(), name+"-notes.md"),
+// liveFile is the file payload this side delivers: a small directory with two
+// files in it, so the other machine has to unpack a real archive. The paths are
+// the sending machine's own, and its content travels with the delivery.
+func liveFile(t *testing.T, name string) history.Item {
+	t.Helper()
+	dir := filepath.Join(t.TempDir(), name+"-files")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("create the file payload: %v", err)
 	}
+	for _, file := range []string{"report.txt", "notes.md"} {
+		path := filepath.Join(dir, file)
+		if err := os.WriteFile(path, []byte("gopaste live file "+name+" "+file), 0o600); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+	}
+	paths := []string{dir}
 	return history.Item{
 		ID:        history.ContentID(history.Content{Kind: history.KindFile, Files: paths}),
 		Kind:      history.KindFile,
@@ -274,8 +284,14 @@ func waitForClip(t *testing.T, received chan Clip, kind history.Kind, timeout ti
 					t.Error("an image clip arrived without its payload")
 				}
 			case history.KindFile:
-				if len(clip.Files) == 0 {
-					t.Error("a file clip arrived without its paths")
+				if len(clip.LocalFiles) == 0 {
+					t.Error("a file clip arrived without local paths")
+					return
+				}
+				for _, path := range clip.LocalFiles {
+					if _, err := os.Stat(path); err != nil {
+						t.Errorf("a file clip points at %s, which is not there: %v", path, err)
+					}
 				}
 			}
 			return

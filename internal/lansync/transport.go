@@ -200,14 +200,37 @@ func pairedPeer(r *http.Request) (Device, bool) {
 // newHTTPClient builds the client used to reach paired devices. It is
 // configured once and reused, so connections to a device stay open between
 // deliveries.
+func newHTTPClient(identity Identity, resolve func(addr string) (Device, bool)) *http.Client {
+	return &http.Client{
+		Timeout:       requestTimeout,
+		Transport:     newPinnedTransport(identity, resolve),
+		CheckRedirect: noRedirect,
+	}
+}
+
+// newFileClient builds the client a file upload uses. It shares the pinning and
+// connection pooling with newHTTPClient but carries no overall timeout: a large
+// file legitimately takes minutes, and the upload sets its own deadline.
+func newFileClient(identity Identity, resolve func(addr string) (Device, bool)) *http.Client {
+	return &http.Client{
+		Transport:     newPinnedTransport(identity, resolve),
+		CheckRedirect: noRedirect,
+	}
+}
+
+// noRedirect refuses to follow a redirect. A paired device never redirects;
+// following one would move the connection somewhere the pin was not checked for.
+func noRedirect(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+
+// newPinnedTransport is the shared transport behind both clients.
 //
 // Dialling is where the pin is applied: the dialled address is resolved back to
 // a paired device, and the connection's TLS configuration then requires exactly
 // that device's key. One shared transport therefore pools connections per peer
 // while every connection stays pinned to the peer it was opened for.
-func newHTTPClient(identity Identity, resolve func(addr string) (Device, bool)) *http.Client {
+func newPinnedTransport(identity Identity, resolve func(addr string) (Device, bool)) *http.Transport {
 	dialer := &net.Dialer{Timeout: dialTimeout}
-	transport := &http.Transport{
+	return &http.Transport{
 		DialContext:         dialer.DialContext,
 		MaxIdleConnsPerHost: 2,
 		IdleConnTimeout:     90 * time.Second,
@@ -222,15 +245,6 @@ func newHTTPClient(identity Identity, resolve func(addr string) (Device, bool)) 
 			}
 			tlsDialer := &tls.Dialer{NetDialer: dialer, Config: config}
 			return tlsDialer.DialContext(ctx, network, addr)
-		},
-	}
-	return &http.Client{
-		Timeout:   requestTimeout,
-		Transport: transport,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			// A paired device never redirects; following one would move the
-			// connection somewhere the pin was not checked for.
-			return http.ErrUseLastResponse
 		},
 	}
 }

@@ -18,8 +18,10 @@ import (
 )
 
 // clipProtocolVersion is the clipboard payload format this build speaks. A peer
-// that speaks another version is refused rather than guessed at.
-const clipProtocolVersion = "1"
+// that speaks another version is refused rather than guessed at. File payloads
+// travel through the file transfer endpoints (see files.go) and carry this same
+// version in their offer.
+const clipProtocolVersion = "2"
 
 // maxClipBytes bounds one incoming payload. A clipboard image is the largest
 // thing that travels, and 32 MiB of base64 is far more than a screen-sized PNG
@@ -39,6 +41,9 @@ const (
 	clipReasonDirection = "direction"
 	clipReasonVersion   = "version"
 	clipReasonSize      = "size"
+	// clipReasonKind refuses a payload whose kind does not fit the endpoint it
+	// arrived on: a file item must come through the file transfer endpoints.
+	clipReasonKind = "kind"
 )
 
 // ErrUnknownPeer reports a device that is neither paired nor currently on the
@@ -63,10 +68,18 @@ type Clip struct {
 	HTML string
 	// Image is the image payload, nil for every other kind.
 	Image *history.Image
-	// Files are the paths of a file payload. File contents never travel: the
-	// paths are what was copied, and the other device shows them as a file
-	// item whose content stays where it is.
+	// Files are the paths of a file payload as the sending device copied them,
+	// in clipboard order. They are the item's identity: a file item's content ID
+	// is derived from them on both sides. The receiving device rewrites its own
+	// copy of them into LocalFiles.
 	Files []string
+	// LocalFiles are the paths this device holds a file payload at, after a
+	// file transfer landed. It is empty on the sending side, where Files is
+	// already local, and never travels.
+	LocalFiles []string
+	// FileSize is the byte size of a file payload as it arrived, zero when the
+	// item carries no files.
+	FileSize int64
 	// CreatedAt is when the content was copied on the sending device.
 	CreatedAt time.Time
 }
@@ -82,8 +95,11 @@ func ClipOf(item history.Item) Clip {
 	}
 	if item.Kind == history.KindFile && item.Text != "" {
 		// A file item keeps its paths as newline-joined text; identity needs
-		// the list, so it is split back out.
+		// the list, so it is split back out. A local item's paths are both its
+		// identity and where its content lives.
 		clip.Files = strings.Split(item.Text, "\n")
+		clip.LocalFiles = clip.Files
+		clip.FileSize = item.FileSize
 	}
 	return clip
 }
@@ -103,8 +119,13 @@ func (c Clip) ID() string {
 // HistoryItem turns a received payload into the history item to store. The
 // arrival time is this device's own clock: the record belongs at the top of the
 // list here, whatever the sending device's clock says.
+//
+// A file payload stores the paths this device holds it at, so the record's
+// actions work on real files, while its ID still comes from the paths the
+// sending device copied: the same content therefore keeps one ID across
+// devices.
 func (c Clip) HistoryItem(sourceDeviceID string, at time.Time) history.Item {
-	return history.Item{
+	item := history.Item{
 		ID:             c.ID(),
 		Kind:           c.Kind,
 		Text:           c.Text,
@@ -113,10 +134,21 @@ func (c Clip) HistoryItem(sourceDeviceID string, at time.Time) history.Item {
 		SourceDeviceID: sourceDeviceID,
 		CreatedAt:      at,
 	}
+	if c.Kind == history.KindFile {
+		local := c.LocalFiles
+		if len(local) == 0 {
+			local = c.Files
+		}
+		item.Text = strings.Join(local, "\n")
+		item.FileSize = c.FileSize
+	}
+	return item
 }
 
 // clipPayload is the wire form of a Clip. Payload bytes ride as base64 in JSON,
-// which keeps one endpoint and one decoder for every content type.
+// which keeps one endpoint and one decoder for every content type that fits in
+// a request. File payloads are not among them: their bytes go through the file
+// transfer endpoints instead (see files.go).
 type clipPayload struct {
 	Version   string    `json:"version"`
 	Kind      int       `json:"kind"`
@@ -125,7 +157,6 @@ type clipPayload struct {
 	Image     []byte    `json:"image,omitempty"`
 	Width     int       `json:"width,omitempty"`
 	Height    int       `json:"height,omitempty"`
-	Files     []string  `json:"files,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -136,7 +167,6 @@ func payloadOf(clip Clip) clipPayload {
 		Kind:      int(clip.Kind),
 		Text:      clip.Text,
 		HTML:      clip.HTML,
-		Files:     clip.Files,
 		CreatedAt: clip.CreatedAt,
 	}
 	if clip.Image != nil {
@@ -156,7 +186,6 @@ func (p clipPayload) clip() (Clip, error) {
 		Kind:      history.Kind(p.Kind),
 		Text:      p.Text,
 		HTML:      p.HTML,
-		Files:     p.Files,
 		CreatedAt: p.CreatedAt,
 	}
 	if len(p.Image) > 0 {
@@ -185,6 +214,14 @@ type Options struct {
 	Version string
 	// Now returns the current time. Tests set it; nil means time.Now.
 	Now func() time.Time
+	// FilesDir is where received file payloads are stored, one directory per
+	// item. It is required for receiving files: without it a peer's file item is
+	// refused instead of half-received.
+	FilesDir string
+	// FileLimitBytes bounds one file item, in bytes, on both sides: nothing
+	// larger is sent, and nothing larger is accepted. Zero or negative means
+	// DefaultFileLimitBytes.
+	FileLimitBytes int64
 
 	// OnPeersChanged reports the devices seen on the network.
 	OnPeersChanged func([]Peer)
@@ -220,6 +257,9 @@ type Service struct {
 
 	pairing *pairingServer
 	client  *http.Client
+	// fileClient is the client file uploads use: same pinning, no overall
+	// timeout.
+	fileClient *http.Client
 
 	listener  net.Listener
 	server    *http.Server
@@ -246,6 +286,16 @@ type Service struct {
 	// noDiscovery turns off advertising and browsing. It exists for tests that
 	// supply the peer list themselves, so they do not depend on multicast.
 	noDiscovery bool
+
+	// fileLimit bounds one file item in bytes, on both sides. SetFileLimitBytes
+	// updates it while the service runs; it is guarded by mu like the rest of
+	// the mutable state.
+	fileLimit int64
+	// files holds the file uploads this device has agreed to take, keyed by the
+	// token it handed out. Each entry is removed when its upload starts or when
+	// the staging sweep expires it.
+	filesMu sync.Mutex
+	files   map[string]*fileTransfer
 }
 
 // NewService opens the identity file and prepares a service. Call Start to
@@ -266,8 +316,11 @@ func NewService(options Options) (*Service, error) {
 		now:         now,
 		peers:       map[string]Peer{},
 		unreachable: map[string]time.Time{},
+		fileLimit:   options.FileLimitBytes,
+		files:       map[string]*fileTransfer{},
 	}
 	service.client = newHTTPClient(store.Identity(), service.deviceAt)
+	service.fileClient = newFileClient(store.Identity(), service.deviceAt)
 	service.pairing = &pairingServer{
 		store: store,
 		now:   now,
@@ -315,6 +368,8 @@ func (s *Service) Start(ctx context.Context) error {
 	}
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST "+pathClip, requirePaired(s.store.Trusted, s.handleClip))
+	mux.HandleFunc("POST "+pathFilesOffer, requirePaired(s.store.Trusted, s.handleFileOffer))
+	mux.HandleFunc("POST "+pathFilesUpload+"/{token}", requirePaired(s.store.Trusted, s.handleFileUpload))
 	s.pairing.register(mux)
 
 	server := &http.Server{
@@ -559,6 +614,27 @@ func (s *Service) CancelPairing() {
 	})
 }
 
+// SetFileLimitBytes changes the size limit for one file item, as the settings
+// page does when the user edits it. It applies to the next delivery and to the
+// next offer this device accepts.
+func (s *Service) SetFileLimitBytes(limit int64) {
+	s.mu.Lock()
+	s.fileLimit = limit
+	s.mu.Unlock()
+}
+
+// fileLimitBytes returns the limit in force, never below one byte so a zero
+// option cannot mean "refuse every file".
+func (s *Service) fileLimitBytes() int64 {
+	s.mu.RLock()
+	limit := s.fileLimit
+	s.mu.RUnlock()
+	if limit <= 0 {
+		return DefaultFileLimitBytes
+	}
+	return limit
+}
+
 // SetDeviceSync turns one device's sync switch on or off and persists it.
 func (s *Service) SetDeviceSync(deviceID string, enabled bool) error {
 	device, ok := s.store.Device(deviceID)
@@ -658,6 +734,22 @@ func (s *Service) targets(kind history.Kind) []Device {
 
 // deliver sends one clip to every target and reports the outcomes together.
 func (s *Service) deliver(itemID string, clip Clip, targets []Device) {
+	deliveries := s.deliveriesOf(clip, targets)
+	if s.options.OnDelivery != nil {
+		s.options.OnDelivery(itemID, deliveries)
+	}
+}
+
+// deliveriesOf sends one clip to every target and returns one outcome per
+// target, in the same order.
+//
+// A file payload takes a different road from text and images: its bytes are
+// streamed through the file transfer endpoints, and a payload that is too large
+// is refused here without touching the network at all.
+func (s *Service) deliveriesOf(clip Clip, targets []Device) []history.DeviceDelivery {
+	if clip.Kind == history.KindFile {
+		return s.deliverFiles(clip, targets)
+	}
 	deliveries := make([]history.DeviceDelivery, len(targets))
 	var wg sync.WaitGroup
 	for index, device := range targets {
@@ -672,9 +764,7 @@ func (s *Service) deliver(itemID string, clip Clip, targets []Device) {
 		}()
 	}
 	wg.Wait()
-	if s.options.OnDelivery != nil {
-		s.options.OnDelivery(itemID, deliveries)
-	}
+	return deliveries
 }
 
 // deliverTo sends one clip to one device and returns the outcome.
@@ -747,6 +837,12 @@ func (s *Service) handleClip(w http.ResponseWriter, r *http.Request) {
 	clip, err := payload.clip()
 	if err != nil {
 		writeJSON(w, http.StatusOK, clipReply{Status: clipStatusIgnored, Reason: clipReasonVersion})
+		return
+	}
+	if clip.Kind == history.KindFile {
+		// File payloads carry bytes, so they have their own endpoints; a file
+		// item that arrived here would have no content to store.
+		writeJSON(w, http.StatusOK, clipReply{Status: clipStatusIgnored, Reason: clipReasonKind})
 		return
 	}
 	// The receiving side's own settings decide: a device set to send only does

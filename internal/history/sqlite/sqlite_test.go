@@ -74,6 +74,7 @@ func fixture() history.Item {
 			{DeviceID: "peer-a", State: history.DeliveryReceived},
 			{DeviceID: "peer-b", State: history.DeliveryOffline},
 			{DeviceID: "peer-c", State: history.DeliveryPending},
+			{DeviceID: "peer-d", State: history.DeliveryTooLarge},
 		},
 	}
 }

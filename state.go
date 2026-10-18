@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -13,6 +14,7 @@ import (
 
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
+	"gopaste/internal/settings"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -42,6 +44,8 @@ func newApplication() *application {
 	// 自己起一个。设备页显示时再去掉 .local 后缀，见 deviceDisplayName。
 	app.deviceNameDefault = defaultDeviceName(localHostname(), localPlatformSlug(), app.devicePeerID)
 	app.deviceName = app.deviceNameDefault
+	// 上限先按默认值就位：设置文件读出来之后 applySettings 会再覆盖一次。
+	app.applyFileSyncLimit(settings.DefaultFileSyncMaxMB)
 	app.sortPairedDevices()
 	return app
 }
@@ -350,6 +354,7 @@ func (a *application) clearHistory() {
 	a.history.Clear()
 	a.historyBitmaps = nil
 	a.codeHighlights = nil
+	a.clearReceivedFiles()
 	a.persistDelete(ids...)
 }
 
@@ -382,18 +387,21 @@ func (a *application) executeDangerousAction(action dangerousAction, targetID st
 const undoWindow = 5 * time.Second
 
 // pendingUndo 是一次限时撤销：restore 放回被移除的内容，toastID 指向提供「撤销」
-// 按钮的提示。提示一关（超时、点了撤销、或 Cmd+Z 已经撤销过），这次机会就作废。
-// 撤销栈按操作先后排列，栈顶是最近一次，Cmd+Z 因此撤销最近一次操作。
+// 按钮的提示。提示一关（超时、点了撤销、或 Cmd+Z 已经撤销过），这次机会就作废，
+// 若还带着 discard，就由它完成那些一旦撤不回来就该做的事。
 type pendingUndo struct {
 	toastID string
 	restore func()
+	discard func()
 }
 
 // addUndoToast 显示带「撤销」按钮的限时提示，并把这次撤销压入栈顶。提示按钮与
 // Cmd+Z 都经 takePendingUndo 取用同一条恢复路径，因此不会重复恢复。
 //
+// discard 可为 nil；它只在撤销机会作废（没有恢复）时执行。
+//
 // 提示 ID 由 AddToast 逐次生成，快速连续操作时各自的撤销互不覆盖。
-func (a *application) addUndoToast(c *ui.Context, title string, restore func()) {
+func (a *application) addUndoToast(c *ui.Context, title string, restore, discard func()) {
 	var toastID string
 	toastID = c.AddToast(ui.Toast{
 		Title:   title,
@@ -403,7 +411,7 @@ func (a *application) addUndoToast(c *ui.Context, title string, restore func()) 
 		OnAction: func() { a.undoByToast(toastID) },
 		OnClose:  func() { a.dropPendingUndo(toastID) },
 	})
-	a.pendingUndos = append(a.pendingUndos, pendingUndo{toastID: toastID, restore: restore})
+	a.pendingUndos = append(a.pendingUndos, pendingUndo{toastID: toastID, restore: restore, discard: discard})
 	a.undoAvailabilityChanged()
 }
 
@@ -446,9 +454,13 @@ func (a *application) takePendingUndo(toastID string) (pendingUndo, bool) {
 	return pendingUndo{}, false
 }
 
-// dropPendingUndo 在提示关闭后作废对应的撤销机会。
+// dropPendingUndo 在提示关闭后作废对应的撤销机会，并完成那些不再可撤销的收尾工作。
 func (a *application) dropPendingUndo(toastID string) {
-	a.takePendingUndo(toastID)
+	entry, ok := a.takePendingUndo(toastID)
+	if !ok || entry.discard == nil {
+		return
+	}
+	entry.discard()
 }
 
 // requestUndo 由 macOS 的编辑菜单调用：菜单回调不在构建帧里，拿不到 ui.Context，
@@ -476,7 +488,7 @@ func (a *application) deleteHistoryItem(c *ui.Context, id string) {
 	}
 	delete(a.historyBitmaps, id)
 	a.persistDelete(id)
-	a.addUndoToast(c, a.t(msgToastDeleted), func() { a.restoreHistoryItem(item) })
+	a.addUndoToast(c, a.t(msgToastDeleted), func() { a.restoreHistoryItem(item) }, func() { a.discardReceivedFiles(item) })
 }
 
 // restoreHistoryItem 把撤销窗口内删除的记录放回历史记录，并安排下一帧提示。
@@ -488,6 +500,38 @@ func (a *application) restoreHistoryItem(item history.Item) {
 	a.pendingToast = a.t(msgToastRestored)
 }
 
+// discardReceivedFiles 删掉一条收到的文件记录落盘的文件。它只在撤销机会结束后执行，
+// 所以窗口内撤销时记录和文件都还在。
+func (a *application) discardReceivedFiles(item history.Item) {
+	dir, ok := a.receivedFilesPath(item)
+	if !ok {
+		return
+	}
+	// 删一棵目录可能不小，放到界面线程之外。
+	go func() { _ = os.RemoveAll(dir) }()
+}
+
+// receivedFilesPath 返回一条收到的文件记录在本机落盘的目录。只有来自设备的文件条目
+// 才有这个目录：本机捕获的文件项只是指向用户自己的文件，不能删。
+func (a *application) receivedFilesPath(item history.Item) (string, bool) {
+	if a.receivedFilesDir == "" || item.Kind != kindFile || item.SourceDeviceID == "" {
+		return "", false
+	}
+	if item.ID == "" || strings.ContainsAny(item.ID, `/\`) {
+		return "", false
+	}
+	return filepath.Join(a.receivedFilesDir, item.ID), true
+}
+
+// clearReceivedFiles 清空收到的同步文件。清空历史没有撤销，所以文件跟着立刻走。
+func (a *application) clearReceivedFiles() {
+	if a.receivedFilesDir == "" {
+		return
+	}
+	dir := a.receivedFilesDir
+	go func() { _ = os.RemoveAll(dir) }()
+}
+
 // unpairDeviceWithUndo 取消一台设备的配对，并弹出限时可撤销的提示。撤销会把设备
 // 放回原有位置并重新选中；超过 undoWindow 未撤销，取消配对即成为最终结果。
 func (a *application) unpairDeviceWithUndo(c *ui.Context, id string) {
@@ -495,7 +539,7 @@ func (a *application) unpairDeviceWithUndo(c *ui.Context, id string) {
 	if !ok {
 		return
 	}
-	a.addUndoToast(c, a.t(msgToastUnpaired), func() { a.restorePairedDevice(index, device) })
+	a.addUndoToast(c, a.t(msgToastUnpaired), func() { a.restorePairedDevice(index, device) }, nil)
 }
 
 // removePairedDevice 从已配对设备中移除一台并清空选中，返回它原来的下标与完整记录，
@@ -736,16 +780,26 @@ func (a *application) pairingMessage(err error) string {
 // 的历史记录留下。内容已在别处存在时不再存第二份，但仍然写进剪贴板——用户在另一台
 // 机器上刚复制了它。
 //
+// 文件项写的是文件本身（不是路径文本）：文件已经落到本机的 Files 目录，剪贴板里放
+// 这些本地路径，用户直接粘贴就能拿到文件。
+//
 // 历史装载完成之前收到的内容先排队（见 historyReady）：剪贴板照写，条目等装载完成
 // 后再补，否则它会被装载结果整份替换掉。
 func (a *application) receiveClip(clip lansync.Clip, from lansync.Device) {
 	item := clip.HistoryItem(from.ID, time.Now())
 	// 先记下这次写入会读回什么，捕获路径就不会把它当成一次新的复制。
-	a.recordClipboardWrite(item)
+	if clip.Kind == kindFile && len(clip.LocalFiles) > 0 {
+		a.recordClipboardFiles(item.ID, clip.LocalFiles)
+	} else {
+		a.recordClipboardWrite(item)
+	}
 	if a.clipboard != nil {
-		if clip.Kind == kindImage && clip.Image != nil {
+		switch {
+		case clip.Kind == kindFile && len(clip.LocalFiles) > 0:
+			_ = a.clipboard.WriteFiles(clip.LocalFiles...)
+		case clip.Kind == kindImage && clip.Image != nil:
 			_ = a.clipboard.WriteImage(clip.Image.PNG)
-		} else {
+		default:
 			a.clipboard.WriteText(clip.Text)
 		}
 	}
@@ -781,18 +835,21 @@ func (a *application) applyDelivery(itemID string, deliveries []history.DeviceDe
 }
 
 // summarizeSync 把各设备的投递结果汇总成一条记录的状态。
+//
+// 一个设备都没收到时，「文件过大」优先于「离线」：那是体积问题，不是等对方上线
+// 就能变好的事。
 func summarizeSync(deliveries []history.DeviceDelivery) syncState {
 	if len(deliveries) == 0 {
 		return syncStateNone
 	}
 	received := 0
-	offline := 0
+	tooLarge := 0
 	for _, delivery := range deliveries {
 		switch delivery.State {
 		case deliveryReceived:
 			received++
-		case deliveryOffline:
-			offline++
+		case deliveryTooLarge:
+			tooLarge++
 		}
 	}
 	switch {
@@ -800,10 +857,11 @@ func summarizeSync(deliveries []history.DeviceDelivery) syncState {
 		return syncStateSynced
 	case received > 0:
 		return syncStatePartial
+	case tooLarge > 0:
+		return syncStateTooLarge
 	default:
-		// 一个设备都没收到：有离线设备时是「等待对方上线」，否则是对方拒收
-		// （方向设置不允许），同样还在等待投递。
-		_ = offline
+		// 一个设备都没收到、也没有体积问题：要么有设备离线（等它上线），
+		// 要么是对方拒收（方向设置不允许），两者都还在等。
 		return syncStateOffline
 	}
 }

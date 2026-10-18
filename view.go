@@ -1959,7 +1959,7 @@ func (a *application) syncDeviceStatuses(theme *ui.Theme, item history.Item) []s
 	for index := range a.pairedDevices {
 		device := &a.pairedDevices[index]
 		state := deliveryStateForItem(item, device.id)
-		if state != deliveryReceived && !device.online {
+		if state != deliveryReceived && state != deliveryTooLarge && !device.online {
 			state = deliveryOffline
 		}
 		label, color := a.deliveryStyle(theme, state, item.Sync == syncStateReplaced)
@@ -1996,6 +1996,8 @@ func (a *application) syncStateStyle(theme *ui.Theme, state syncState) (string, 
 		return a.t(msgSyncStateOffline), theme.Warning
 	case syncStateReplaced:
 		return a.t(msgSyncStateReplaced), secondaryText(theme)
+	case syncStateTooLarge:
+		return a.t(msgSyncStateTooLarge), theme.Warning
 	default:
 		return a.t(msgSyncStateNone), secondaryText(theme)
 	}
@@ -2009,6 +2011,8 @@ func (a *application) deliveryStyle(theme *ui.Theme, state deliveryState, replac
 		return a.t(msgSyncDeliveryReceived), theme.Success
 	case deliveryOffline:
 		return a.t(msgSyncDeliveryOffline), theme.Warning
+	case deliveryTooLarge:
+		return a.t(msgSyncDeliveryTooLarge), theme.Warning
 	}
 	if replaced {
 		return a.t(msgSyncDeliveryNotSent), secondaryText(theme)
@@ -2021,7 +2025,7 @@ func (a *application) deliveryStyle(theme *ui.Theme, state deliveryState, replac
 // status dot, so small text never leans on a low-contrast accent.
 func deliveryTextColor(theme *ui.Theme, state deliveryState) ui.Color {
 	switch state {
-	case deliveryReceived, deliveryOffline:
+	case deliveryReceived, deliveryOffline, deliveryTooLarge:
 		return primaryText(theme)
 	default:
 		return secondaryText(theme)

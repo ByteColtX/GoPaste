@@ -196,6 +196,27 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 			})
 		})
 		settingsRule(c, theme)
+		a.settingsRow(c, theme, a.t(msgSettingsFileSyncLimit), a.t(msgSettingsFileSyncLimitDesc), func() {
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
+				input := ui.TextInput(c.Key("settings-file-sync-limit"), &a.fileSyncMaxMB).
+					Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).
+					Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+					Background(theme.Background).Border(1, borderColor(theme)).
+					Label(a.t(msgSettingsFileSyncLimit)).Placeholder(a.t(msgSettingsFileSyncLimitPlaceholder))
+				if a.compactDetailLayout(c, theme) {
+					input.FillWidth()
+				} else {
+					input.Width(110)
+				}
+				labelText(c, a.t(msgSettingsFileSyncLimitUnit)).FontSize(font(theme, fontControl)).
+					TextColor(secondaryText(theme))
+				// 改完立刻生效：正在运行的同步服务拿到新上限，下一次投递就按它判。
+				if input.Changed() {
+					a.editFileSyncLimit(a.fileSyncMaxMB)
+				}
+			})
+		})
+		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsClearHistoryRow), a.t(msgSettingsClearHistoryRowDesc), func() {
 			clearLabel := a.storageClearLabel(stats.Total)
 			button := dangerButton(c, theme, "settings-clear-history", clearLabel).

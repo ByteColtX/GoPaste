@@ -56,6 +56,16 @@ func deviceDatabasePath() (string, error) {
 	return filepath.Join(base, "GoPaste", "devices.json"), nil
 }
 
+// receivedFilesDirectory 返回接收到的同步文件落盘的根目录。每条记录一个以内容 ID
+// 命名的子目录，所以同名文件不会互相覆盖；删除记录时整个目录一起清掉。
+func receivedFilesDirectory() (string, error) {
+	dir, err := appDataDirectory()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "Files"), nil
+}
+
 // userDataDirectory 返回当前用户存放应用数据的基础目录。Go 标准库只有配置目录
 // 和缓存目录，历史记录既不是配置也不能被系统清理，所以按平台约定自行拼出数据
 // 目录。
@@ -335,6 +345,16 @@ func (a *application) recordClipboardWrite(item history.Item) {
 		return
 	}
 	a.clipboardEcho = map[string]struct{}{echo.ID: {}}
+}
+
+// recordClipboardFiles 记下写进剪贴板的一批文件会读回什么，作用同
+// recordClipboardWrite。接收同步文件时剪贴板里是文件本身而不是路径文本，所以回声
+// 要按文件读数算：本地路径算出的 ID 与收到的条目 ID 不同，两个都要认得。
+func (a *application) recordClipboardFiles(itemID string, paths []string) {
+	a.clipboardEcho = map[string]struct{}{itemID: {}}
+	if echo, ok := (capture.Snapshot{Kind: kindFile, Files: paths}).Item(); ok {
+		a.clipboardEcho[echo.ID] = struct{}{}
+	}
 }
 
 // recordClipboardText 记下应用直接写到剪贴板的一段文本，作用同 recordClipboardWrite。

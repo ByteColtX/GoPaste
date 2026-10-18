@@ -124,6 +124,7 @@ const (
 	syncStatePartial  = history.SyncStatePartial
 	syncStateOffline  = history.SyncStateOffline
 	syncStateReplaced = history.SyncStateReplaced
+	syncStateTooLarge = history.SyncStateTooLarge
 )
 
 type deliveryState = history.DeliveryState
@@ -132,6 +133,7 @@ const (
 	deliveryPending  = history.DeliveryPending
 	deliveryReceived = history.DeliveryReceived
 	deliveryOffline  = history.DeliveryOffline
+	deliveryTooLarge = history.DeliveryTooLarge
 )
 
 // pairedDevice 是已配对设备在界面上的投影。真正的数据在 lansync 的
@@ -180,6 +182,13 @@ const (
 	pairingAnswering
 )
 
+// clipboardPort 是根包对系统剪贴板的全部需求。历史模块只要写文本和写图片；写文件
+// 列表只在接收同步文件时用到，所以它是根包自己的接口，不进 history 的缝。
+type clipboardPort interface {
+	history.ClipboardWriter
+	WriteFiles(paths ...string) error
+}
+
 // application 保存窗口在多次重绘之间需要延续的状态。UI 元素本身不放在这里，
 // 因为 MyGo 的元素只在当前构建帧中有效。
 type application struct {
@@ -224,7 +233,7 @@ type application struct {
 	history        *history.Store
 	historyBitmaps map[string]*ui.Bitmap
 	codeHighlights codeHighlightCache
-	clipboard      history.ClipboardWriter
+	clipboard      clipboardPort
 	historySearch  ui.Handle
 	listState      ui.ListState
 
@@ -283,6 +292,13 @@ type application struct {
 	confirmSkipOnboarding bool
 	// settingsPath 是本次运行读写的设置文件；为空时不落盘（例如拿不到数据目录）。
 	settingsPath string
+	// fileSyncMaxMB 是设置页里「同步文件大小上限」的输入文本，fileSyncLimitBytes
+	// 是它解析后的有效值：输入不合法时文本留在原处，上限仍是上一个有效值。
+	fileSyncMaxMB      string
+	fileSyncLimitBytes int64
+	// receivedFilesDir 是收到的同步文件落盘的根目录（每条记录一个子目录）；为空
+	// 时收不了文件，删除记录时也没有可清理的东西。
+	receivedFilesDir string
 
 	launchAtLogin            bool
 	languagePreference       languagePreference // 设置页选的语言，language 是它解析后的结果
