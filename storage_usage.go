@@ -8,21 +8,19 @@ import (
 	"strconv"
 )
 
-// storageUsage 是 GoPaste 在本机磁盘上各类数据的占用字节数。三类的和就是应用在
-// 磁盘上的全部内容，没有缓存目录，日志也不落盘。
+// storageUsage 是 GoPaste 在本机磁盘上各类数据的占用字节数。两类之和就是界面上
+// 的总计：设置与配对文件只有几 KB，不进统计也不单列一行。
 type storageUsage struct {
 	// database 是历史数据库：history.db 与 WAL 模式带出的 -wal、-shm。剪贴板图片
 	// 以 BLOB 存在库里，因此算在这一类。
 	database int64
 	// files 是收到的同步文件整棵目录树，每条记录一个以内容 ID 命名的子目录。
 	files int64
-	// settings 是设置文件与设备配对文件，里面是偏好、本机私钥和钉住的公钥。
-	settings int64
 }
 
-// total 返回三类占用之和，也就是界面上的「总计」。
+// total 返回两类占用之和，也就是界面上的「总计」。
 func (u storageUsage) total() int64 {
-	return u.database + u.files + u.settings
+	return u.database + u.files
 }
 
 // storageUsagePaths 是测量要知道的几个位置。空字符串表示这一类本次不测（例如没有
@@ -30,8 +28,6 @@ func (u storageUsage) total() int64 {
 type storageUsagePaths struct {
 	database string
 	files    string
-	settings string
-	devices  string
 }
 
 // measureStorageUsage 统计 paths 指到的文件占了多少字节。它只读元数据、只碰磁盘，
@@ -48,7 +44,6 @@ func measureStorageUsage(paths storageUsagePaths) storageUsage {
 			fileBytes(paths.database+"-shm")
 	}
 	usage.files = directoryBytes(paths.files)
-	usage.settings = fileBytes(paths.settings) + fileBytes(paths.devices)
 	return usage
 }
 

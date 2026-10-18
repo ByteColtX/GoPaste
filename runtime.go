@@ -633,15 +633,9 @@ func (r *applicationRuntime) measureStorageUsage(after <-chan struct{}) {
 // storageUsagePaths 返回用量统计要看的几个位置。拿不到的位置留空，对应那一类按 0
 // 算：没有数据目录时本来就什么都没落盘。
 func (r *applicationRuntime) storageUsagePaths() storageUsagePaths {
-	paths := storageUsagePaths{
-		files:    r.app.receivedFilesDir,
-		settings: r.app.settingsPath,
-	}
+	paths := storageUsagePaths{files: r.app.receivedFilesDir}
 	if database, err := r.databaseFile(); err == nil {
 		paths.database = database
-	}
-	if devices, err := deviceDatabasePath(); err == nil {
-		paths.devices = devices
 	}
 	return paths
 }

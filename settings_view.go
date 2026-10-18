@@ -190,11 +190,12 @@ func (a *application) appearanceLabel(appearance int) string {
 
 func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsHeader(c, a.t(msgSettingsStorage), a.t(msgSettingsStorageDesc), theme)
+	// 用量区自己是一节、不套卡片：它陈述的是磁盘现状，不是可以改的设置。
+	a.settingsSubheading(c, a.t(msgSettingsStorageUsage), theme)
+	a.storageUsageSection(c, theme)
 	a.settingsSubheading(c, a.t(msgSettingsData), theme)
 	stats := a.history.Snapshot(history.Query{})
 	settingsGroup(c, theme, "settings-storage-group", func() {
-		a.storageUsageSection(c, theme)
-		settingsRule(c, theme)
 		// 保留策略两行：条数与天数各自可单独关掉（不限），改完立即生效，
 		// 见 applyRetention。
 		a.settingsRow(c, theme, a.t(msgSettingsRetentionItemsRow), a.t(msgSettingsRetentionItemsRowDesc), func() {
@@ -286,30 +287,28 @@ type storageUsageCategory struct {
 	bytes int64
 }
 
-// minStorageSegmentShare 是一类占用在占比条上的最小占比。数据库通常比其余两类大
-// 几个数量级，按真实比例画的话设置文件只剩零点几个像素，三类里总有一类看不见。
+// minStorageSegmentShare 是一类占用在占比条上的最小占比。数据库通常比另一类大
+// 几个数量级，按真实比例画的话收到的文件只剩零点几个像素，看起来像没有东西。
 const minStorageSegmentShare = 0.015
 
-// storageUsageCategories 按固定顺序列出三类占用。颜色都在强调色上取不同浓淡：
-// 三者是同一件事（应用占的盘）的三个部分，不是三个不同的语义。
+// storageUsageCategories 按固定顺序列出两类占用。颜色都在强调色上取不同浓淡：
+// 两者是同一件事（应用占的盘）的两个部分，不是两个不同的语义。设置与配对文件
+// 只有几 KB，不值得单列一行，也不进总计。
 func (a *application) storageUsageCategories(theme *ui.Theme) []storageUsageCategory {
 	return []storageUsageCategory{
 		{key: "database", icon: icons.storage, name: a.t(msgSettingsStorageDatabase),
 			color: theme.Accent, bytes: a.storageUsage.database},
 		{key: "files", icon: icons.file, name: a.t(msgSettingsStorageFiles),
 			color: theme.Accent.Alpha(0.55), bytes: a.storageUsage.files},
-		{key: "settings", icon: icons.config, name: a.t(msgSettingsStorageSettings),
-			color: theme.Accent.Alpha(0.28), bytes: a.storageUsage.settings},
 	}
 }
 
-// storageUsageSection 画「数据」卡片顶部的用量区：总计、分段占比条与图例。数字来自
+// storageUsageSection 画「存储用量」一节的用量区：总计、分段占比条与图例。数字来自
 // 最近一次统计（见 requestStorageUsage），渲染本身不碰磁盘。
 func (a *application) storageUsageSection(c *ui.Context, theme *ui.Theme) {
 	categories := a.storageUsageCategories(theme)
 	total := a.storageUsage.total()
-	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2.5)).
-		Padding(space(theme, 3), space(theme, 4)).Children(func() {
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2.5)).Children(func() {
 		ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 			labelText(c, formatBytes(total)).FontSize(font(theme, fontPageTitle)).FontWeight(600)
 			labelText(c, a.t(msgSettingsStorageTotal)).FontSize(font(theme, fontMeta)).
@@ -346,7 +345,7 @@ func (a *application) storageUsageBar(c *ui.Context, theme *ui.Theme, categories
 	})
 }
 
-// storageUsageLegend 把三类占用排成两列（窄布局下一列），每项是色点 + 图标 + 名称，
+// storageUsageLegend 把两类占用排成两列（窄布局下一列），每项是色点 + 图标 + 名称，
 // 大小靠右对齐。
 func (a *application) storageUsageLegend(c *ui.Context, theme *ui.Theme, categories []storageUsageCategory) {
 	columns := 2
@@ -387,7 +386,7 @@ func (a *application) storageClearLabel(total int) string {
 	if total == 0 {
 		return a.t(msgSettingsNothingToClear)
 	}
-	return a.t(msgSettingsClearHistory)
+	return a.t(msgSettingsClearAll)
 }
 
 func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {

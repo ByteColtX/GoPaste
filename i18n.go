@@ -348,7 +348,7 @@ const (
 	msgSettingsStorageRefresh           messageKey = "settings.storageRefresh"
 	msgSettingsStorageDatabase          messageKey = "settings.storageDatabase"
 	msgSettingsStorageFiles             messageKey = "settings.storageFiles"
-	msgSettingsStorageSettings          messageKey = "settings.storageSettings"
+	msgSettingsStorageUsage             messageKey = "settings.storageUsage"
 	msgSettingsData                     messageKey = "settings.data"
 	msgSettingsHistoryRow               messageKey = "settings.historyRow"
 	msgSettingsHistoryRowDesc           messageKey = "settings.historyRowDesc"
@@ -373,7 +373,7 @@ const (
 	msgSettingsFileSyncLimitPlaceholder messageKey = "settings.fileSyncLimitPlaceholder"
 	msgSettingsFileSyncLimitUnit        messageKey = "settings.fileSyncLimitUnit"
 	msgSettingsClearHistoryRowDesc      messageKey = "settings.clearHistoryRowDesc"
-	msgSettingsClearHistory             messageKey = "settings.clearHistory"
+	msgSettingsClearAll                 messageKey = "settings.clearAll"
 	msgSettingsNothingToClear           messageKey = "settings.nothingToClear"
 	msgSettingsNoHistoryNote            messageKey = "settings.noHistoryNote"
 	msgSettingsAbout                    messageKey = "settings.about"
@@ -669,9 +669,9 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsStorageDesc:              "查看并清除储存在此设备上的历史记录。",
 	msgSettingsStorageTotal:             "总计",
 	msgSettingsStorageRefresh:           "重新统计磁盘占用",
+	msgSettingsStorageUsage:             "存储用量",
 	msgSettingsStorageDatabase:          "数据库",
 	msgSettingsStorageFiles:             "收到的文件",
-	msgSettingsStorageSettings:          "设置与配对",
 	msgSettingsData:                     "数据",
 	msgSettingsHistoryRow:               "历史记录",
 	msgSettingsHistoryRowDesc:           "此设备上保存的剪贴板记录",
@@ -696,7 +696,7 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsFileSyncLimitPlaceholder: "2048",
 	msgSettingsFileSyncLimitUnit:        "MB",
 	msgSettingsClearHistoryRowDesc:      "删除此设备上保存的所有记录",
-	msgSettingsClearHistory:             "清除历史记录",
+	msgSettingsClearAll:                 "全部清除",
 	msgSettingsNothingToClear:           "没有可清除的记录",
 	msgSettingsNoHistoryNote:            "此设备上暂无历史记录。拷贝内容后，记录会自动出现在“历史记录”页面。",
 	msgSettingsAbout:                    "关于",
@@ -984,9 +984,9 @@ var englishCatalog = catalog{
 	msgSettingsStorageDesc:              "View and clear history saved on this device.",
 	msgSettingsStorageTotal:             "total",
 	msgSettingsStorageRefresh:           "Measure disk usage again",
+	msgSettingsStorageUsage:             "Storage usage",
 	msgSettingsStorageDatabase:          "Database",
 	msgSettingsStorageFiles:             "Received files",
-	msgSettingsStorageSettings:          "Settings & pairing",
 	msgSettingsData:                     "Data",
 	msgSettingsHistoryRow:               "History",
 	msgSettingsHistoryRowDesc:           "Clipboard records saved on this device",
@@ -1011,7 +1011,7 @@ var englishCatalog = catalog{
 	msgSettingsFileSyncLimitPlaceholder: "2048",
 	msgSettingsFileSyncLimitUnit:        "MB",
 	msgSettingsClearHistoryRowDesc:      "Delete all records saved on this device",
-	msgSettingsClearHistory:             "Clear history",
+	msgSettingsClearAll:                 "Clear all",
 	msgSettingsNothingToClear:           "Nothing to clear",
 	msgSettingsNoHistoryNote:            "No history on this device yet. Content you copy appears on the History page automatically.",
 	msgSettingsAbout:                    "About",

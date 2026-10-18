@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gopaste/internal/history"
+
 	"github.com/egoist/mygo/ui"
 )
 
@@ -33,8 +35,8 @@ func TestFormatBytes(t *testing.T) {
 	}
 }
 
-// TestMeasureStorageUsageCountsEveryLocation 检查三类占用各自算到该算的文件：数据库
-// 连 -wal/-shm 一起算，收到的文件整棵目录树都算，设置与配对是两个文件的和。
+// TestMeasureStorageUsageCountsEveryLocation 检查两类占用各自算到该算的文件：数据库
+// 连 -wal/-shm 一起算，收到的文件整棵目录树都算。
 func TestMeasureStorageUsageCountsEveryLocation(t *testing.T) {
 	dir := t.TempDir()
 	database := filepath.Join(dir, "history.db")
@@ -44,24 +46,14 @@ func TestMeasureStorageUsageCountsEveryLocation(t *testing.T) {
 	files := filepath.Join(dir, "Files")
 	writeSizedFile(t, filepath.Join(files, "item-1", "报表.txt"), 500)
 	writeSizedFile(t, filepath.Join(files, "item-2", "nested", "photo.png"), 70)
-	settings := filepath.Join(dir, "settings.json")
-	writeSizedFile(t, settings, 40)
-	devices := filepath.Join(dir, "devices.json")
-	writeSizedFile(t, devices, 60)
+	usage := measureStorageUsage(storageUsagePaths{database: database, files: files})
 
-	usage := measureStorageUsage(storageUsagePaths{
-		database: database,
-		files:    files,
-		settings: settings,
-		devices:  devices,
-	})
-
-	want := storageUsage{database: 1230, files: 570, settings: 100}
+	want := storageUsage{database: 1230, files: 570}
 	if usage != want {
 		t.Fatalf("用量 = %+v，期望 %+v", usage, want)
 	}
-	if got := usage.total(); got != 1900 {
-		t.Errorf("总计 = %d，期望 1900", got)
+	if got := usage.total(); got != 1800 {
+		t.Errorf("总计 = %d，期望 1800", got)
 	}
 }
 
@@ -77,19 +69,17 @@ func TestMeasureStorageUsageIgnoresMissingLocations(t *testing.T) {
 	usage = measureStorageUsage(storageUsagePaths{
 		database: filepath.Join(dir, "missing.db"),
 		files:    filepath.Join(dir, "missing-files"),
-		settings: filepath.Join(dir, "missing.json"),
-		devices:  filepath.Join(dir, "missing-devices.json"),
 	})
 	if usage != (storageUsage{}) {
 		t.Fatalf("不存在的文件的用量 = %+v，期望全 0", usage)
 	}
 }
 
-// TestStorageSettingsShowsTheUsageBreakdown 检查储存空间页画出总计、三类名称与各自
+// TestStorageSettingsShowsTheUsageBreakdown 检查储存空间页画出总计、两类名称与各自
 // 的大小。测试器在 key 重复时会 panic，所以这也是一次新控件 key 的冒烟检查。
 func TestStorageSettingsShowsTheUsageBreakdown(t *testing.T) {
 	app := previewApp("")
-	app.storageUsage = storageUsage{database: 75_000_000, files: 181_248, settings: 5734}
+	app.storageUsage = storageUsage{database: 75_000_000, files: 181_248}
 	app.setPage(pageSettings)
 	app.setSettingsArea(settingsStorage)
 
@@ -98,11 +88,10 @@ func TestStorageSettingsShowsTheUsageBreakdown(t *testing.T) {
 	for _, want := range []string{
 		"72 MB",
 		app.t(msgSettingsStorageTotal),
+		app.t(msgSettingsStorageUsage),
 		app.t(msgSettingsStorageDatabase),
 		app.t(msgSettingsStorageFiles),
-		app.t(msgSettingsStorageSettings),
 		"177 KB",
-		"5.6 KB",
 	} {
 		if !tt.HasText(want) {
 			t.Errorf("储存空间页应显示 %q，实际显示：%q", want, tt.Texts())
@@ -110,7 +99,7 @@ func TestStorageSettingsShowsTheUsageBreakdown(t *testing.T) {
 	}
 }
 
-// TestStorageSettingsShowsAnEmptyUsage 检查没有任何数据时总计与三类都写 0 B：空状态
+// TestStorageSettingsShowsAnEmptyUsage 检查没有任何数据时总计与两类都写 0 B：空状态
 // 也是一个数字，不是一个空白区。
 func TestStorageSettingsShowsAnEmptyUsage(t *testing.T) {
 	app := previewApp("")
@@ -205,5 +194,24 @@ func writeSizedFile(t *testing.T, path string, size int) {
 	}
 	if err := os.WriteFile(path, make([]byte, size), 0o600); err != nil {
 		t.Fatalf("写文件 %s 失败：%v", path, err)
+	}
+}
+
+// TestClearHistoryButtonReadsClearAll 检查清理按钮的文案：有记录时写「全部清除」，
+// 一条记录都没有时置灰并写「没有可清除的记录」。
+func TestClearHistoryButtonReadsClearAll(t *testing.T) {
+	app := previewApp("")
+	app.setPage(pageSettings)
+	app.setSettingsArea(settingsStorage)
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	if !tt.HasText(app.t(msgSettingsClearAll)) {
+		t.Errorf("有记录时按钮应写 %q，实际显示：%q", app.t(msgSettingsClearAll), tt.Texts())
+	}
+
+	app.history = history.New(nil)
+	tt.Frame()
+	if !tt.HasText(app.t(msgSettingsNothingToClear)) {
+		t.Errorf("没有记录时按钮应写 %q，实际显示：%q", app.t(msgSettingsNothingToClear), tt.Texts())
 	}
 }
