@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gopaste/internal/history"
+	"gopaste/internal/lansync"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -40,13 +41,13 @@ var desktopPlatforms = []string{"macOS", "Windows", "Linux"}
 // syncDirection is the language-independent direction stored for each content
 // type. Labels are derived from the active language at render time, so
 // switching languages never rewrites the stored value.
-type syncDirection uint8
+type syncDirection = lansync.Direction
 
 const (
-	syncDirectionTwoWay syncDirection = iota
-	syncDirectionSendOnly
-	syncDirectionReceiveOnly
-	syncDirectionOff
+	syncDirectionTwoWay      = lansync.DirectionTwoWay
+	syncDirectionSendOnly    = lansync.DirectionSendOnly
+	syncDirectionReceiveOnly = lansync.DirectionReceiveOnly
+	syncDirectionOff         = lansync.DirectionOff
 )
 
 // settingsArea 表示设置页左侧导航中的当前主题。
@@ -133,15 +134,15 @@ const (
 	deliveryOffline  = history.DeliveryOffline
 )
 
-// pairedDevice 保存一个已配对设备的运行时状态。
-// 这些字段先保存在内存中，后续接入持久化同步服务时可直接替换数据来源。
+// pairedDevice 是已配对设备在界面上的投影。真正的数据在 lansync 的
+// devices.json 里，这里每个字段都由 applySyncDevices 从那边刷新，界面上的改动
+// 则经 syncService 写回去，界面因此不持有唯一真相。
 type pairedDevice struct {
 	id       string
 	name     string
 	peerID   string
 	platform string
 	version  string
-	channel  string
 	address  string
 	online   bool
 	// lastSeenAt 记录设备最近一次在线的时间，零值表示未知。
@@ -154,16 +155,29 @@ type pairedDevice struct {
 	richTextSyncDirection syncDirection
 }
 
-// deviceDiscoveryState describes the device provider state exposed by the UI.
-// The current preview has no discovery backend, so it remains ready by default;
-// a future LAN adapter can publish loading and error states without changing
-// the page structure.
+// deviceDiscoveryState describes what the discovery side of the sync service is
+// doing, so the device page can show a spinner or an error instead of an empty
+// list.
 type deviceDiscoveryState uint8
 
 const (
 	deviceDiscoveryReady deviceDiscoveryState = iota
 	deviceDiscoveryLoading
 	deviceDiscoveryError
+)
+
+// pairingState is where the pairing dialog is in the pairing flow.
+type pairingState uint8
+
+const (
+	// pairingIdle lists the devices discovered on the network.
+	pairingIdle pairingState = iota
+	// pairingWaiting shows the code this device generated for the device it is
+	// pairing with.
+	pairingWaiting
+	// pairingAnswering asks for the code shown by the device that started the
+	// pairing.
+	pairingAnswering
 )
 
 // application 保存窗口在多次重绘之间需要延续的状态。UI 元素本身不放在这里，
@@ -219,27 +233,35 @@ type application struct {
 	persistence   *historyPersistence
 	clipboardEcho map[string]struct{}
 
-	onResendItem func(itemID, deviceID string)
+	// syncService 是局域网同步服务。为 nil 时（测试、或服务启动失败）界面只显示
+	// 本地状态，配对与同步入口按不可用处理。
+	syncService *lansync.Service
 	// syncPopoverItem 与 syncPopoverOpen 记录预览区同步状态浮层的展开状态：
 	// 浮层由指针悬停状态标记展开，指针移开标记与浮层后收起。
-	syncPopoverItem          string
-	syncPopoverOpen          bool
-	deviceName               string
-	devicePeerID             string
-	devicePlatform           string
-	deviceSyncEnabled        bool
-	deviceFileSync           bool
-	pairedDevices            []pairedDevice
-	deviceDiscovery          deviceDiscoveryState
-	deviceDiscoveryMessage   string
-	onRefreshDevices         func()
-	deviceRefreshSpinUntil   time.Time
-	selectedDeviceID         string
-	deviceInfoExpanded       bool
-	addDeviceDialog          bool
-	pairingPending           bool
-	pairingError             string
-	onStartPairing           func()
+	syncPopoverItem        string
+	syncPopoverOpen        bool
+	deviceName             string
+	devicePeerID           string
+	devicePlatform         string
+	deviceSyncEnabled      bool
+	deviceFileSync         bool
+	pairedDevices          []pairedDevice
+	deviceDiscovery        deviceDiscoveryState
+	deviceDiscoveryMessage string
+	deviceRefreshSpinUntil time.Time
+	selectedDeviceID       string
+	deviceInfoExpanded     bool
+	addDeviceDialog        bool
+	// discoveredPeers 是发现到但还没配对的设备，配对对话框据此列出可配对的设备。
+	discoveredPeers []lansync.Peer
+	// pairing、pairingCode、pairingPeerName 描述配对对话框当前所处的阶段。
+	pairing         pairingState
+	pairingCode     string
+	pairingPeerID   string
+	pairingPeerName string
+	pairingError    string
+	// pairCodeInput 是「对方发起配对」时用户输入的配对码。
+	pairCodeInput            string
 	launchAtLogin            bool
 	languagePreference       languagePreference // 设置页选的语言，language 是它解析后的结果
 	language                 language

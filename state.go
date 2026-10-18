@@ -1,13 +1,17 @@
 package main
 
 import (
+	"errors"
+	"net"
 	"runtime"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"gopaste/internal/history"
+	"gopaste/internal/lansync"
 
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
@@ -167,6 +171,9 @@ func (a *application) setSyncEnabled(enabled bool) {
 	a.deviceFileSync = enabled
 	for index := range a.pairedDevices {
 		a.pairedDevices[index].syncEnabled = enabled
+		if a.syncService != nil {
+			_ = a.syncService.SetDeviceSync(a.pairedDevices[index].id, enabled)
+		}
 	}
 	a.syncStateChanged()
 }
@@ -178,7 +185,19 @@ func (a *application) toggleDeviceSync(id string) {
 		return
 	}
 	device.syncEnabled = !device.syncEnabled
+	if a.syncService != nil {
+		_ = a.syncService.SetDeviceSync(id, device.syncEnabled)
+	}
 	a.syncStateChanged()
+}
+
+// setDeviceDirection 把某一内容类型的同步方向写回同步服务并落盘。设备页的下拉框
+// 绑定的是投影里的字段，改动经这里传回唯一真相。
+func (a *application) setDeviceDirection(id string, contentType lansync.ContentType, direction syncDirection) {
+	if a.syncService == nil {
+		return
+	}
+	_ = a.syncService.SetDirection(id, contentType, direction)
 }
 
 // trayDevices 把已配对设备投影成托盘「设备同步」子菜单需要的字段。
@@ -214,6 +233,10 @@ func (a *application) loadSystemSettings() {
 func (a *application) applyLanguage() {
 	a.language = a.languagePreference.language(mygo.App.Locale)
 	a.renameDefaultDevice()
+	if a.syncService != nil {
+		// 默认设备名跟着界面语言变时，局域网里的广播也跟着换名字。
+		_ = a.syncService.SetName(a.deviceName)
+	}
 	if a.onLanguageChanged != nil {
 		a.onLanguageChanged()
 	}
@@ -430,37 +453,344 @@ func (a *application) unpairDeviceWithUndo(c *ui.Context, id string) {
 	a.addUndoToast(c, a.t(msgToastUnpaired), func() { a.restorePairedDevice(index, device) })
 }
 
-// removePairedDevice 从已配对设备中移除一台并清空选中，返回它原来的下标，供撤销
-// 时放回原位。
-func (a *application) removePairedDevice(id string) (int, pairedDevice, bool) {
-	for index, device := range a.pairedDevices {
-		if device.id != id {
-			continue
-		}
-		a.pairedDevices = append(a.pairedDevices[:index], a.pairedDevices[index+1:]...)
-		a.selectedDeviceID = ""
-		a.deviceInfoExpanded = false
-		// 筛选栏可能正按这台设备过滤：设备没了就回到“所有来源”，
-		// 避免历史列表卡在一个永远匹配不到的筛选上。
-		if a.filterSource == history.DeviceSource(id) {
-			a.filterSource = history.SourceFilter{}
-		}
-		a.devicesChanged()
-		return index, device, true
+// removePairedDevice 从已配对设备中移除一台并清空选中，返回它原来的下标与完整记录，
+// 供撤销时放回原位。记录来自同步服务：公钥只存在那里，界面上的投影里没有。
+func (a *application) removePairedDevice(id string) (int, lansync.Device, bool) {
+	if a.syncService == nil {
+		return 0, lansync.Device{}, false
 	}
-	return 0, pairedDevice{}, false
+	index := -1
+	for position, device := range a.pairedDevices {
+		if device.id == id {
+			index = position
+			break
+		}
+	}
+	if index < 0 {
+		return 0, lansync.Device{}, false
+	}
+	removed, ok, err := a.syncService.RemoveDevice(id)
+	if err != nil || !ok {
+		return 0, lansync.Device{}, false
+	}
+	a.pairedDevices = append(a.pairedDevices[:index], a.pairedDevices[index+1:]...)
+	a.selectedDeviceID = ""
+	a.deviceInfoExpanded = false
+	// 筛选栏可能正按这台设备过滤：设备没了就回到“所有来源”，
+	// 避免历史列表卡在一个永远匹配不到的筛选上。
+	if a.filterSource == history.DeviceSource(id) {
+		a.filterSource = history.SourceFilter{}
+	}
+	a.devicesChanged()
+	return index, removed, true
 }
 
 // restorePairedDevice 把撤销窗口内取消配对的设备放回原有位置并重新选中，再安排
 // 下一帧提示。
-func (a *application) restorePairedDevice(index int, device pairedDevice) {
+func (a *application) restorePairedDevice(index int, device lansync.Device) {
+	if a.syncService != nil {
+		_ = a.syncService.RestoreDevice(device)
+	}
 	if index < 0 || index > len(a.pairedDevices) {
 		index = len(a.pairedDevices)
 	}
-	a.pairedDevices = slices.Insert(a.pairedDevices, index, device)
-	a.selectedDeviceID = device.id
+	a.pairedDevices = slices.Insert(a.pairedDevices, index, pairedDeviceOf(device))
+	a.selectedDeviceID = device.ID
 	a.pendingToast = a.t(msgToastRestored)
 	a.devicesChanged()
+}
+
+// pairedDeviceOf 把同步服务里的设备投影成界面用的那一份。真正的记录在
+// devices.json 里，这里只保留渲染与选择需要的字段。
+func pairedDeviceOf(device lansync.Device) pairedDevice {
+	address := ""
+	if device.Addr != nil && device.Port > 0 {
+		address = net.JoinHostPort(device.Addr.String(), strconv.Itoa(device.Port))
+	}
+	return pairedDevice{
+		id:                    device.ID,
+		name:                  device.Name,
+		peerID:                device.ID,
+		platform:              device.Platform,
+		address:               address,
+		online:                device.Online,
+		lastSeenAt:            device.LastSeen,
+		syncEnabled:           device.SyncEnabled,
+		textSyncDirection:     device.Direction(lansync.ContentText),
+		imageSyncDirection:    device.Direction(lansync.ContentImage),
+		fileSyncDirection:     device.Direction(lansync.ContentFile),
+		richTextSyncDirection: device.Direction(lansync.ContentRichText),
+	}
+}
+
+// applySyncDevices 用同步服务的设备列表替换界面上的投影。设备可能在另一台机器上被
+// 配对或取消，界面因此以服务为准，而不是自己攒状态。
+func (a *application) applySyncDevices(devices []lansync.Device) {
+	previous := make(map[string]bool, len(a.pairedDevices))
+	for _, device := range a.pairedDevices {
+		previous[device.id] = device.online
+	}
+	next := make([]pairedDevice, 0, len(devices))
+	for _, device := range devices {
+		next = append(next, pairedDeviceOf(device))
+	}
+	a.pairedDevices = next
+	a.sortPairedDevices()
+	if a.selectedDeviceID != "" {
+		if _, ok := a.pairedDeviceByID(a.selectedDeviceID); !ok {
+			a.selectedDeviceID = ""
+			a.deviceInfoExpanded = false
+		}
+	}
+	for _, device := range devices {
+		if device.Online && !previous[device.ID] {
+			// 设备刚回到线上：把还没送到的记录补发过去。
+			a.resendPending(device.ID)
+		}
+	}
+	if _, paired := a.pairedDeviceByID(a.pairingPeerID); paired && a.pairing == pairingWaiting {
+		// 配对在这一帧之前完成了：关掉等待中的配对码，回到设备列表。
+		a.pairing = pairingIdle
+		a.pairingCode = ""
+		a.pairingPeerName = ""
+		a.pairingPeerID = ""
+		if a.addDeviceDialog {
+			a.pendingToast = a.t(msgToastPaired)
+		}
+	}
+}
+
+// applySyncPeers 记录发现结果，并在配对对话框打开时刷新可配对设备列表。
+func (a *application) applySyncPeers(peers []lansync.Peer) {
+	a.discoveredPeers = peers
+	a.deviceDiscovery = deviceDiscoveryReady
+	a.deviceDiscoveryMessage = ""
+}
+
+// pairablePeers 返回发现到、但还没配对的设备，配对对话框据此列出可配对的设备。
+func (a *application) pairablePeers() []lansync.Peer {
+	peers := make([]lansync.Peer, 0, len(a.discoveredPeers))
+	for _, peer := range a.discoveredPeers {
+		if _, paired := a.pairedDeviceByID(peer.ID); paired {
+			continue
+		}
+		peers = append(peers, peer)
+	}
+	return peers
+}
+
+// startPairing 向一台已发现的设备发起配对：本机生成并显示配对码，等对方输入。
+func (a *application) startPairing(peerID string) {
+	if a.syncService == nil {
+		return
+	}
+	a.pairingError = ""
+	a.pairCodeInput = ""
+	if err := a.syncService.Pair(peerID); err != nil {
+		a.pairing = pairingIdle
+		a.pairingError = a.pairingMessage(err)
+		return
+	}
+	a.pairingPeerID = peerID
+	a.pairingPeerName = peerID
+	for _, peer := range a.discoveredPeers {
+		if peer.ID == peerID {
+			a.pairingPeerName = peer.Name
+			break
+		}
+	}
+	a.pairing = pairingWaiting
+	a.pairingCode = ""
+}
+
+// applyPairingCode 显示发起配对后本机生成的配对码。
+func (a *application) applyPairingCode(deviceName, code string) {
+	a.addDeviceDialog = true
+	a.pairing = pairingWaiting
+	a.pairingCode = code
+	if deviceName != "" {
+		a.pairingPeerName = deviceName
+	}
+}
+
+// applyPairingFailed 报告一次没有完成的配对，并把对话框放回可重试的状态。
+func (a *application) applyPairingFailed(deviceName string, err error) {
+	a.pairingError = a.pairingMessage(err)
+	a.pairing = pairingIdle
+	a.pairingCode = ""
+	a.pairingPeerID = ""
+	if deviceName != "" {
+		a.pairingPeerName = deviceName
+	}
+}
+
+// applyPairRequest 处理别的设备发来的配对请求：打开对话框要求输入对方的配对码。
+func (a *application) applyPairRequest(request lansync.PairRequest) {
+	a.addDeviceDialog = true
+	a.pairing = pairingAnswering
+	a.pairingPeerID = request.PeerID
+	a.pairingPeerName = request.Name
+	a.pairCodeInput = ""
+	a.pairingError = ""
+}
+
+// confirmPairing 用用户输入的配对码完成对方发起的配对。
+func (a *application) confirmPairing(code string) {
+	if a.syncService == nil {
+		return
+	}
+	if err := a.syncService.ConfirmPairing(code); err != nil {
+		a.pairingError = a.pairingMessage(err)
+		return
+	}
+	a.pairing = pairingIdle
+	a.pairCodeInput = ""
+	a.pairingError = ""
+	a.pendingToast = a.t(msgToastPaired)
+}
+
+// declinePairRequest 拒绝对方发起的配对。
+func (a *application) declinePairRequest() {
+	if a.syncService != nil {
+		a.syncService.CancelPairing()
+	}
+	a.pairing = pairingIdle
+	a.pairCodeInput = ""
+	a.pairingError = ""
+}
+
+// cancelPairing 放弃本机发起的配对。
+func (a *application) cancelPairing() {
+	if a.syncService != nil {
+		a.syncService.CancelPairing()
+	}
+	a.pairing = pairingIdle
+	a.pairingCode = ""
+	a.pairingPeerID = ""
+}
+
+// pairingMessage 把同步服务的配对错误翻成界面上的文案。
+func (a *application) pairingMessage(err error) string {
+	switch {
+	case errors.Is(err, lansync.ErrPairingWrongCode):
+		return a.t(msgDevicesPairWrongCode)
+	case errors.Is(err, lansync.ErrPairingTimeout):
+		return a.t(msgDevicesPairTimedOut)
+	case errors.Is(err, lansync.ErrPairingCanceled):
+		return a.t(msgDevicesPairCanceled)
+	case errors.Is(err, lansync.ErrPairingBusy):
+		return a.t(msgDevicesPairBusy)
+	case errors.Is(err, lansync.ErrPairingVersion):
+		return a.t(msgDevicesPairVersion)
+	default:
+		return a.t(msgDevicesPairFailed)
+	}
+}
+
+// receiveClip 处理从已配对设备收到的剪贴板内容：写进本机剪贴板，并作为一条带来源
+// 的历史记录留下。内容已在别处存在时不再存第二份，但仍然写进剪贴板——用户在另一台
+// 机器上刚复制了它。
+func (a *application) receiveClip(clip lansync.Clip, from lansync.Device) {
+	item := clip.HistoryItem(from.ID, time.Now())
+	// 内容已经在本机历史里时不再存第二份（同内容同 ID），但仍然写进剪贴板：
+	// 用户刚在另一台机器上复制了它。
+	if err := a.history.Append(item); err == nil {
+		a.persistItem(item)
+	}
+	// 记下这次写入会读回什么，捕获路径就不会把它当成一次新的复制。
+	a.recordClipboardWrite(item)
+	if a.clipboard != nil {
+		_ = a.history.Copy(item.ID, a.clipboard)
+	}
+}
+
+// applyDelivery 记录一条记录的投递结果，并更新预览区看到的同步状态。
+func (a *application) applyDelivery(itemID string, deliveries []history.DeviceDelivery) {
+	item, ok := a.history.Item(itemID)
+	if !ok {
+		return
+	}
+	state := summarizeSync(deliveries)
+	if err := a.history.SetDelivery(itemID, state, deliveries); err != nil {
+		return
+	}
+	item.Sync = state
+	item.Deliveries = deliveries
+	a.persistItem(item)
+}
+
+// summarizeSync 把各设备的投递结果汇总成一条记录的状态。
+func summarizeSync(deliveries []history.DeviceDelivery) syncState {
+	if len(deliveries) == 0 {
+		return syncStateNone
+	}
+	received := 0
+	offline := 0
+	for _, delivery := range deliveries {
+		switch delivery.State {
+		case deliveryReceived:
+			received++
+		case deliveryOffline:
+			offline++
+		}
+	}
+	switch {
+	case received == len(deliveries):
+		return syncStateSynced
+	case received > 0:
+		return syncStatePartial
+	default:
+		// 一个设备都没收到：有离线设备时是「等待对方上线」，否则是对方拒收
+		// （方向设置不允许），同样还在等待投递。
+		_ = offline
+		return syncStateOffline
+	}
+}
+
+// markSuperseded 把一条都没送到的旧记录标成「已被替代」：剪贴板只有最新一条有意
+// 义，新内容进来后不再自动重试，重发按钮仍然可以手动补发。
+func (a *application) markSuperseded(newItemID string) {
+	view := a.history.Snapshot(history.Query{})
+	for _, item := range view.Items {
+		if item.ID == newItemID || !item.IsLocal() || item.Sync != syncStateOffline {
+			continue
+		}
+		if err := a.history.SetDelivery(item.ID, syncStateReplaced, item.Deliveries); err != nil {
+			continue
+		}
+		item.Sync = syncStateReplaced
+		a.persistItem(item)
+	}
+}
+
+// resendPending 把还没送到一台刚上线设备的记录补发过去。剪贴板只有最新一条有意
+// 义，所以只补发最近若干条，更早的留在「已被替代」状态等用户手动重发。
+func (a *application) resendPending(deviceID string) {
+	if a.syncService == nil {
+		return
+	}
+	for _, item := range a.pendingForDevice(deviceID) {
+		a.syncService.Resend(item, deviceID)
+	}
+}
+
+// pendingForDevice 返回还没送到某台设备的本机记录，设备重新上线时按顺序补发。
+func (a *application) pendingForDevice(deviceID string) []history.Item {
+	view := a.history.Snapshot(history.Query{})
+	items := make([]history.Item, 0, len(view.Items))
+	for _, item := range view.Items {
+		if !item.IsLocal() || item.Sync == syncStateReplaced {
+			continue
+		}
+		if deliveryStateForItem(item, deviceID) == deliveryReceived {
+			continue
+		}
+		items = append(items, item)
+		if len(items) >= 20 {
+			break
+		}
+	}
+	return items
 }
 
 func (a *application) toggleFavorite(id string) string {

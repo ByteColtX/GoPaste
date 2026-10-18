@@ -1,7 +1,10 @@
 package main
 
 import (
+	"path/filepath"
 	"testing"
+
+	"gopaste/internal/lansync"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -210,7 +213,16 @@ func TestDialogActionsKeepTheHIGOrder(t *testing.T) {
 	t.Run("配对对话框", func(t *testing.T) {
 		app := previewApp("")
 		app.setPage(pageDevices)
-		app.onStartPairing = func() {}
+		// 没有发现到任何设备时，对话框仍然有退出与刷新两个入口。
+		service, err := lansync.NewService(lansync.Options{
+			StorePath: filepath.Join(t.TempDir(), "devices.json"),
+			Name:      app.deviceName,
+			Platform:  app.devicePlatform,
+		})
+		if err != nil {
+			t.Fatalf("NewService: %v", err)
+		}
+		app.syncService = service
 		app.openAddDeviceDialog()
 		tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
 		tt.Frame()
@@ -219,10 +231,13 @@ func TestDialogActionsKeepTheHIGOrder(t *testing.T) {
 		if !ok {
 			t.Fatalf("配对对话框应显示「%s」，实际显示：%q", app.t(msgDevicesPairClose), tt.Texts())
 		}
-		start, ok := tt.Find(app.t(msgDevicesPairStart))
+		refresh, ok := tt.Find(app.t(msgDevicesPairRefresh))
 		if !ok {
-			t.Fatalf("配对对话框应显示「%s」，实际显示：%q", app.t(msgDevicesPairStart), tt.Texts())
+			t.Fatalf("配对对话框应显示「%s」，实际显示：%q", app.t(msgDevicesPairRefresh), tt.Texts())
 		}
-		assertOrder(t, closeButton, start, app.t(msgDevicesPairClose), app.t(msgDevicesPairStart))
+		assertOrder(t, closeButton, refresh, app.t(msgDevicesPairClose), app.t(msgDevicesPairRefresh))
+		if !hasExactText(tt.Texts(), app.t(msgDevicesPairNoneFound)) {
+			t.Errorf("对话框应说明没有可配对的设备，实际显示：%q", tt.Texts())
+		}
 	})
 }

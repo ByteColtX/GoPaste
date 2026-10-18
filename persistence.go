@@ -27,6 +27,16 @@ func historyDatabasePath() (string, error) {
 	return filepath.Join(base, "GoPaste", "history.db"), nil
 }
 
+// deviceDatabasePath 返回设备配对信息在本机的位置。它和历史数据库在同一个用户
+// 数据目录下：文件里是本机私钥和钉住的公钥，因此和历史记录一样只属于当前用户。
+func deviceDatabasePath() (string, error) {
+	base, err := userDataDirectory()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(base, "GoPaste", "devices.json"), nil
+}
+
 // userDataDirectory 返回当前用户存放应用数据的基础目录。Go 标准库只有配置目录
 // 和缓存目录，历史记录既不是配置也不能被系统清理，所以按平台约定自行拼出数据
 // 目录。
@@ -271,6 +281,12 @@ func (a *application) appendCaptured(item history.Item) {
 		return
 	}
 	a.persistItem(item)
+	// 剪贴板只有最新一条有意义：新的内容进来后，一条都没送到的旧记录不再自动
+	// 重试，界面上的重发按钮仍然可以手动补发。
+	a.markSuperseded(item.ID)
+	if a.syncService != nil {
+		a.syncService.Send(item)
+	}
 }
 
 // recordClipboardWrite 记下应用自己写到剪贴板的读数 ID，让紧接着的捕获忽略它。

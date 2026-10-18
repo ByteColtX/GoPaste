@@ -1933,11 +1933,15 @@ func (a *application) syncResendButton(c *ui.Context, theme *ui.Theme, scope, it
 }
 
 func (a *application) resendItem(c *ui.Context, itemID, deviceID string) {
-	if a.onResendItem == nil {
+	if a.syncService == nil {
 		c.Toast(a.t(msgSyncServiceUnavailable))
 		return
 	}
-	a.onResendItem(itemID, deviceID)
+	item, ok := a.history.Item(itemID)
+	if !ok {
+		return
+	}
+	a.syncService.Resend(item, deviceID)
 }
 
 // syncDeviceStatuses lists every paired device with the item's delivery

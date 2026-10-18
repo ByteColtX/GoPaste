@@ -1,7 +1,10 @@
 package main
 
 import (
+	"strings"
 	"time"
+
+	"gopaste/internal/lansync"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -67,12 +70,12 @@ func (a *application) startDeviceRefresh(now time.Time) string {
 	// 无论后端是否可用都先起一段最短转圈：点击必须有回应，否则按钮看起来
 	// 像没接上。转圈本身不代表结果，结果仍由下面的状态与提示给出。
 	a.deviceRefreshSpinUntil = now.Add(motionSpinPeriod)
-	if a.onRefreshDevices == nil {
+	if a.syncService == nil {
 		return a.t(msgToastDeviceDiscoveryUnavailable)
 	}
-	a.deviceDiscovery = deviceDiscoveryLoading
-	a.deviceDiscoveryMessage = ""
-	a.onRefreshDevices()
+	// 转圈只表示「点击有回应」：刷新结果的到达时间由发现层决定，界面上不再挂一个
+	// 自己不会结束的加载态。
+	a.syncService.Refresh()
 	return ""
 }
 
@@ -131,11 +134,21 @@ func (a *application) pairedDeviceEntry(c *ui.Context, theme *ui.Theme, index in
 }
 
 // openAddDeviceDialog 打开配对对话框，并清掉上一次尝试留下的状态。侧栏底栏的
-// 「+」是当前唯一的入口。
+// 「+」、文件菜单的「新增设备」与 Cmd+N 都走这里。
+//
+// 正在等待配对码或正在输入对方的配对码时不清状态：重新打开对话框不该打断一次
+// 正在进行的配对。
 func (a *application) openAddDeviceDialog() {
 	a.addDeviceDialog = true
-	a.pairingPending = false
 	a.pairingError = ""
+	a.pairCodeInput = ""
+	if a.pairing == pairingWaiting || a.pairing == pairingAnswering {
+		return
+	}
+	a.pairing = pairingIdle
+	a.pairingCode = ""
+	a.pairingPeerName = ""
+	a.discoveredPeers = a.pairablePeers()
 }
 
 // sidebarIconAction 是侧栏列表分组标题行里的小图标动作按钮（刷新）：与分区切换器
@@ -344,10 +357,10 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	deviceDivider(c, theme)
 
 	settings := []syncContentSetting{
-		{key: "text", label: a.t(msgKindText), icon: icons.text, direction: &device.textSyncDirection},
-		{key: "image", label: a.t(msgKindImage), icon: icons.image, direction: &device.imageSyncDirection},
-		{key: "file", label: a.t(msgKindFile), icon: icons.file, direction: &device.fileSyncDirection},
-		{key: "rich-text", label: a.t(msgKindRichText), icon: icons.text, direction: &device.richTextSyncDirection},
+		{key: "text", label: a.t(msgKindText), icon: icons.text, direction: &device.textSyncDirection, contentType: lansync.ContentText},
+		{key: "image", label: a.t(msgKindImage), icon: icons.image, direction: &device.imageSyncDirection, contentType: lansync.ContentImage},
+		{key: "file", label: a.t(msgKindFile), icon: icons.file, direction: &device.fileSyncDirection, contentType: lansync.ContentFile},
+		{key: "rich-text", label: a.t(msgKindRichText), icon: icons.text, direction: &device.richTextSyncDirection, contentType: lansync.ContentRichText},
 	}
 	directions := a.l10n().syncDirectionOptions(device.name)
 	for index, setting := range settings {
@@ -359,10 +372,11 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 }
 
 type syncContentSetting struct {
-	key       string
-	label     string
-	icon      *ui.SVG
-	direction *syncDirection
+	key         string
+	label       string
+	icon        *ui.SVG
+	direction   *syncDirection
+	contentType lansync.ContentType
 }
 
 func (a *application) syncDirectionRow(
@@ -386,8 +400,11 @@ func (a *application) syncDirectionRow(
 					ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 				})
 			})
-			selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
+			field := selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
 				FillWidth().Disabled(disabled)
+			if field.Changed() {
+				a.setDeviceDirection(device.id, setting.contentType, *setting.direction)
+			}
 		})
 		return
 	}
@@ -399,8 +416,11 @@ func (a *application) syncDirectionRow(
 			ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
-		selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
+		field := selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
 			Width(260).Disabled(disabled)
+		if field.Changed() {
+			a.setDeviceDirection(device.id, setting.contentType, *setting.direction)
+		}
 	})
 }
 
@@ -443,9 +463,17 @@ func (a *application) deviceSwitchRow(
 		})
 		switchControl := ui.Switch(c.Key("device-switch-"+key), value).
 			Shrink(0).Disabled(disabled).Label(title)
-		if key == "local-sync" && switchControl.Changed() {
-			// 页面开关和托盘开关共用同一条状态更新路径，避免设备状态不一致。
-			a.setSyncEnabled(a.deviceSyncEnabled)
+		if switchControl.Changed() {
+			switch key {
+			case "local-sync":
+				// 页面开关和托盘开关共用同一条状态更新路径，避免设备状态不一致。
+				a.setSyncEnabled(a.deviceSyncEnabled)
+			case "local-file-sync":
+				// 本机的文件同步开关只影响本机，没有要写回的服务状态。
+			default:
+				// 单台设备的开关：写回同步服务并落盘。
+				a.toggleDeviceSync(strings.TrimSuffix(key, "-sync"))
+			}
 		}
 	})
 }
@@ -527,13 +555,10 @@ func (a *application) deviceInfoDisclosureLabel(title string, expanded bool) str
 	return a.tf(msgDevicesExpand, title)
 }
 
-// addDeviceDialogView 保留配对入口的状态容器，不在协议接入前伪造成功结果。外观走
-// dialog 的共享外壳：与二次确认同一个宽度、内边距、表面和按钮行，主操作按钮在右。
+// addDeviceDialogView 是配对对话框：列出发现到、还没配对的设备，等待对方输入配对码
+// 时显示本机生成的 6 位码，对方发起配对时要求输入对方的码。外观走 dialog 的共享
+// 外壳：与二次确认同一个宽度、内边距、表面和按钮行，主操作按钮在右。
 func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
-	startLabel := a.t(msgDevicesPairStart)
-	if a.onStartPairing == nil {
-		startLabel = a.t(msgDevicesPairWaitingSvc)
-	}
 	dialog(c, theme, &a.addDeviceDialog, dialogSpec{
 		title:      a.t(msgDevicesAdd),
 		role:       ui.RoleDialog,
@@ -545,27 +570,142 @@ func (a *application) addDeviceDialogView(c *ui.Context, theme *ui.Theme) {
 				ui.Text(c, a.pairingError).FontSize(font(theme, fontMeta)).
 					TextColor(theme.Danger).Wrap()
 			}
-			// 等待中的状态属于弹窗内容，不再挤进按钮行：按钮行在任何弹窗里都只是按钮。
-			if a.pairingPending {
-				ui.Text(c, a.t(msgDevicesPairWaiting)).FontSize(font(theme, fontCaption)).
-					TextColor(secondaryText(theme)).Wrap()
+			switch a.pairing {
+			case pairingWaiting:
+				a.pairingCodeContent(c, theme)
+			case pairingAnswering:
+				a.pairingAnswerContent(c, theme)
+			default:
+				a.pairingDeviceList(c, theme)
 			}
 		},
 		actions: func() {
-			close := dialogDismissButton(c, theme, "close-invite-device", a.t(msgDevicesPairClose))
-			if close.Clicked() {
-				a.addDeviceDialog = false
-				a.pairingPending = false
-			}
-
-			start := dialogPrimaryButton(c, theme, "start-pairing", startLabel).
-				Disabled(a.onStartPairing == nil || a.pairingPending)
-			if start.Clicked() && a.onStartPairing != nil {
-				a.pairingPending = true
-				a.pairingError = ""
-				a.onStartPairing()
+			switch a.pairing {
+			case pairingWaiting:
+				close := dialogDismissButton(c, theme, "cancel-pairing", a.t(msgDevicesPairClose))
+				if close.Clicked() {
+					a.cancelPairing()
+				}
+			case pairingAnswering:
+				decline := dialogDismissButton(c, theme, "decline-pairing", a.t(msgDevicesPairDecline))
+				if decline.Clicked() {
+					a.declinePairRequest()
+				}
+				confirmLabel := a.t(msgDevicesPairConfirm)
+				confirm := dialogPrimaryButton(c, theme, "confirm-pairing", confirmLabel)
+				if confirm.Clicked() {
+					a.confirmPairing(a.pairCodeInput)
+				}
+			default:
+				close := dialogDismissButton(c, theme, "close-invite-device", a.t(msgDevicesPairClose))
+				if close.Clicked() {
+					a.addDeviceDialog = false
+				}
+				if a.syncService == nil {
+					return
+				}
+				refreshLabel := a.t(msgDevicesPairRefresh)
+				refresh := neutralButton(c, theme, "refresh-pairable-devices", refreshLabel)
+				refresh.Children(func() {
+					ui.Text(c, refreshLabel).FontSize(font(theme, fontControl)).SingleLine()
+				})
+				if refresh.Clicked() {
+					a.refreshDevices(c)
+				}
 			}
 		},
+	})
+}
+
+// pairingDeviceList 列出发现到、还没配对的设备；一台都没有时说明原因，并留一个
+// 刷新入口。
+func (a *application) pairingDeviceList(c *ui.Context, theme *ui.Theme) {
+	if a.syncService == nil {
+		ui.Text(c, a.t(msgDevicesPairWaitingSvc)).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme)).Wrap()
+		return
+	}
+	peers := a.pairablePeers()
+	if len(peers) == 0 {
+		message := a.t(msgDevicesPairNoneFound)
+		if a.deviceDiscovery == deviceDiscoveryError && a.deviceDiscoveryMessage != "" {
+			message = a.deviceDiscoveryMessage
+		}
+		ui.Text(c, message).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme)).Wrap()
+		return
+	}
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 1)).Children(func() {
+		for _, peer := range peers {
+			a.pairablePeerRow(c, theme, peer)
+		}
+	})
+}
+
+// pairablePeerRow 是一台可配对的设备：名字、平台，和右边的配对按钮。
+func (a *application) pairablePeerRow(c *ui.Context, theme *ui.Theme, peer lansync.Peer) {
+	ui.Row(c.Key("pairable-"+peer.ID)).FillWidth().Shrink(0).
+		MinHeight(space(theme, rowHeight)).Padding(space(theme, 2), space(theme, 2)).
+		AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
+		deviceRowTile(c, theme, iconForPlatform(peer.Platform), false)
+		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
+			name := peer.Name
+			if name == "" {
+				name = peer.ID
+			}
+			ui.Text(c, name).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+			ui.Text(c, displayValue(peer.Platform)).FontSize(font(theme, fontMeta)).
+				TextColor(secondaryText(theme)).SingleLine()
+		})
+		label := a.t(msgDevicesPairStart)
+		pair := neutralButton(c, theme, "pair-with-"+peer.ID, label)
+		pair.Children(func() {
+			ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+		})
+		if pair.Clicked() {
+			a.startPairing(peer.ID)
+		}
+	})
+}
+
+// pairingCodeContent 显示本机生成、等待对方输入的 6 位配对码。
+func (a *application) pairingCodeContent(c *ui.Context, theme *ui.Theme) {
+	ui.Column(c).FillWidth().Shrink(0).AlignItems(ui.Center).
+		Gap(space(theme, 1.5)).Padding(space(theme, 1), 0, space(theme, 1), 0).Children(func() {
+		ui.Text(c, a.tf(msgDevicesPairCodeFor, displayValue(a.pairingPeerName))).
+			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
+		code := a.pairingCode
+		if code == "" {
+			code = "······"
+		}
+		ui.Text(c, code).FontSize(font(theme, fontPageTitle)).FontWeight(700).
+			LetterSpacing(space(theme, 1)).SingleLine()
+		ui.Text(c, a.t(msgDevicesPairCodeHint)).FontSize(font(theme, fontMeta)).
+			TextColor(secondaryText(theme)).Wrap()
+	})
+}
+
+// pairingAnswerContent 要求输入对方显示的配对码。
+func (a *application) pairingAnswerContent(c *ui.Context, theme *ui.Theme) {
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 1.5)).Children(func() {
+		ui.Text(c, a.tf(msgDevicesPairRequestFrom, displayValue(a.pairingPeerName))).
+			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
+		label := a.t(msgDevicesPairCodeLabel)
+		field := ui.Row(c.Key("pair-code-field")).Height(controlHeightSize(c, theme, controlHeight)).
+			FillWidth().Shrink(0).AlignItems(ui.Center).Padding(0, space(theme, 2.5)).
+			Radius(radius(theme, controlRadius)).Background(theme.Background).
+			Border(1, borderColor(theme)).Transition(motionColors).Label(label)
+		field.Children(func() {
+			input := ui.TextInput(c.Key("pair-code-input"), &a.pairCodeInput).
+				Grow(1).MinWidth(0).Padding(0).Radius(0).
+				Background(ui.Transparent).Border(0, ui.Transparent).
+				Label(label).Placeholder(a.t(msgDevicesPairCodePlaceholder))
+			if input.Submitted() {
+				a.confirmPairing(a.pairCodeInput)
+			}
+		})
+		ui.Text(c, a.t(msgDevicesPairCodeHint)).FontSize(font(theme, fontMeta)).
+			TextColor(secondaryText(theme)).Wrap()
 	})
 }
 

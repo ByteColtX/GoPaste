@@ -168,62 +168,79 @@ const (
 	msgToastUndo                       messageKey = "toast.undo"
 	msgToastRestored                   messageKey = "toast.restored"
 	msgToastUnpaired                   messageKey = "toast.unpaired"
+	msgToastPaired                     messageKey = "toast.paired"
 	msgToastLaunchAtLoginUnsupported   messageKey = "toast.launchAtLoginUnsupported"
 	msgToastLaunchAtLoginOn            messageKey = "toast.launchAtLoginOn"
 	msgToastLaunchAtLoginOff           messageKey = "toast.launchAtLoginOff"
 	msgToastDeviceDiscoveryUnavailable messageKey = "toast.deviceDiscoveryUnavailable"
 
 	// Devices.
-	msgDevicesPaired           messageKey = "devices.paired"
-	msgDevicesRefresh          messageKey = "devices.refresh"
-	msgDevicesOnlineCount      messageKey = "devices.onlineCount"
-	msgDevicesEmptyTitle       messageKey = "devices.empty.title"
-	msgDevicesEmptyMessage     messageKey = "devices.empty.message"
-	msgDevicesLoadingTitle     messageKey = "devices.loading.title"
-	msgDevicesLoadingMessage   messageKey = "devices.loading.message"
-	msgDevicesErrorTitle       messageKey = "devices.error.title"
-	msgDevicesErrorMessage     messageKey = "devices.error.message"
-	msgDevicesRetry            messageKey = "devices.retry"
-	msgDevicesAdd              messageKey = "devices.add"
-	msgDevicesOfflineTitle     messageKey = "devices.offline.title"
-	msgDevicesOfflineMessage   messageKey = "devices.offline.message"
-	msgDevicesLastSeen         messageKey = "devices.lastSeen"
-	msgDevicesBadgePaired      messageKey = "devices.badge.paired"
-	msgDevicesBadgeLocal       messageKey = "devices.badge.local"
-	msgDevicesUnpair           messageKey = "devices.unpair"
-	msgDevicesDirect           messageKey = "devices.direct"
-	msgDevicesOnline           messageKey = "devices.online"
-	msgDevicesOffline          messageKey = "devices.offline"
-	msgDevicesSyncOn           messageKey = "devices.syncOn"
-	msgDevicesSyncOff          messageKey = "devices.syncOff"
-	msgDevicesEnableSync       messageKey = "devices.enableSync"
-	msgDevicesEnableSyncDesc   messageKey = "devices.enableSyncDesc"
-	msgDevicesFileSync         messageKey = "devices.fileSync"
-	msgDevicesFileSyncDesc     messageKey = "devices.fileSyncDesc"
-	msgDevicesFileSyncDisabled messageKey = "devices.fileSyncDisabled"
-	msgDevicesSyncWith         messageKey = "devices.syncWith"
-	msgDevicesSyncWithDesc     messageKey = "devices.syncWithDesc"
-	msgDevicesSyncContent      messageKey = "devices.syncContent"
-	msgDevicesSyncContentDesc  messageKey = "devices.syncContentDesc"
-	msgDevicesAllTwoWay        messageKey = "devices.allTwoWay"
-	msgDevicesCustomSync       messageKey = "devices.customSync"
-	msgDevicesInfoTitle        messageKey = "devices.info.title"
-	msgDevicesConnectionTitle  messageKey = "devices.info.connection"
-	msgDevicesInfoPlatform     messageKey = "devices.info.platform"
-	msgDevicesInfoPeerID       messageKey = "devices.info.peerID"
-	msgDevicesInfoConnection   messageKey = "devices.info.connectionMethod"
-	msgDevicesInfoAppVersion   messageKey = "devices.info.appVersion"
-	msgDevicesInfoAddress      messageKey = "devices.info.address"
-	msgDevicesInfoLocalValue   messageKey = "devices.info.localValue"
-	msgDevicesInfoDirectValue  messageKey = "devices.info.directValue"
-	msgDevicesExpand           messageKey = "devices.expand"
-	msgDevicesCollapse         messageKey = "devices.collapse"
-	msgDevicesPairDirectOnly   messageKey = "devices.pair.directOnly"
-	msgDevicesPairDescription  messageKey = "devices.pair.description"
-	msgDevicesPairWaiting      messageKey = "devices.pair.waiting"
-	msgDevicesPairStart        messageKey = "devices.pair.start"
-	msgDevicesPairWaitingSvc   messageKey = "devices.pair.waitingService"
-	msgDevicesPairClose        messageKey = "devices.pair.close"
+	msgDevicesPaired               messageKey = "devices.paired"
+	msgDevicesRefresh              messageKey = "devices.refresh"
+	msgDevicesOnlineCount          messageKey = "devices.onlineCount"
+	msgDevicesEmptyTitle           messageKey = "devices.empty.title"
+	msgDevicesEmptyMessage         messageKey = "devices.empty.message"
+	msgDevicesLoadingTitle         messageKey = "devices.loading.title"
+	msgDevicesLoadingMessage       messageKey = "devices.loading.message"
+	msgDevicesErrorTitle           messageKey = "devices.error.title"
+	msgDevicesErrorMessage         messageKey = "devices.error.message"
+	msgDevicesDiscoveryUnavailable messageKey = "devices.discovery.unavailable"
+	msgDevicesDiscoveryNoNetwork   messageKey = "devices.discovery.noNetwork"
+	msgDevicesRetry                messageKey = "devices.retry"
+	msgDevicesAdd                  messageKey = "devices.add"
+	msgDevicesOfflineTitle         messageKey = "devices.offline.title"
+	msgDevicesOfflineMessage       messageKey = "devices.offline.message"
+	msgDevicesLastSeen             messageKey = "devices.lastSeen"
+	msgDevicesBadgePaired          messageKey = "devices.badge.paired"
+	msgDevicesBadgeLocal           messageKey = "devices.badge.local"
+	msgDevicesUnpair               messageKey = "devices.unpair"
+	msgDevicesDirect               messageKey = "devices.direct"
+	msgDevicesOnline               messageKey = "devices.online"
+	msgDevicesOffline              messageKey = "devices.offline"
+	msgDevicesSyncOn               messageKey = "devices.syncOn"
+	msgDevicesSyncOff              messageKey = "devices.syncOff"
+	msgDevicesEnableSync           messageKey = "devices.enableSync"
+	msgDevicesEnableSyncDesc       messageKey = "devices.enableSyncDesc"
+	msgDevicesFileSync             messageKey = "devices.fileSync"
+	msgDevicesFileSyncDesc         messageKey = "devices.fileSyncDesc"
+	msgDevicesFileSyncDisabled     messageKey = "devices.fileSyncDisabled"
+	msgDevicesSyncWith             messageKey = "devices.syncWith"
+	msgDevicesSyncWithDesc         messageKey = "devices.syncWithDesc"
+	msgDevicesSyncContent          messageKey = "devices.syncContent"
+	msgDevicesSyncContentDesc      messageKey = "devices.syncContentDesc"
+	msgDevicesAllTwoWay            messageKey = "devices.allTwoWay"
+	msgDevicesCustomSync           messageKey = "devices.customSync"
+	msgDevicesInfoTitle            messageKey = "devices.info.title"
+	msgDevicesConnectionTitle      messageKey = "devices.info.connection"
+	msgDevicesInfoPlatform         messageKey = "devices.info.platform"
+	msgDevicesInfoPeerID           messageKey = "devices.info.peerID"
+	msgDevicesInfoConnection       messageKey = "devices.info.connectionMethod"
+	msgDevicesInfoAppVersion       messageKey = "devices.info.appVersion"
+	msgDevicesInfoAddress          messageKey = "devices.info.address"
+	msgDevicesInfoLocalValue       messageKey = "devices.info.localValue"
+	msgDevicesInfoDirectValue      messageKey = "devices.info.directValue"
+	msgDevicesExpand               messageKey = "devices.expand"
+	msgDevicesCollapse             messageKey = "devices.collapse"
+	msgDevicesPairDirectOnly       messageKey = "devices.pair.directOnly"
+	msgDevicesPairDescription      messageKey = "devices.pair.description"
+	msgDevicesPairStart            messageKey = "devices.pair.start"
+	msgDevicesPairWaitingSvc       messageKey = "devices.pair.waitingService"
+	msgDevicesPairClose            messageKey = "devices.pair.close"
+	msgDevicesPairNoneFound        messageKey = "devices.pair.noneFound"
+	msgDevicesPairCodeFor          messageKey = "devices.pair.codeFor"
+	msgDevicesPairCodeHint         messageKey = "devices.pair.codeHint"
+	msgDevicesPairCodeLabel        messageKey = "devices.pair.codeLabel"
+	msgDevicesPairCodePlaceholder  messageKey = "devices.pair.codePlaceholder"
+	msgDevicesPairRequestFrom      messageKey = "devices.pair.requestFrom"
+	msgDevicesPairConfirm          messageKey = "devices.pair.confirm"
+	msgDevicesPairDecline          messageKey = "devices.pair.decline"
+	msgDevicesPairWrongCode        messageKey = "devices.pair.wrongCode"
+	msgDevicesPairTimedOut         messageKey = "devices.pair.timedOut"
+	msgDevicesPairCanceled         messageKey = "devices.pair.canceled"
+	msgDevicesPairBusy             messageKey = "devices.pair.busy"
+	msgDevicesPairVersion          messageKey = "devices.pair.version"
+	msgDevicesPairFailed           messageKey = "devices.pair.failed"
+	msgDevicesPairRefresh          messageKey = "devices.pair.refresh"
 
 	// Sync direction.
 	msgSyncBoth           messageKey = "sync.both"
@@ -431,61 +448,78 @@ var simplifiedChineseCatalog = catalog{
 	msgToastUndo:                       "撤销",
 	msgToastRestored:                   "已恢复",
 	msgToastUnpaired:                   "已取消配对",
+	msgToastPaired:                     "配对完成",
 	msgToastLaunchAtLoginUnsupported:   "此系统不支持登录时打开",
 	msgToastLaunchAtLoginOn:            "GoPaste 将在登录时打开",
 	msgToastLaunchAtLoginOff:           "GoPaste 将不再在登录时打开",
 	msgToastDeviceDiscoveryUnavailable: "设备发现功能尚未开放",
 
-	msgDevicesPaired:           "已配对的设备",
-	msgDevicesRefresh:          "刷新设备列表",
-	msgDevicesOnlineCount:      "%d 台在线",
-	msgDevicesEmptyTitle:       "暂无已配对的设备",
-	msgDevicesEmptyMessage:     "完成直连配对后，设备会显示在这里。\n剪贴板内容仅在已配对的设备之间同步。",
-	msgDevicesLoadingTitle:     "正在加载设备",
-	msgDevicesLoadingMessage:   "正在检查已配对的设备。",
-	msgDevicesErrorTitle:       "无法加载设备",
-	msgDevicesErrorMessage:     "暂时无法读取已配对的设备。",
-	msgDevicesRetry:            "重试",
-	msgDevicesAdd:              "添加设备",
-	msgDevicesOfflineTitle:     "设备已离线",
-	msgDevicesOfflineMessage:   "此设备当前离线，重新连接后会自动恢复同步。",
-	msgDevicesLastSeen:         "上次在线：%s",
-	msgDevicesBadgePaired:      "已配对",
-	msgDevicesBadgeLocal:       "此设备",
-	msgDevicesUnpair:           "取消配对",
-	msgDevicesDirect:           "直连",
-	msgDevicesOnline:           "在线",
-	msgDevicesOffline:          "离线",
-	msgDevicesSyncOn:           "同步已打开",
-	msgDevicesSyncOff:          "同步已关闭",
-	msgDevicesEnableSync:       "启用同步",
-	msgDevicesEnableSyncDesc:   "允许已配对的设备之间同步内容",
-	msgDevicesFileSync:         "文件同步",
-	msgDevicesFileSyncDesc:     "允许在设备之间传输文件",
-	msgDevicesFileSyncDisabled: "%s。请先打开设备同步。",
-	msgDevicesSyncWith:         "与 %s 同步",
-	msgDevicesSyncWithDesc:     "在任一设备上拷贝的内容都会自动同步。",
-	msgDevicesSyncContent:      "同步内容",
-	msgDevicesSyncContentDesc:  "分别设置每种内容的同步方向。",
-	msgDevicesAllTwoWay:        "全部双向同步",
-	msgDevicesCustomSync:       "自定",
-	msgDevicesInfoTitle:        "设备信息",
-	msgDevicesConnectionTitle:  "连接信息",
-	msgDevicesInfoPlatform:     "平台",
-	msgDevicesInfoPeerID:       "设备 ID",
-	msgDevicesInfoConnection:   "连接方式",
-	msgDevicesInfoAppVersion:   "应用版本",
-	msgDevicesInfoAddress:      "地址",
-	msgDevicesInfoLocalValue:   "本机",
-	msgDevicesInfoDirectValue:  "直连",
-	msgDevicesExpand:           "展开%s",
-	msgDevicesCollapse:         "收起%s",
-	msgDevicesPairDirectOnly:   "仅支持直连",
-	msgDevicesPairDescription:  "设备配对功能尚未开放。开放后，你可以在这里发现并配对设备。GoPaste 不会使用云端、中继或其他网络回退连接。",
-	msgDevicesPairWaiting:      "正在等待配对…",
-	msgDevicesPairStart:        "开始配对",
-	msgDevicesPairWaitingSvc:   "正在等待配对服务…",
-	msgDevicesPairClose:        "关闭",
+	msgDevicesPaired:               "已配对的设备",
+	msgDevicesRefresh:              "刷新设备列表",
+	msgDevicesOnlineCount:          "%d 台在线",
+	msgDevicesEmptyTitle:           "暂无已配对的设备",
+	msgDevicesEmptyMessage:         "完成直连配对后，设备会显示在这里。\n剪贴板内容仅在已配对的设备之间同步。",
+	msgDevicesLoadingTitle:         "正在加载设备",
+	msgDevicesLoadingMessage:       "正在检查已配对的设备。",
+	msgDevicesErrorTitle:           "无法加载设备",
+	msgDevicesErrorMessage:         "暂时无法读取已配对的设备。",
+	msgDevicesDiscoveryUnavailable: "读不到设备配对信息，局域网同步本次没有启动。",
+	msgDevicesDiscoveryNoNetwork:   "这台机器上没有可用的局域网连接，暂时无法发现其它设备。",
+	msgDevicesRetry:                "重试",
+	msgDevicesAdd:                  "添加设备",
+	msgDevicesOfflineTitle:         "设备已离线",
+	msgDevicesOfflineMessage:       "此设备当前离线，重新连接后会自动恢复同步。",
+	msgDevicesLastSeen:             "上次在线：%s",
+	msgDevicesBadgePaired:          "已配对",
+	msgDevicesBadgeLocal:           "此设备",
+	msgDevicesUnpair:               "取消配对",
+	msgDevicesDirect:               "直连",
+	msgDevicesOnline:               "在线",
+	msgDevicesOffline:              "离线",
+	msgDevicesSyncOn:               "同步已打开",
+	msgDevicesSyncOff:              "同步已关闭",
+	msgDevicesEnableSync:           "启用同步",
+	msgDevicesEnableSyncDesc:       "允许已配对的设备之间同步内容",
+	msgDevicesFileSync:             "文件同步",
+	msgDevicesFileSyncDesc:         "允许在设备之间传输文件",
+	msgDevicesFileSyncDisabled:     "%s。请先打开设备同步。",
+	msgDevicesSyncWith:             "与 %s 同步",
+	msgDevicesSyncWithDesc:         "在任一设备上拷贝的内容都会自动同步。",
+	msgDevicesSyncContent:          "同步内容",
+	msgDevicesSyncContentDesc:      "分别设置每种内容的同步方向。",
+	msgDevicesAllTwoWay:            "全部双向同步",
+	msgDevicesCustomSync:           "自定",
+	msgDevicesInfoTitle:            "设备信息",
+	msgDevicesConnectionTitle:      "连接信息",
+	msgDevicesInfoPlatform:         "平台",
+	msgDevicesInfoPeerID:           "设备 ID",
+	msgDevicesInfoConnection:       "连接方式",
+	msgDevicesInfoAppVersion:       "应用版本",
+	msgDevicesInfoAddress:          "地址",
+	msgDevicesInfoLocalValue:       "本机",
+	msgDevicesInfoDirectValue:      "直连",
+	msgDevicesExpand:               "展开%s",
+	msgDevicesCollapse:             "收起%s",
+	msgDevicesPairDirectOnly:       "仅支持直连",
+	msgDevicesPairDescription:      "同一局域网内的设备会出现在下面。发起配对的一台显示 6 位配对码，另一台输入这个码即可完成配对。GoPaste 只用局域网直连，不会使用云端、中继或其他网络回退连接。",
+	msgDevicesPairStart:            "配对",
+	msgDevicesPairWaitingSvc:       "同步服务未启动，暂时无法配对。",
+	msgDevicesPairClose:            "取消",
+	msgDevicesPairNoneFound:        "还没发现可配对的设备。确认另一台设备打开了 GoPaste、和本机在同一个局域网，然后点刷新。",
+	msgDevicesPairCodeFor:          "在「%s」上输入这个配对码",
+	msgDevicesPairCodeHint:         "配对码只在这一台和那一台之间有效，60 秒内不输入就作废。",
+	msgDevicesPairCodeLabel:        "配对码",
+	msgDevicesPairCodePlaceholder:  "6 位数字",
+	msgDevicesPairRequestFrom:      "「%s」请求与本机配对，请输入那台设备上显示的配对码。",
+	msgDevicesPairConfirm:          "完成配对",
+	msgDevicesPairDecline:          "拒绝",
+	msgDevicesPairWrongCode:        "配对码不对，配对已取消。请在对方设备上重新发起。",
+	msgDevicesPairTimedOut:         "配对超时，配对码已作废。请重新发起。",
+	msgDevicesPairCanceled:         "配对已取消。",
+	msgDevicesPairBusy:             "对方正在和另一台设备配对，稍后再试。",
+	msgDevicesPairVersion:          "两台设备的 GoPaste 版本不一致，无法配对。",
+	msgDevicesPairFailed:           "配对没有完成，请重试。",
+	msgDevicesPairRefresh:          "刷新列表",
 
 	msgSyncBoth:           "双向同步",
 	msgSyncSend:           "仅发往 %s",
@@ -513,7 +547,7 @@ var simplifiedChineseCatalog = catalog{
 	msgSyncResendAccess:        "重发到 %s",
 	msgSyncNoDevices:           "暂无已配对的设备",
 	msgSyncReplacedNote:        "从未同步到任何设备，已被更新的记录替代",
-	msgSyncServiceUnavailable:  "同步功能尚未开放",
+	msgSyncServiceUnavailable:  "同步服务未启动",
 	msgHistorySourceThisDevice: "此设备",
 	msgHistorySourceLanDevice:  "局域网设备",
 	msgHistorySourceLanFormat:  "来自 %s",
@@ -682,61 +716,78 @@ var englishCatalog = catalog{
 	msgToastUndo:                       "Undo",
 	msgToastRestored:                   "Restored",
 	msgToastUnpaired:                   "Unpaired",
+	msgToastPaired:                     "Paired",
 	msgToastLaunchAtLoginUnsupported:   "Open at Login isn't available on this system",
 	msgToastLaunchAtLoginOn:            "GoPaste will open at login",
 	msgToastLaunchAtLoginOff:           "GoPaste will no longer open at login",
 	msgToastDeviceDiscoveryUnavailable: "Device discovery isn't available yet",
 
-	msgDevicesPaired:           "Paired devices",
-	msgDevicesRefresh:          "Refresh device list",
-	msgDevicesOnlineCount:      "%d online",
-	msgDevicesEmptyTitle:       "No paired devices",
-	msgDevicesEmptyMessage:     "Devices show up here after you pair them over a direct connection.\nClipboard content syncs only between paired devices.",
-	msgDevicesLoadingTitle:     "Loading devices",
-	msgDevicesLoadingMessage:   "Checking for paired devices.",
-	msgDevicesErrorTitle:       "Couldn't load devices",
-	msgDevicesErrorMessage:     "Paired devices are temporarily unavailable.",
-	msgDevicesRetry:            "Retry",
-	msgDevicesAdd:              "Add device",
-	msgDevicesOfflineTitle:     "Device offline",
-	msgDevicesOfflineMessage:   "This device is offline. Sync resumes when it reconnects.",
-	msgDevicesLastSeen:         "Last online: %s",
-	msgDevicesBadgePaired:      "Paired",
-	msgDevicesBadgeLocal:       "This device",
-	msgDevicesUnpair:           "Unpair",
-	msgDevicesDirect:           "Direct",
-	msgDevicesOnline:           "Online",
-	msgDevicesOffline:          "Offline",
-	msgDevicesSyncOn:           "Sync is on",
-	msgDevicesSyncOff:          "Sync is off",
-	msgDevicesEnableSync:       "Enable sync",
-	msgDevicesEnableSyncDesc:   "Let paired devices sync content",
-	msgDevicesFileSync:         "File sync",
-	msgDevicesFileSyncDesc:     "Transfer files between paired devices",
-	msgDevicesFileSyncDisabled: "%s. Turn on device sync first.",
-	msgDevicesSyncWith:         "Sync with %s",
-	msgDevicesSyncWithDesc:     "Content copied on either device syncs automatically.",
-	msgDevicesSyncContent:      "Content to sync",
-	msgDevicesSyncContentDesc:  "Set a sync direction for each content type.",
-	msgDevicesAllTwoWay:        "All two-way",
-	msgDevicesCustomSync:       "Custom",
-	msgDevicesInfoTitle:        "Device info",
-	msgDevicesConnectionTitle:  "Connection info",
-	msgDevicesInfoPlatform:     "Platform",
-	msgDevicesInfoPeerID:       "Device ID",
-	msgDevicesInfoConnection:   "Connection type",
-	msgDevicesInfoAppVersion:   "App version",
-	msgDevicesInfoAddress:      "Address",
-	msgDevicesInfoLocalValue:   "Local",
-	msgDevicesInfoDirectValue:  "Direct",
-	msgDevicesExpand:           "Show %s",
-	msgDevicesCollapse:         "Hide %s",
-	msgDevicesPairDirectOnly:   "Direct connections only",
-	msgDevicesPairDescription:  "Pairing isn't available yet. Once it is, you can find and pair devices here. GoPaste never uses the cloud, relays, or other network fallbacks.",
-	msgDevicesPairWaiting:      "Waiting for pairing…",
-	msgDevicesPairStart:        "Start pairing",
-	msgDevicesPairWaitingSvc:   "Waiting for pairing service…",
-	msgDevicesPairClose:        "Close",
+	msgDevicesPaired:               "Paired devices",
+	msgDevicesRefresh:              "Refresh device list",
+	msgDevicesOnlineCount:          "%d online",
+	msgDevicesEmptyTitle:           "No paired devices",
+	msgDevicesEmptyMessage:         "Devices show up here after you pair them over a direct connection.\nClipboard content syncs only between paired devices.",
+	msgDevicesLoadingTitle:         "Loading devices",
+	msgDevicesLoadingMessage:       "Checking for paired devices.",
+	msgDevicesErrorTitle:           "Couldn't load devices",
+	msgDevicesErrorMessage:         "Paired devices are temporarily unavailable.",
+	msgDevicesDiscoveryUnavailable: "The device pairing data could not be read, so LAN sync did not start.",
+	msgDevicesDiscoveryNoNetwork:   "This machine has no usable local network connection, so other devices cannot be found.",
+	msgDevicesRetry:                "Retry",
+	msgDevicesAdd:                  "Add device",
+	msgDevicesOfflineTitle:         "Device offline",
+	msgDevicesOfflineMessage:       "This device is offline. Sync resumes when it reconnects.",
+	msgDevicesLastSeen:             "Last online: %s",
+	msgDevicesBadgePaired:          "Paired",
+	msgDevicesBadgeLocal:           "This device",
+	msgDevicesUnpair:               "Unpair",
+	msgDevicesDirect:               "Direct",
+	msgDevicesOnline:               "Online",
+	msgDevicesOffline:              "Offline",
+	msgDevicesSyncOn:               "Sync is on",
+	msgDevicesSyncOff:              "Sync is off",
+	msgDevicesEnableSync:           "Enable sync",
+	msgDevicesEnableSyncDesc:       "Let paired devices sync content",
+	msgDevicesFileSync:             "File sync",
+	msgDevicesFileSyncDesc:         "Transfer files between paired devices",
+	msgDevicesFileSyncDisabled:     "%s. Turn on device sync first.",
+	msgDevicesSyncWith:             "Sync with %s",
+	msgDevicesSyncWithDesc:         "Content copied on either device syncs automatically.",
+	msgDevicesSyncContent:          "Content to sync",
+	msgDevicesSyncContentDesc:      "Set a sync direction for each content type.",
+	msgDevicesAllTwoWay:            "All two-way",
+	msgDevicesCustomSync:           "Custom",
+	msgDevicesInfoTitle:            "Device info",
+	msgDevicesConnectionTitle:      "Connection info",
+	msgDevicesInfoPlatform:         "Platform",
+	msgDevicesInfoPeerID:           "Device ID",
+	msgDevicesInfoConnection:       "Connection type",
+	msgDevicesInfoAppVersion:       "App version",
+	msgDevicesInfoAddress:          "Address",
+	msgDevicesInfoLocalValue:       "Local",
+	msgDevicesInfoDirectValue:      "Direct",
+	msgDevicesExpand:               "Show %s",
+	msgDevicesCollapse:             "Hide %s",
+	msgDevicesPairDirectOnly:       "Direct connections only",
+	msgDevicesPairDescription:      "Devices on the same local network show up below. The device that starts pairing shows a 6-digit code; enter it on the other one to finish. GoPaste only connects directly on the local network — never through the cloud, a relay, or any other fallback.",
+	msgDevicesPairStart:            "Pair",
+	msgDevicesPairWaitingSvc:       "The sync service is not running, so pairing is unavailable.",
+	msgDevicesPairClose:            "Cancel",
+	msgDevicesPairNoneFound:        "No devices to pair with yet. Check that the other device has GoPaste open and is on the same network, then refresh.",
+	msgDevicesPairCodeFor:          "Enter this code on “%s”",
+	msgDevicesPairCodeHint:         "The code only works between these two devices, and expires after 60 seconds.",
+	msgDevicesPairCodeLabel:        "Pairing code",
+	msgDevicesPairCodePlaceholder:  "6 digits",
+	msgDevicesPairRequestFrom:      "“%s” wants to pair with this device. Enter the code shown on that device.",
+	msgDevicesPairConfirm:          "Finish pairing",
+	msgDevicesPairDecline:          "Decline",
+	msgDevicesPairWrongCode:        "That code didn't match, so pairing was canceled. Start again from the other device.",
+	msgDevicesPairTimedOut:         "Pairing timed out and the code expired. Start again.",
+	msgDevicesPairCanceled:         "Pairing was canceled.",
+	msgDevicesPairBusy:             "The other device is already pairing with something else. Try again in a moment.",
+	msgDevicesPairVersion:          "The two devices run different GoPaste versions and cannot pair.",
+	msgDevicesPairFailed:           "Pairing did not finish. Please try again.",
+	msgDevicesPairRefresh:          "Refresh list",
 
 	msgSyncBoth:           "Two-way",
 	msgSyncSend:           "Send only to %s",
