@@ -62,7 +62,7 @@ go tool mygo build    # 打包，macOS 产出 .app 和 .dmg
 
 历史数据库默认放在用户数据目录下，macOS 是 `~/Library/Application Support/GoPaste/history.db`。`-db PATH` 或 `GOPASTE_HISTORY_DB` 可以改到别处，路径必须是绝对路径；应用启动的第一行日志会报出它实际用的文件。
 
-同一个目录下还有一个 `settings.json`，只存跨启动需要记住的少量选择：首次启动向导是否已完成、用户改过的设备名。删掉它，下次启动就会重新走一遍向导。语言、外观这些界面选择目前仍只在本次运行内有效。
+同一个目录下还有一个 `settings.json`，只存跨启动需要记住的少量选择：首次启动向导是否已完成、用户改过的设备名、用户改过的历史保留上限。删掉它，下次启动就会重新走一遍向导。语言、外观这些界面选择目前仍只在本次运行内有效。
 
 ## 开发
 
@@ -79,7 +79,7 @@ CGO_ENABLED=0 go test ./...
 | `internal/capture` | 把剪贴板变化变成历史条目：合并一次复制的多次通知、读取、分类、决定是否保留 |
 | `internal/lansync` | 局域网这一层：设备身份、mDNS 发现、6 位码配对、钉住公钥的 TLS 连接、投递与重发 |
 | `internal/clipboard` | 唯一直接调用剪贴板库的地方，负责处理各平台格式不一样的问题 |
-| `internal/history` | 历史数据与用户可见的操作，含筛选、排序、条目 ID 的内容摘要，以及每条记录发给了哪些设备 |
+| `internal/history` | 历史数据与用户可见的操作，含筛选、排序、自动清理、条目 ID 的内容摘要，以及每条记录发给了哪些设备 |
 | `internal/history/sqlite` | `history.Repository` 的 SQLite 实现，纯 Go 驱动，CGO 关闭也能构建 |
 | `internal/syntax` | 猜代码片段是什么语言，再用 chroma 切成一段段好上色 |
 | `internal/filetype` | 按文件名判断类型，决定图标、颜色和标签 |
