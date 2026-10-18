@@ -160,11 +160,12 @@ func (a *application) openAddDeviceDialog() {
 	a.discoveredPeers = a.pairablePeers()
 }
 
-// sidebarIconAction 是侧栏列表分组标题行里的小图标动作按钮（刷新）：与分区切换器
-// 同一套尺寸、圆角与悬停反馈，但没有选中态。文字放在提示与辅助技术标签里。
+// iconActionButton 是列表分组标题行、卡片顶部这类位置上的小图标动作按钮（刷新）：
+// 与分区切换器同一套尺寸、圆角与悬停反馈，但没有选中态。文字放在提示与辅助技术
+// 标签里。
 //
 // spinning 让图标连续转圈，用于「正在进行」的动作（刷新）。
-func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, spinning bool, onClick func()) {
+func (a *application) iconActionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, spinning bool, onClick func()) {
 	size := controlHeightSize(c, theme, controlHeight)
 	button := ui.ButtonBase(c.Key(key)).Size(size, size).Shrink(0).Center().
 		Radius(radius(theme, controlRadius)).TextColor(secondaryText(theme)).
@@ -189,7 +190,7 @@ func (a *application) sidebarIconAction(c *ui.Context, theme *ui.Theme, key stri
 // 圆角与分区切换器一致，但没有选中态；表面色加描边沿用搜索框的写法，因此它读
 // 起来是一个可点的控件，而不是一条列表项。
 //
-// 与 sidebarIconAction 的分工：图标按钮留给列表作用域的次要动作（刷新），
+// 与 iconActionButton 的分工：图标按钮留给列表作用域的次要动作（刷新），
 // 宽按钮留给页面主操作，文字可见，不必悬停才发现。
 func (a *application) sidebarWideButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, label string, onClick func()) {
 	button := ui.ButtonBase(c.Key(key)).Height(controlHeightSize(c, theme, compactHeight)).Shrink(0).

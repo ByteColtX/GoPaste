@@ -105,6 +105,7 @@ func (r *applicationRuntime) ready() {
 	r.app.onDevicesChanged = r.devicesChanged
 	r.app.onFilterRailToggled = r.filterRailToggled
 	r.app.onPageChanged = r.pageChanged
+	r.app.onMeasureStorageUsage = r.measureStorageUsage
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
@@ -612,6 +613,31 @@ func (r *applicationRuntime) publishDiscoveryFailure(message string) {
 		r.app.deviceDiscovery = deviceDiscoveryError
 		r.app.deviceDiscoveryMessage = message
 	})
+}
+
+// measureStorageUsage 在界面线程之外统计磁盘占用，结果经 Window.Update 回填。
+// after 非空时先等它关闭：清除历史时收到的文件还在后台删。
+//
+// 路径在界面线程上先算好：数据库可能是命令行指定的预览文件，数据目录也可能读不到。
+func (r *applicationRuntime) measureStorageUsage(after <-chan struct{}) {
+	paths := r.storageUsagePaths()
+	go func() {
+		if after != nil {
+			<-after
+		}
+		usage := measureStorageUsage(paths)
+		r.update(func() { r.app.applyStorageUsage(usage) })
+	}()
+}
+
+// storageUsagePaths 返回用量统计要看的几个位置。拿不到的位置留空，对应那一类按 0
+// 算：没有数据目录时本来就什么都没落盘。
+func (r *applicationRuntime) storageUsagePaths() storageUsagePaths {
+	paths := storageUsagePaths{files: r.app.receivedFilesDir}
+	if database, err := r.databaseFile(); err == nil {
+		paths.database = database
+	}
+	return paths
 }
 
 // update 在窗口存在时把结果送回界面线程。窗口可能已经关闭（退出过程中），所以

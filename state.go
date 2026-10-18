@@ -151,14 +151,56 @@ func truncateSingleLine(value string, limit int) string {
 
 // setPage 统一切换当前页面，避免窗口控制代码直接修改业务状态字段。真的换页时
 // 才通知外部，让只在某些分区有意义的菜单项跟上启用状态。
+//
+// 回到设置页且停在「储存空间」时顺手重测一次磁盘占用：离开页面这段时间里记录可能
+// 已经变了，重新进来看到的应该是当下的数字。
 func (a *application) setPage(next page) {
 	if a.page == next {
 		return
 	}
 	a.page = next
+	if next == pageSettings && a.settingsArea == settingsStorage {
+		a.requestStorageUsage(nil)
+	}
 	if a.onPageChanged != nil {
 		a.onPageChanged()
 	}
+}
+
+// setSettingsArea 切换设置页的分栏。进入「储存空间」时顺手测一次磁盘占用：用量区
+// 一出现就该有数字，而不是等用户去点刷新。
+func (a *application) setSettingsArea(area settingsArea) {
+	if a.settingsArea == area {
+		return
+	}
+	a.settingsArea = area
+	if area == settingsStorage {
+		a.requestStorageUsage(nil)
+	}
+}
+
+// refreshStorageUsage 是用量区刷新按钮的入口。
+func (a *application) refreshStorageUsage() {
+	a.requestStorageUsage(nil)
+}
+
+// requestStorageUsage 请运行时在界面线程之外统计一遍磁盘占用。after 非空时先等它
+// 关闭再统计：清除历史时收到的文件还在后台删，立刻测会把刚删掉的文件又算进去。
+//
+// 同一时刻只有一次统计在飞：连点刷新、或者刚进页面又点刷新，重复请求直接忽略。
+func (a *application) requestStorageUsage(after <-chan struct{}) {
+	if a.onMeasureStorageUsage == nil || a.storageUsagePending {
+		return
+	}
+	a.storageUsagePending = true
+	a.onMeasureStorageUsage(after)
+}
+
+// applyStorageUsage 把统计结果写进界面状态。它只在界面线程上调用：运行时测完经
+// Window.Update 回到这里。
+func (a *application) applyStorageUsage(usage storageUsage) {
+	a.storageUsage = usage
+	a.storageUsagePending = false
 }
 
 // setFilterRailOpen 设置筛选栏的展开状态，并通知外部。标题栏按钮、Cmd+Ctrl+S
@@ -363,8 +405,10 @@ func (a *application) clearHistory() {
 	a.history.Clear()
 	a.historyBitmaps = nil
 	a.codeHighlights = nil
-	a.clearReceivedFiles()
+	removed := a.clearReceivedFiles()
 	a.persistDelete(ids...)
+	// 文件在后台删，用量等它们真的没了再测，否则刚清掉的那一份还会被算进去。
+	a.requestStorageUsage(removed)
 }
 
 func (a *application) requestDangerousAction(action dangerousAction, targetID string) {
@@ -533,12 +577,19 @@ func (a *application) receivedFilesPath(item history.Item) (string, bool) {
 }
 
 // clearReceivedFiles 清空收到的同步文件。清空历史没有撤销，所以文件跟着立刻走。
-func (a *application) clearReceivedFiles() {
+// 返回的通道在目录删完后关闭，用量统计据此等文件真的没了再测；没有文件可删时返回
+// nil。
+func (a *application) clearReceivedFiles() <-chan struct{} {
 	if a.receivedFilesDir == "" {
-		return
+		return nil
 	}
 	dir := a.receivedFilesDir
-	go func() { _ = os.RemoveAll(dir) }()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = os.RemoveAll(dir)
+	}()
+	return done
 }
 
 // unpairDeviceWithUndo 取消一台设备的配对，并弹出限时可撤销的提示。撤销会把设备

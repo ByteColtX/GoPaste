@@ -31,7 +31,7 @@ func (a *application) settingsNavigationItems() []settingsNavItem {
 // 统一提供，与历史筛选项逐项一致（高度、内边距、图标、间距、选中态）。
 func (a *application) settingsNavButton(c *ui.Context, theme *ui.Theme, item settingsNavItem) {
 	sidebarItemButton(c, theme, "settings-nav-"+item.key, item.icon, item.title,
-		a.settingsArea == item.area, func() { a.settingsArea = item.area })
+		a.settingsArea == item.area, func() { a.setSettingsArea(item.area) })
 }
 
 func (a *application) settingsDetail(c *ui.Context, theme *ui.Theme) {
@@ -190,46 +190,51 @@ func (a *application) appearanceLabel(appearance int) string {
 
 func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsHeader(c, a.t(msgSettingsStorage), a.t(msgSettingsStorageDesc), theme)
-	a.settingsSubheading(c, a.t(msgSettingsData), theme)
 	stats := a.history.Snapshot(history.Query{})
-	settingsGroup(c, theme, "settings-storage-group", func() {
-		// 保留策略两行：条数与天数各自可单独关掉（不限），改完立即生效，
-		// 见 applyRetention。
-		a.settingsRow(c, theme, a.t(msgSettingsRetentionItemsRow), a.t(msgSettingsRetentionItemsRowDesc), func() {
-			control := selectField(c, theme, "settings-retention-items", &a.retention.MaxItems,
-				a.t(msgSettingsRetentionItemsRow), a.l10n().retentionItemChoices())
-			if a.compactDetailLayout(c, theme) {
-				control.FillWidth()
-			} else {
-				control.Width(180)
-			}
-			if control.Changed() {
-				a.applyRetention()
-			}
-		})
-		settingsRule(c, theme)
-		a.settingsRow(c, theme, a.t(msgSettingsRetentionDaysRow), a.t(msgSettingsRetentionDaysRowDesc), func() {
-			control := selectField(c, theme, "settings-retention-days", &a.retention.MaxDays,
-				a.t(msgSettingsRetentionDaysRow), a.l10n().retentionDayChoices())
-			if a.compactDetailLayout(c, theme) {
-				control.FillWidth()
-			} else {
-				control.Width(180)
-			}
-			if control.Changed() {
-				a.applyRetention()
-			}
-		})
-		settingsRule(c, theme)
-		a.settingsRow(c, theme, a.t(msgSettingsHistoryRow), a.t(msgSettingsHistoryRowDesc), func() {
-			ui.Column(c).Shrink(0).AlignItems(ui.End).Gap(space(theme, 0.5)).Children(func() {
-				labelText(c, a.l10n().storageRecord(stats.Total)).FontSize(font(theme, fontControl)).
-					TextColor(primaryText(theme))
-				labelText(c, a.l10n().imageCount(stats.ImageCount)).FontSize(font(theme, fontCaption)).
-					TextColor(secondaryText(theme))
+	// 用量一节只陈述现状：占了多少盘、存了多少条。它不套卡片，也不和设置行
+	// 挤在一起——这里没有可以改的东西。
+	a.settingsSubheading(c, a.t(msgSettingsStorageUsage), theme)
+	a.storageUsageSection(c, theme, stats)
+	// 设置行按用途分三张卡：保留策略、同步文件上限，以及单独一张的清除历史。
+	// 破坏性操作不跟普通设置同卡，也不在页面中段。
+	a.settingsSubheading(c, a.t(msgSettingsData), theme)
+	// 保留策略与它的说明放在同一个列里：说明是那张卡的脚注，不该和下一张卡
+	// 等距，否则读起来分不清它属于谁。
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 1)).Children(func() {
+		settingsGroup(c, theme, "settings-retention-group", func() {
+			// 保留策略两行：条数与天数各自可单独关掉（不限），改完立即生效，
+			// 见 applyRetention。
+			a.settingsRow(c, theme, a.t(msgSettingsRetentionItemsRow), a.t(msgSettingsRetentionItemsRowDesc), func() {
+				control := selectField(c, theme, "settings-retention-items", &a.retention.MaxItems,
+					a.t(msgSettingsRetentionItemsRow), a.l10n().retentionItemChoices())
+				if a.compactDetailLayout(c, theme) {
+					control.FillWidth()
+				} else {
+					control.Width(180)
+				}
+				if control.Changed() {
+					a.applyRetention()
+				}
+			})
+			settingsRule(c, theme)
+			a.settingsRow(c, theme, a.t(msgSettingsRetentionDaysRow), a.t(msgSettingsRetentionDaysRowDesc), func() {
+				control := selectField(c, theme, "settings-retention-days", &a.retention.MaxDays,
+					a.t(msgSettingsRetentionDaysRow), a.l10n().retentionDayChoices())
+				if a.compactDetailLayout(c, theme) {
+					control.FillWidth()
+				} else {
+					control.Width(180)
+				}
+				if control.Changed() {
+					a.applyRetention()
+				}
 			})
 		})
-		settingsRule(c, theme)
+		ui.Text(c, a.t(msgSettingsRetentionNote)).
+			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
+	})
+
+	settingsGroup(c, theme, "settings-file-sync-group", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsFileSyncLimit), a.t(msgSettingsFileSyncLimitDesc), func() {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 				input := ui.TextInput(c.Key("settings-file-sync-limit"), &a.fileSyncMaxMB).
@@ -250,7 +255,9 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 				}
 			})
 		})
-		settingsRule(c, theme)
+	})
+
+	settingsGroup(c, theme, "settings-clear-history-group", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsClearHistoryRow), a.t(msgSettingsClearHistoryRowDesc), func() {
 			clearLabel := a.storageClearLabel(stats.Total)
 			button := dangerButton(c, theme, "settings-clear-history", clearLabel).
@@ -265,14 +272,116 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 			}
 		})
 	})
-	ui.Text(c, a.t(msgSettingsRetentionNote)).
-		FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).
-		Padding(space(theme, 1), 0, 0, 0).Wrap()
-	if stats.Total == 0 {
-		ui.Text(c, a.t(msgSettingsNoHistoryNote)).
-			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).
-			Padding(space(theme, 1), 0, 0, 0).Wrap()
+}
+
+// storageUsageCategory 是占比条与图例里的一类占用。
+type storageUsageCategory struct {
+	key   string
+	icon  *ui.SVG
+	name  string
+	color ui.Color
+	bytes int64
+}
+
+// minStorageSegmentShare 是一类占用在占比条上的最小占比。数据库通常比另一类大
+// 几个数量级，按真实比例画的话收到的文件只剩零点几个像素，看起来像没有东西。
+const minStorageSegmentShare = 0.015
+
+// storageUsageCategories 按固定顺序列出两类占用。颜色都在强调色上取不同浓淡：
+// 两者是同一件事（应用占的盘）的两个部分，不是两个不同的语义。设置与配对文件
+// 只有几 KB，不值得单列一行，也不进总计。
+func (a *application) storageUsageCategories(theme *ui.Theme) []storageUsageCategory {
+	return []storageUsageCategory{
+		{key: "database", icon: icons.storage, name: a.t(msgSettingsStorageDatabase),
+			color: theme.Accent, bytes: a.storageUsage.database},
+		{key: "files", icon: icons.file, name: a.t(msgSettingsStorageFiles),
+			color: theme.Accent.Alpha(0.55), bytes: a.storageUsage.files},
 	}
+}
+
+// storageUsageSection 画「用量」一节的用量区：总计、分段占比条、图例，以及记录条数。
+// 数字来自最近一次统计（见 requestStorageUsage），渲染本身不碰磁盘；记录条数来自
+// 内存里的历史，与用量同属「现在存了什么」，因此排在一起。
+func (a *application) storageUsageSection(c *ui.Context, theme *ui.Theme, stats history.View) {
+	categories := a.storageUsageCategories(theme)
+	total := a.storageUsage.total()
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2.5)).Children(func() {
+		ui.Row(c).FillWidth().Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
+			labelText(c, formatBytes(total)).FontSize(font(theme, fontPageTitle)).FontWeight(600)
+			labelText(c, a.t(msgSettingsStorageTotal)).FontSize(font(theme, fontMeta)).
+				TextColor(secondaryText(theme))
+			ui.Spacer(c)
+			a.iconActionButton(c, theme, "settings-storage-refresh", icons.refresh,
+				a.t(msgSettingsStorageRefresh), a.storageUsagePending, a.refreshStorageUsage)
+		})
+		a.storageUsageBar(c, theme, categories, total)
+		a.storageUsageLegend(c, theme, categories)
+		labelText(c, a.l10n().storageRecord(stats.Total)+" · "+a.l10n().imageCount(stats.ImageCount)).
+			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme))
+		if stats.Total == 0 {
+			ui.Text(c, a.t(msgSettingsNoHistoryNote)).FontSize(font(theme, fontMeta)).
+				TextColor(secondaryText(theme)).Wrap()
+		}
+	})
+}
+
+// storageUsageBar 画分段占比条：一段一类，段间留一道缝，每段自己带圆角。总计为 0
+// 时画一条浅色空底，而不是什么都不画。
+func (a *application) storageUsageBar(c *ui.Context, theme *ui.Theme, categories []storageUsageCategory, total int64) {
+	height := space(theme, 2.5)
+	if total <= 0 {
+		ui.Box(c.Key("settings-storage-usage-track")).FillWidth().Height(height).Shrink(0).
+			Radius(height / 2).Background(borderColor(theme))
+		return
+	}
+	ui.Row(c.Key("settings-storage-usage-bar")).FillWidth().Height(height).Shrink(0).
+		Gap(space(theme, 0.5)).Children(func() {
+		for _, category := range categories {
+			if category.bytes <= 0 {
+				continue
+			}
+			share := float32(category.bytes) / float32(total)
+			ui.Box(c.Key("settings-storage-usage-segment-" + category.key)).Height(height).Shrink(0).
+				Grow(max(share, minStorageSegmentShare)).Radius(height / 2).
+				Background(category.color)
+		}
+	})
+}
+
+// storageUsageLegend 把两类占用排成两列（窄布局下一列），每项是色点 + 图标 + 名称，
+// 大小靠右对齐。
+func (a *application) storageUsageLegend(c *ui.Context, theme *ui.Theme, categories []storageUsageCategory) {
+	columns := 2
+	if a.compactDetailLayout(c, theme) {
+		columns = 1
+	}
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 1.5)).Children(func() {
+		for start := 0; start < len(categories); start += columns {
+			group := categories[start:min(start+columns, len(categories))]
+			ui.Row(c).FillWidth().Shrink(0).Gap(space(theme, 3)).Children(func() {
+				for _, category := range group {
+					a.storageUsageLegendItem(c, theme, category)
+				}
+				// 末行不满时用空格子占位，最后一列的大小仍与前几行对齐。
+				for missing := columns - len(group); missing > 0; missing-- {
+					ui.Box(c).Grow(1)
+				}
+			})
+		}
+	})
+}
+
+func (a *application) storageUsageLegendItem(c *ui.Context, theme *ui.Theme, category storageUsageCategory) {
+	ui.Row(c).Grow(1).MinWidth(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
+		dot := space(theme, 1.25)
+		ui.Box(c).Size(dot, dot).Shrink(0).Radius(dot / 2).Background(category.color)
+		ui.Icon(c, category.icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0).
+			TextColor(secondaryText(theme))
+		labelText(c, category.name).FontSize(font(theme, fontControl)).TextColor(primaryText(theme))
+		ui.Spacer(c)
+		labelText(c, formatBytes(category.bytes)).FontSize(font(theme, fontControl)).
+			TextColor(secondaryText(theme))
+	})
 }
 
 // storageClearLabel 根据是否有记录返回清理按钮的文案。
@@ -280,7 +389,7 @@ func (a *application) storageClearLabel(total int) string {
 	if total == 0 {
 		return a.t(msgSettingsNothingToClear)
 	}
-	return a.t(msgSettingsClearHistory)
+	return a.t(msgSettingsClearAll)
 }
 
 func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {

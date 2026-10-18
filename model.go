@@ -204,6 +204,10 @@ type application struct {
 	// onPageChanged 在分区切换后触发，让 macOS 菜单里只在设备页有意义的项
 	// （刷新设备列表）跟着启用或置灰。
 	onPageChanged func()
+	// onMeasureStorageUsage 由运行时安装：在界面线程之外统计一遍磁盘占用，结果经
+	// Window.Update 回填（见 applyStorageUsage）。为 nil 时（测试、没有窗口）不测，
+	// 用量区显示上一次的结果。参数非空时先等它关闭再统计。
+	onMeasureStorageUsage func(after <-chan struct{})
 	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
 	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
 	onZoomChanged func(zoom float32)
@@ -302,6 +306,11 @@ type application struct {
 	// receivedFilesDir 是收到的同步文件落盘的根目录（每条记录一个子目录）；为空
 	// 时收不了文件，删除记录时也没有可清理的东西。
 	receivedFilesDir string
+	// storageUsage 是最近一次测得的磁盘占用，见 storage_usage.go。测量在界面线程
+	// 之外跑，渲染只读这里的结果，因此页面每帧都不碰磁盘。storageUsagePending 表示
+	// 已经请运行时去测、结果还没回来：它挡住重复请求，也让刷新图标转圈。
+	storageUsage        storageUsage
+	storageUsagePending bool
 
 	launchAtLogin            bool
 	languagePreference       languagePreference // 设置页选的语言，language 是它解析后的结果
