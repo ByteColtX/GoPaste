@@ -91,6 +91,13 @@ func (a *application) periodFilterLabel(filter historyPeriodFilter) string {
 
 func (a *application) view(c *ui.Context) {
 	theme := a.applyTheme(c)
+	// 首次启动向导是整页形态：它占满整个内容区，侧栏、列表、预览与其它弹窗都不画，
+	// 它们对应的快捷键也不注册。
+	if a.onboardingVisible() {
+		a.onboardingPage(c, theme)
+		a.onboardingSkipConfirmation(c, theme)
+		return
+	}
 	a.globalShortcuts(c)
 	a.previewShortcuts(c)
 	a.deviceShortcuts(c)

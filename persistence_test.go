@@ -101,6 +101,25 @@ func TestHistoryDatabasePathStaysInTheUserDataDirectory(t *testing.T) {
 	}
 }
 
+// TestSettingsFileSitsBesideTheHistoryDatabase 检查设置文件与历史数据库同目录：
+// 两者都属于本机应用数据，路径拼接只应有一处。
+func TestSettingsFileSitsBesideTheHistoryDatabase(t *testing.T) {
+	settings, err := settingsPath()
+	if err != nil {
+		t.Fatalf("settingsPath() 出错: %v", err)
+	}
+	database, err := historyDatabasePath()
+	if err != nil {
+		t.Fatalf("historyDatabasePath() 出错: %v", err)
+	}
+	if got, want := filepath.Dir(settings), filepath.Dir(database); got != want {
+		t.Errorf("设置文件目录 = %q，期望与数据库同目录 %q", got, want)
+	}
+	if filepath.Base(settings) != "settings.json" {
+		t.Errorf("settingsPath() = %q，期望以 settings.json 结尾", settings)
+	}
+}
+
 // TestParseArgsReadsTheDatabasePath 检查历史数据库文件既可以由参数指定，也可以
 // 由环境变量提供，而且参数优先。
 func TestParseArgsReadsTheDatabasePath(t *testing.T) {

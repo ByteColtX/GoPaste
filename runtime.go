@@ -5,6 +5,8 @@ import (
 	"log"
 	"runtime"
 
+	"gopaste/internal/settings"
+
 	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
@@ -103,6 +105,9 @@ func (r *applicationRuntime) ready() {
 		r.app.applyLanguage()
 	})
 	r.app.clipboard = mygoClipboardWriter{}
+	// 设置要在窗口打开之前读：首帧就知道要不要显示首次启动向导，否则向导会在
+	// 主窗口出现之后再弹一下。
+	r.loadSettings()
 	r.window = openMainWindow(r.app)
 	r.window.OnClose(func(event *mygo.CloseEvent) {
 		if r.quitting || r.tray == nil {
@@ -293,6 +298,26 @@ func (r *applicationRuntime) installAppMenu() {
 		r.fileAddDeviceItem: msgDevicesAdd,
 		r.viewRefreshItem:   msgDevicesRefresh,
 	}
+}
+
+// loadSettings 读取设置文件并应用到界面状态。它在主窗口打开之前同步运行：
+// 设置文件只有几百字节，读它换来的是首帧就知道要不要显示向导。
+//
+// 拿不到位置或文件读不出来都只记日志：读不出来按首次启动处理（用户会重新看到
+// 向导），比带着一份坏设置继续跑要好。
+func (r *applicationRuntime) loadSettings() {
+	path, err := settingsPath()
+	if err != nil {
+		log.Printf("无法确定设置文件位置，本次不读写设置: %v", err)
+		return
+	}
+	r.app.settingsPath = path
+	file, err := settings.Load(path)
+	if err != nil {
+		log.Printf("无法读取设置 %s，按首次启动处理: %v", path, err)
+		file = settings.File{}
+	}
+	r.app.applySettings(file)
 }
 
 // zoomChanged 在界面缩放变化后调整窗口：最小尺寸按比例放大，窗口不够大就长到
