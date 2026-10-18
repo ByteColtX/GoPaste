@@ -319,14 +319,15 @@ func (a *application) applyAppearance() {
 // appearanceModes 是外观模式的展示顺序，与设置页「模式」分段控件的顺序一致。
 var appearanceModes = [...]int{appearanceSystem, appearanceLight, appearanceDark}
 
-// setAppearance 选中某个外观并立即应用。侧栏气泡与设置页的模式分段控件都走
-// 这里，两处入口因此始终落在同一个模式上。
+// setAppearance 选中某个外观并立即应用，同时记进设置文件：侧栏气泡与设置页的
+// 模式分段控件都走这里，两处入口因此始终落在同一个模式上，重启后也一样。
 func (a *application) setAppearance(mode int) {
 	if a.appearance == mode {
 		return
 	}
 	a.appearance = mode
 	a.applyAppearance()
+	a.saveSettings()
 }
 
 func (a *application) updateLaunchAtLogin() string {

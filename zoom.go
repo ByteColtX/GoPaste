@@ -70,6 +70,8 @@ func (a *application) setZoom(zoom float32) {
 	if a.onZoomChanged != nil {
 		a.onZoomChanged(zoom)
 	}
+	// 缩放也是一项界面偏好：调完就落盘，下次启动按这个比例打开。
+	a.saveSettings()
 }
 
 // zoomCeiling 返回当前屏幕允许的最大缩放。运行时按窗口所在屏幕的可用区域
@@ -82,6 +84,15 @@ func (a *application) zoomCeiling() float32 {
 		}
 	}
 	return max(ceiling, zoomMinimum)
+}
+
+// clampZoomToScreen 把启动时恢复的缩放夹进当前屏幕允许的上限：设置文件里的比例
+// 可能是在更大的屏幕上选的。夹过的值只作用于本次运行，不写回文件——换回大屏幕时
+// 仍恢复用户原来的比例。
+func (a *application) clampZoomToScreen(ceiling float32) {
+	if ceiling > 0 && a.zoom > ceiling {
+		a.zoom = max(ceiling, zoomMinimum)
+	}
 }
 
 // zoomIn、zoomOut、resetZoom 是 Cmd +/-/0 与视图菜单的动作。

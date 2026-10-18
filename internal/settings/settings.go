@@ -2,9 +2,9 @@
 // small JSON file beside the history database. It depends on neither MyGo nor
 // the network, so it can be tested on its own.
 //
-// The file is deliberately small: the history database owns clipboard data,
-// and everything about the interface that is not listed here is still rebuilt
-// on every launch.
+// The file is deliberately small: the history database owns clipboard data, and
+// the interface preferences it does keep are only the ones the settings page
+// exposes.
 package settings
 
 import (
@@ -20,6 +20,26 @@ import (
 type File struct {
 	Onboarding Onboarding `json:"onboarding"`
 	DeviceName string     `json:"deviceName,omitempty"`
+	// UI is nil while every interface preference is still the default: the
+	// caller passes nil so a file that never saw a change stays small.
+	UI *UI `json:"ui,omitempty"`
+}
+
+// UI is the interface preferences the settings page records. Every zero value
+// is that preference's default, so the caller leaves defaults out and a missing
+// field reads back as "never changed".
+type UI struct {
+	// Language is a pinned interface language ("zh-Hans" or "en"); empty
+	// follows the system locale.
+	Language string `json:"language,omitempty"`
+	// Appearance is "light" or "dark"; empty follows the system appearance.
+	Appearance string `json:"appearance,omitempty"`
+	// ConfirmDelete is false only once the user turned the confirmation off.
+	// The pointer keeps "never changed" (default: on) apart from an explicit
+	// false.
+	ConfirmDelete *bool `json:"confirmDelete,omitempty"`
+	// Zoom is the interface scale, where 1 is 100%; zero is the default.
+	Zoom float32 `json:"zoom,omitempty"`
 }
 
 // Onboarding records what the first-run wizard came to. Completed covers the

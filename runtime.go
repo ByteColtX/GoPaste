@@ -94,7 +94,6 @@ func runApplication(databasePath string) error {
 
 // ready 在 MyGo 完成平台初始化后运行，此时才能创建窗口和托盘。
 func (r *applicationRuntime) ready() {
-	r.app.applyLanguage()
 	r.app.onSyncStateChanged = r.syncStateChanged
 	r.app.onLanguageChanged = r.languageChanged
 	r.app.onDevicesChanged = r.devicesChanged
@@ -112,10 +111,17 @@ func (r *applicationRuntime) ready() {
 		r.app.applyLanguage()
 	})
 	r.app.clipboard = mygoClipboardWriter{}
-	// 设置要在窗口打开之前读：首帧就知道要不要显示首次启动向导，否则向导会在
-	// 主窗口出现之后再弹一下。
+	// 设置要在窗口打开之前读：首帧就知道要不要显示首次启动向导，用哪种语言、哪种
+	// 外观，以及缩放多少，否则界面会先闪一下默认值再切过去。语言与外观要在主线程
+	// 上解析并应用，所以放在读完之后、开窗之前。
 	r.loadSettings()
+	r.app.applyLanguage()
+	r.app.applyAppearance()
 	r.window = openMainWindow(r.app)
+	// 恢复的缩放可能来自更大的屏幕：窗口有了所在屏幕之后按可用区域再夹一次，再按
+	// 这个比例调整窗口最小尺寸与尺寸。
+	r.app.clampZoomToScreen(r.maxZoom())
+	r.zoomChanged(r.app.zoom)
 	r.window.OnClose(func(event *mygo.CloseEvent) {
 		if r.quitting || r.tray == nil {
 			return
@@ -603,12 +609,15 @@ func (r *applicationRuntime) update(work func()) {
 }
 
 func openMainWindow(app *application) *mygo.Window {
+	// 初始尺寸按恢复的缩放算：缩放是界面偏好，重启后窗口不该先小后大。
+	width, height := windowSizeForZoom(defaultWindowWidth, defaultWindowHeight, app.zoom, mygo.Rectangle{})
+	minWidth, minHeight := zoomedWindowMinimum(app.zoom)
 	return mygo.NewWindow(mygo.WindowOptions{
 		Title:                "GoPaste",
-		Width:                defaultWindowWidth,
-		Height:               defaultWindowHeight,
-		MinWidth:             minimumWindowWidth,
-		MinHeight:            minimumWindowHeight,
+		Width:                width,
+		Height:               height,
+		MinWidth:             minWidth,
+		MinHeight:            minHeight,
 		TitleBarStyle:        mygo.TitleBarHiddenInset,
 		TrafficLightPosition: &mygo.Point{X: windowControlsInset, Y: windowControlsTopInset},
 		BackgroundColor:      "light-dark(#ffffff, #1c1c1e)",

@@ -287,6 +287,7 @@ func (a *application) dangerousConfirmation(c *ui.Context, theme *ui.Theme) {
 		case dangerousActionDeleteItem:
 			if a.dangerDontAskAgain {
 				a.confirmBeforeDelete = false
+				a.saveSettings()
 			}
 			a.deleteHistoryItem(c, a.pendingDangerousTargetID)
 		case dangerousActionUnpairDevice:
