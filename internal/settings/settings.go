@@ -13,15 +13,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 )
 
 // File is the whole of settings.json. Missing fields mean the default, so a
 // file written by an older build still loads.
 type File struct {
-	Onboarding     Onboarding      `json:"onboarding"`
-	DeviceName     string          `json:"deviceName,omitempty"`
-	PendingPairing *PendingPairing `json:"pendingPairing,omitempty"`
+	Onboarding Onboarding `json:"onboarding"`
+	DeviceName string     `json:"deviceName,omitempty"`
 }
 
 // Onboarding records what the first-run wizard came to. Completed covers the
@@ -29,41 +27,6 @@ type File struct {
 // back on its own.
 type Onboarding struct {
 	Completed bool `json:"completed"`
-}
-
-// PendingPairing is a pairing code the user entered on a device that already
-// runs GoPaste. Nothing completes it yet: the LAN pairing service is not
-// implemented, so this is a request waiting for one, never a paired device.
-type PendingPairing struct {
-	// Code is the code as the user entered it, normalized to digits only. It
-	// is kept verbatim because the pairing handshake will need the same value
-	// the other device shows; the file is private to the user (0600).
-	Code string `json:"code"`
-	// CreatedAt is when the request was recorded, in UTC.
-	CreatedAt time.Time `json:"createdAt"`
-}
-
-// PairingCodeLength is how many digits a pairing code has.
-const PairingCodeLength = 6
-
-// PairingCode normalizes a pairing code typed by the user: spaces and hyphens
-// are dropped, because people copy codes as "482 913", and what remains must be
-// exactly PairingCodeLength ASCII digits. It reports false for anything else.
-func PairingCode(raw string) (string, bool) {
-	digits := make([]rune, 0, PairingCodeLength)
-	for _, r := range raw {
-		switch {
-		case r == ' ' || r == '\t' || r == '-' || r == '\u00a0':
-			continue
-		case r < '0' || r > '9':
-			return "", false
-		}
-		digits = append(digits, r)
-	}
-	if len(digits) != PairingCodeLength {
-		return "", false
-	}
-	return string(digits), true
 }
 
 // Load reads the settings at path. A file that does not exist is not an error:

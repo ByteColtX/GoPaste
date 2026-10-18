@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 // TestLoadMissingFileIsAFirstRun 检查没有 settings.json 时不报错：第一次启动就是
@@ -16,20 +15,18 @@ func TestLoadMissingFileIsAFirstRun(t *testing.T) {
 	if err != nil {
 		t.Fatalf("文件不存在时 Load 出错: %v", err)
 	}
-	if file.Onboarding.Completed || file.DeviceName != "" || file.PendingPairing != nil {
+	if file.Onboarding.Completed || file.DeviceName != "" {
 		t.Errorf("文件不存在时应返回零值，实际 %+v", file)
 	}
 }
 
-// TestSaveLoadRoundTrip 检查写入再读回来是同一份设置：完成标记、改过的设备名和
-// 待配对请求都要原样回来，待配对请求的时间按 UTC 相等比较。
+// TestSaveLoadRoundTrip 检查写入再读回来是同一份设置：完成标记与改过的设备名
+// 都要原样回来。
 func TestSaveLoadRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
-	created := time.Date(2026, 2, 11, 10, 0, 0, 0, time.UTC)
 	want := File{
-		Onboarding:     Onboarding{Completed: true},
-		DeviceName:     "bytecolt-mbp",
-		PendingPairing: &PendingPairing{Code: "482913", CreatedAt: created},
+		Onboarding: Onboarding{Completed: true},
+		DeviceName: "bytecolt-mbp",
 	}
 	if err := Save(path, want); err != nil {
 		t.Fatalf("Save 出错: %v", err)
@@ -43,15 +40,6 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 	}
 	if got.DeviceName != want.DeviceName {
 		t.Errorf("设备名 = %q，期望 %q", got.DeviceName, want.DeviceName)
-	}
-	if got.PendingPairing == nil {
-		t.Fatal("待配对请求没有读回来")
-	}
-	if got.PendingPairing.Code != want.PendingPairing.Code {
-		t.Errorf("配对码 = %q，期望 %q", got.PendingPairing.Code, want.PendingPairing.Code)
-	}
-	if !got.PendingPairing.CreatedAt.Equal(created) {
-		t.Errorf("记录时间 = %v，期望 %v", got.PendingPairing.CreatedAt, created)
 	}
 }
 
@@ -72,9 +60,6 @@ func TestSaveOmitsEmptyFields(t *testing.T) {
 	}
 	if _, ok := fields["deviceName"]; ok {
 		t.Errorf("没改过的设备名不应写进文件: %s", data)
-	}
-	if _, ok := fields["pendingPairing"]; ok {
-		t.Errorf("没有待配对请求时不应写这个字段: %s", data)
 	}
 }
 
@@ -118,8 +103,8 @@ func TestSaveCreatesAPrivateFile(t *testing.T) {
 func TestSaveReplacesAnExistingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	first := File{
-		Onboarding:     Onboarding{Completed: true},
-		PendingPairing: &PendingPairing{Code: "482913", CreatedAt: time.Now().UTC()},
+		Onboarding: Onboarding{Completed: true},
+		DeviceName: "old-name",
 	}
 	if err := Save(path, first); err != nil {
 		t.Fatalf("第一次 Save 出错: %v", err)
@@ -131,9 +116,6 @@ func TestSaveReplacesAnExistingFile(t *testing.T) {
 	got, err := Load(path)
 	if err != nil {
 		t.Fatalf("Load 出错: %v", err)
-	}
-	if got.PendingPairing != nil {
-		t.Errorf("旧内容没有被替换掉: %+v", got)
 	}
 	if got.DeviceName != "renamed" {
 		t.Errorf("设备名 = %q，期望 renamed", got.DeviceName)
@@ -149,38 +131,5 @@ func TestLoadRejectsADamagedFile(t *testing.T) {
 	}
 	if _, err := Load(path); err == nil {
 		t.Error("坏文件应当返回错误")
-	}
-}
-
-// TestPairingCode 检查配对码的规范化与校验：空格和连字符是粘贴时带进来的，
-// 其余字符和长度不对都要拒绝。
-func TestPairingCode(t *testing.T) {
-	cases := []struct {
-		name string
-		raw  string
-		want string
-		ok   bool
-	}{
-		{"六位数字", "482913", "482913", true},
-		{"分组输入", "482 913", "482913", true},
-		{"带连字符", "482-913", "482913", true},
-		{"前后空格", "  482913  ", "482913", true},
-		{"太短", "48291", "", false},
-		{"太长", "4829134", "", false},
-		{"含字母", "48291a", "", false},
-		{"全角数字", "４８２９１３", "", false},
-		{"空串", "", "", false},
-		{"只有空格", "      ", "", false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			got, ok := PairingCode(tc.raw)
-			if ok != tc.ok {
-				t.Fatalf("PairingCode(%q) ok = %v，期望 %v", tc.raw, ok, tc.ok)
-			}
-			if got != tc.want {
-				t.Errorf("PairingCode(%q) = %q，期望 %q", tc.raw, got, tc.want)
-			}
-		})
 	}
 }

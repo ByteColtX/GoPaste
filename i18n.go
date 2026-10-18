@@ -243,35 +243,31 @@ const (
 	msgDevicesPairRefresh          messageKey = "devices.pair.refresh"
 
 	// First-run onboarding.
-	msgOnboardingWelcomeTitle     messageKey = "onboarding.welcome.title"
-	msgOnboardingWelcomeMessage   messageKey = "onboarding.welcome.message"
-	msgOnboardingStep             messageKey = "onboarding.step"
-	msgOnboardingPathLabel        messageKey = "onboarding.path.label"
-	msgOnboardingPathFirstTitle   messageKey = "onboarding.path.first.title"
-	msgOnboardingPathFirstDesc    messageKey = "onboarding.path.first.desc"
-	msgOnboardingPathJoinTitle    messageKey = "onboarding.path.join.title"
-	msgOnboardingPathJoinDesc     messageKey = "onboarding.path.join.desc"
-	msgOnboardingNameTitle        messageKey = "onboarding.name.title"
-	msgOnboardingNameMessage      messageKey = "onboarding.name.message"
-	msgOnboardingNameLabel        messageKey = "onboarding.name.label"
-	msgOnboardingJoinTitle        messageKey = "onboarding.join.title"
-	msgOnboardingJoinMessage      messageKey = "onboarding.join.message"
-	msgOnboardingPairingCodeLabel messageKey = "onboarding.pairingCode.label"
-	msgOnboardingPairingCodeHint  messageKey = "onboarding.pairingCode.hint"
-	msgOnboardingPairingCodeBad   messageKey = "onboarding.pairingCode.invalid"
-	msgOnboardingPairingPending   messageKey = "onboarding.pairingCode.pending"
-	msgOnboardingDoneTitle        messageKey = "onboarding.done.title"
-	msgOnboardingDoneFirst        messageKey = "onboarding.done.first"
-	msgOnboardingDoneJoin         messageKey = "onboarding.done.join"
-	msgOnboardingStart            messageKey = "onboarding.start"
-	msgOnboardingContinue         messageKey = "onboarding.continue"
-	msgOnboardingBack             messageKey = "onboarding.back"
-	msgOnboardingSkip             messageKey = "onboarding.skip"
-	msgOnboardingSkipTitle        messageKey = "onboarding.skip.title"
-	msgOnboardingSkipMessage      messageKey = "onboarding.skip.message"
-	msgOnboardingSkipStay         messageKey = "onboarding.skip.stay"
-	msgOnboardingSkipConfirm      messageKey = "onboarding.skip.confirm"
-	msgOnboardingPendingReminder  messageKey = "onboarding.pendingReminder"
+	msgOnboardingWelcomeTitle   messageKey = "onboarding.welcome.title"
+	msgOnboardingWelcomeMessage messageKey = "onboarding.welcome.message"
+	msgOnboardingStep           messageKey = "onboarding.step"
+	msgOnboardingPathLabel      messageKey = "onboarding.path.label"
+	msgOnboardingPathFirstTitle messageKey = "onboarding.path.first.title"
+	msgOnboardingPathFirstDesc  messageKey = "onboarding.path.first.desc"
+	msgOnboardingPathJoinTitle  messageKey = "onboarding.path.join.title"
+	msgOnboardingPathJoinDesc   messageKey = "onboarding.path.join.desc"
+	msgOnboardingNameTitle      messageKey = "onboarding.name.title"
+	msgOnboardingNameMessage    messageKey = "onboarding.name.message"
+	msgOnboardingNameLabel      messageKey = "onboarding.name.label"
+	msgOnboardingJoinTitle      messageKey = "onboarding.join.title"
+	msgOnboardingJoinMessage    messageKey = "onboarding.join.message"
+	msgOnboardingJoinWhere      messageKey = "onboarding.join.where"
+	msgOnboardingDoneTitle      messageKey = "onboarding.done.title"
+	msgOnboardingDoneFirst      messageKey = "onboarding.done.first"
+	msgOnboardingDoneJoin       messageKey = "onboarding.done.join"
+	msgOnboardingStart          messageKey = "onboarding.start"
+	msgOnboardingContinue       messageKey = "onboarding.continue"
+	msgOnboardingBack           messageKey = "onboarding.back"
+	msgOnboardingSkip           messageKey = "onboarding.skip"
+	msgOnboardingSkipTitle      messageKey = "onboarding.skip.title"
+	msgOnboardingSkipMessage    messageKey = "onboarding.skip.message"
+	msgOnboardingSkipStay       messageKey = "onboarding.skip.stay"
+	msgOnboardingSkipConfirm    messageKey = "onboarding.skip.confirm"
 
 	// Sync direction.
 	msgSyncBoth           messageKey = "sync.both"
@@ -552,35 +548,31 @@ var simplifiedChineseCatalog = catalog{
 	msgDevicesPairFailed:           "配对没有完成，请重试。",
 	msgDevicesPairRefresh:          "刷新列表",
 
-	msgOnboardingWelcomeTitle:     "欢迎使用 GoPaste",
-	msgOnboardingWelcomeMessage:   "复制过的内容留在本机。已配对的设备在同一局域网里直连同步，不经过云端或中继。",
-	msgOnboardingStep:             "第 %d 步，共 %d 步",
-	msgOnboardingPathLabel:        "选择一种情况",
-	msgOnboardingPathFirstTitle:   "这是我的第一台设备",
-	msgOnboardingPathFirstDesc:    "给这台设备起个名字，其他设备会看到它。",
-	msgOnboardingPathJoinTitle:    "我已经在另一台设备上使用",
-	msgOnboardingPathJoinDesc:     "输入那台设备上显示的配对码。",
-	msgOnboardingNameTitle:        "给这台设备起个名字",
-	msgOnboardingNameMessage:      "同一局域网里的其他设备会看到这个名字。留空就用默认名。",
-	msgOnboardingNameLabel:        "设备名",
-	msgOnboardingJoinTitle:        "输入配对码",
-	msgOnboardingJoinMessage:      "在另一台已装好 GoPaste 的设备上打开「添加设备」，把它显示的配对码填在这里。",
-	msgOnboardingPairingCodeLabel: "配对码",
-	msgOnboardingPairingCodeHint:  "%d 位数字",
-	msgOnboardingPairingCodeBad:   "配对码是 %d 位数字，请检查后再试。",
-	msgOnboardingPairingPending:   "配对服务还没接入：现在只会记下这次请求，接入后自动完成。",
-	msgOnboardingDoneTitle:        "准备就绪",
-	msgOnboardingDoneFirst:        "这台设备叫「%s」。在另一台设备上添加它就能开始同步。",
-	msgOnboardingDoneJoin:         "已记下配对码 %s。配对服务接入后，这次请求会自动完成。",
-	msgOnboardingStart:            "开始使用",
-	msgOnboardingContinue:         "继续",
-	msgOnboardingBack:             "上一步",
-	msgOnboardingSkip:             "跳过",
-	msgOnboardingSkipTitle:        "跳过首次设置？",
-	msgOnboardingSkipMessage:      "稍后可以在设备页添加设备或配对。跳过之后，这个向导不会再自动出现。",
-	msgOnboardingSkipStay:         "继续设置",
-	msgOnboardingSkipConfirm:      "仍然跳过",
-	msgOnboardingPendingReminder:  "配对请求仍在等待：配对码尾号 %s，配对服务接入后自动完成。",
+	msgOnboardingWelcomeTitle:   "欢迎使用 GoPaste",
+	msgOnboardingWelcomeMessage: "复制过的内容留在本机。已配对的设备在同一局域网里直连同步，不经过云端或中继。",
+	msgOnboardingStep:           "第 %d 步，共 %d 步",
+	msgOnboardingPathLabel:      "选择一种情况",
+	msgOnboardingPathFirstTitle: "这是我的第一台设备",
+	msgOnboardingPathFirstDesc:  "给这台设备起个名字，其他设备会看到它。",
+	msgOnboardingPathJoinTitle:  "我已经在另一台设备上使用",
+	msgOnboardingPathJoinDesc:   "输入那台设备上显示的配对码。",
+	msgOnboardingNameTitle:      "给这台设备起个名字",
+	msgOnboardingNameMessage:    "同一局域网里的其他设备会看到这个名字。留空就用默认名。",
+	msgOnboardingNameLabel:      "设备名",
+	msgOnboardingJoinTitle:      "接下来在设备页配对",
+	msgOnboardingJoinMessage:    "配对码由一方显示、另一方输入，所以这一步在设备页完成。",
+	msgOnboardingJoinWhere:      "在设备页点「添加设备」：选一台发现到的设备开始配对；或者等那台设备发起后，输入它显示的 6 位配对码。",
+	msgOnboardingDoneTitle:      "准备就绪",
+	msgOnboardingDoneFirst:      "这台设备叫「%s」。在另一台设备上添加它就能开始同步。",
+	msgOnboardingDoneJoin:       "配对在设备页完成：点「添加设备」，按提示输入对方显示的 6 位配对码。",
+	msgOnboardingStart:          "开始使用",
+	msgOnboardingContinue:       "继续",
+	msgOnboardingBack:           "上一步",
+	msgOnboardingSkip:           "跳过",
+	msgOnboardingSkipTitle:      "跳过首次设置？",
+	msgOnboardingSkipMessage:    "稍后可以在设备页添加设备或配对。跳过之后，这个向导不会再自动出现。",
+	msgOnboardingSkipStay:       "继续设置",
+	msgOnboardingSkipConfirm:    "仍然跳过",
 
 	msgSyncBoth:           "双向同步",
 	msgSyncSend:           "仅发往 %s",
@@ -850,35 +842,31 @@ var englishCatalog = catalog{
 	msgDevicesPairFailed:           "Pairing did not finish. Please try again.",
 	msgDevicesPairRefresh:          "Refresh list",
 
-	msgOnboardingWelcomeTitle:     "Welcome to GoPaste",
-	msgOnboardingWelcomeMessage:   "What you copy stays on this machine. Paired devices sync directly over your local network, never through the cloud or a relay.",
-	msgOnboardingStep:             "Step %d of %d",
-	msgOnboardingPathLabel:        "Choose a situation",
-	msgOnboardingPathFirstTitle:   "This is my first device",
-	msgOnboardingPathFirstDesc:    "Give this device a name, and other devices will see it.",
-	msgOnboardingPathJoinTitle:    "I already use GoPaste elsewhere",
-	msgOnboardingPathJoinDesc:     "Enter the pairing code that device shows.",
-	msgOnboardingNameTitle:        "Name this device",
-	msgOnboardingNameMessage:      "Other devices on your local network will see this name. Leave it empty to keep the default.",
-	msgOnboardingNameLabel:        "Device name",
-	msgOnboardingJoinTitle:        "Enter the pairing code",
-	msgOnboardingJoinMessage:      "On the other device, open Add device and type the code it shows here.",
-	msgOnboardingPairingCodeLabel: "Pairing code",
-	msgOnboardingPairingCodeHint:  "%d digits",
-	msgOnboardingPairingCodeBad:   "A pairing code is %d digits. Check it and try again.",
-	msgOnboardingPairingPending:   "Pairing isn't available yet: this records the request now and completes once it is.",
-	msgOnboardingDoneTitle:        "All set",
-	msgOnboardingDoneFirst:        "This device is called “%s”. Add it on another device to start syncing.",
-	msgOnboardingDoneJoin:         "Pairing code %s is recorded. The request completes once pairing is available.",
-	msgOnboardingStart:            "Start using GoPaste",
-	msgOnboardingContinue:         "Continue",
-	msgOnboardingBack:             "Back",
-	msgOnboardingSkip:             "Skip",
-	msgOnboardingSkipTitle:        "Skip first-time setup?",
-	msgOnboardingSkipMessage:      "You can add a device or pair later on the device page. Once skipped, this wizard won't appear again on its own.",
-	msgOnboardingSkipStay:         "Keep setting up",
-	msgOnboardingSkipConfirm:      "Skip anyway",
-	msgOnboardingPendingReminder:  "Pairing request still waiting: code ending in %s. It completes once pairing is available.",
+	msgOnboardingWelcomeTitle:   "Welcome to GoPaste",
+	msgOnboardingWelcomeMessage: "What you copy stays on this machine. Paired devices sync directly over your local network, never through the cloud or a relay.",
+	msgOnboardingStep:           "Step %d of %d",
+	msgOnboardingPathLabel:      "Choose a situation",
+	msgOnboardingPathFirstTitle: "This is my first device",
+	msgOnboardingPathFirstDesc:  "Give this device a name, and other devices will see it.",
+	msgOnboardingPathJoinTitle:  "I already use GoPaste elsewhere",
+	msgOnboardingPathJoinDesc:   "Enter the pairing code that device shows.",
+	msgOnboardingNameTitle:      "Name this device",
+	msgOnboardingNameMessage:    "Other devices on your local network will see this name. Leave it empty to keep the default.",
+	msgOnboardingNameLabel:      "Device name",
+	msgOnboardingJoinTitle:      "Pair from the device page",
+	msgOnboardingJoinMessage:    "One device shows the pairing code and the other enters it, so this step happens on the device page.",
+	msgOnboardingJoinWhere:      "Open the device page and click Add device: pick a discovered device to start, or wait for the other device to start and enter its 6-digit code.",
+	msgOnboardingDoneTitle:      "All set",
+	msgOnboardingDoneFirst:      "This device is called “%s”. Add it on another device to start syncing.",
+	msgOnboardingDoneJoin:       "Pairing happens on the device page: click Add device and enter the 6-digit code the other device shows.",
+	msgOnboardingStart:          "Start using GoPaste",
+	msgOnboardingContinue:       "Continue",
+	msgOnboardingBack:           "Back",
+	msgOnboardingSkip:           "Skip",
+	msgOnboardingSkipTitle:      "Skip first-time setup?",
+	msgOnboardingSkipMessage:    "You can add a device or pair later on the device page. Once skipped, this wizard won't appear again on its own.",
+	msgOnboardingSkipStay:       "Keep setting up",
+	msgOnboardingSkipConfirm:    "Skip anyway",
 
 	msgSyncBoth:           "Two-way",
 	msgSyncSend:           "Send only to %s",

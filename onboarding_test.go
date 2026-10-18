@@ -2,7 +2,6 @@ package main
 
 import (
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"gopaste/internal/settings"
@@ -192,10 +191,10 @@ func TestUnchangedPrefilledNameIsNotPersisted(t *testing.T) {
 	}
 }
 
-// TestJoinPathRecordsAPendingRequestWithoutADevice 走完「已在另一台设备上使用」：
-// 配对码落盘，但不会凭空出现一台已配对设备——设备列表、托盘、来源筛选都不该有它。
-func TestJoinPathRecordsAPendingRequestWithoutADevice(t *testing.T) {
-	app, path := onboardingApp(t, settings.File{})
+// TestJoinPathPointsAtTheDevicePage 检查「已在另一台设备用过」这条路径：向导只说明
+// 配对在设备页完成，不收集配对码、不伪造设备，完成后落到设备页。
+func TestJoinPathPointsAtTheDevicePage(t *testing.T) {
+	app, _ := onboardingApp(t, settings.File{})
 	tt := onboardingTester(app)
 
 	if err := tt.Click(app.t(msgOnboardingPathJoinTitle)); err != nil {
@@ -207,92 +206,32 @@ func TestJoinPathRecordsAPendingRequestWithoutADevice(t *testing.T) {
 	}
 	tt.Frame()
 
-	// 配对服务还没接，这件事要在填之前就说清楚。
-	if !tt.HasText(app.t(msgOnboardingPairingPending)) {
-		t.Errorf("配对码这一步应说明配对服务尚未接入，实际显示：%q", tt.Texts())
+	if app.onboarding != onboardingStepDetail {
+		t.Fatalf("步骤 = %v，期望第二步", app.onboarding)
+	}
+	// 这一步没有输入框：配对码由一方显示、另一方输入，那一来一回在设备页做。
+	if !tt.HasText(app.t(msgOnboardingJoinWhere)) {
+		t.Errorf("应说明去哪里配对，实际显示：%q", tt.Texts())
 	}
 
-	tt.Type("482913")
-	tt.Frame()
 	if err := tt.Click(app.t(msgOnboardingContinue)); err != nil {
 		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingContinue), err)
 	}
 	tt.Frame()
-	if !tt.HasText(app.tf(msgOnboardingDoneJoin, "482 913")) {
-		t.Errorf("完成页应显示分组后的配对码，实际显示：%q", tt.Texts())
+	if !tt.HasText(app.t(msgOnboardingDoneJoin)) {
+		t.Errorf("完成页应说明配对在设备页完成，实际显示：%q", tt.Texts())
 	}
+
 	if err := tt.Click(app.t(msgOnboardingStart)); err != nil {
 		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingStart), err)
 	}
 	tt.Frame()
 
-	if app.pendingPairing == nil {
-		t.Fatal("完成后应记下待配对请求")
-	}
-	if app.pendingPairing.Code != "482913" {
-		t.Errorf("配对码 = %q，期望 482913", app.pendingPairing.Code)
+	if app.page != pageDevices {
+		t.Errorf("完成后页面 = %v，期望设备页", app.page)
 	}
 	if len(app.pairedDevices) != 0 {
-		t.Errorf("待配对请求不该变成已配对设备，实际 %d 台", len(app.pairedDevices))
-	}
-	if devices := app.trayDevices(); len(devices) != 0 {
-		t.Errorf("托盘里不该出现待配对设备，实际 %v", devices)
-	}
-	file := readSettings(t, path)
-	if file.PendingPairing == nil || file.PendingPairing.Code != "482913" {
-		t.Errorf("设置里的待配对请求 = %+v，期望配对码 482913", file.PendingPairing)
-	}
-	// 设备页不该给这条请求留任何痕迹：它还没成为一台设备。
-	if tt.HasText(app.t(msgOnboardingPendingReminder)) {
-		t.Errorf("设备页不该显示待配对占位，实际显示：%q", tt.Texts())
-	}
-}
-
-// TestIncompletePairingCodeKeepsContinueDisabled 检查配对码没填够时「继续」不可用，
-// 点它也不会走到下一步。
-func TestIncompletePairingCodeKeepsContinueDisabled(t *testing.T) {
-	app, _ := onboardingApp(t, settings.File{})
-	app.onboarding = onboardingStepDetail
-	app.onboardingPath = onboardingJoinExisting
-	app.onboardingPairingCode = "482"
-	tt := onboardingTester(app)
-
-	if app.pairingCodeAccepted() {
-		t.Fatal("3 位配对码不该通过校验")
-	}
-	if err := tt.Click(app.t(msgOnboardingContinue)); err != nil {
-		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingContinue), err)
-	}
-	tt.Frame()
-	if app.onboarding != onboardingStepDetail {
-		t.Errorf("配对码不完整时步骤 = %v，期望仍停在第二步", app.onboarding)
-	}
-}
-
-// TestRejectedPairingCodeExplainsItself 检查回车提交非法配对码后，字段下方的说明
-// 变成错误提示，而不是让用户对着一个没反应的按钮发呆。
-func TestRejectedPairingCodeExplainsItself(t *testing.T) {
-	app, _ := onboardingApp(t, settings.File{})
-	app.onboarding = onboardingStepDetail
-	app.onboardingPath = onboardingJoinExisting
-	app.onboardingPairingCode = "48291a"
-	tt := onboardingTester(app)
-
-	if _, invalid := app.pairingCodeHint(); invalid {
-		t.Fatal("还没提交过，说明行不该是错误")
-	}
-	tt.Key(0, ui.KeyEnter)
-	tt.Frame()
-
-	if app.onboarding != onboardingStepDetail {
-		t.Fatalf("非法配对码不该进入下一步，步骤 = %v", app.onboarding)
-	}
-	hint, invalid := app.pairingCodeHint()
-	if !invalid {
-		t.Fatalf("提交过非法配对码后说明行应报错，实际 %q", hint)
-	}
-	if !tt.HasText(hint) {
-		t.Errorf("错误提示应显示出来，实际显示：%q", tt.Texts())
+		t.Errorf("向导不该凭空产生设备，实际 %d 台", len(app.pairedDevices))
 	}
 }
 
@@ -370,15 +309,12 @@ func TestSkipCompletesWithoutRecordingAnything(t *testing.T) {
 	if app.deviceName != app.deviceNameDefault {
 		t.Errorf("跳过后设备名 = %q，期望默认名", app.deviceName)
 	}
-	if app.pendingPairing != nil {
-		t.Errorf("跳过后不该记待配对请求，实际 %+v", app.pendingPairing)
-	}
 	file := readSettings(t, path)
 	if !file.Onboarding.Completed {
 		t.Error("跳过也算完成，应写入完成标记")
 	}
-	if file.DeviceName != "" || file.PendingPairing != nil {
-		t.Errorf("跳过不该写入别的内容，实际 %+v", file)
+	if file.DeviceName != "" {
+		t.Errorf("跳过不该写入设备名，实际 %+v", file)
 	}
 }
 
@@ -421,58 +357,6 @@ func TestEscapeSkipsTheWizardThroughConfirmation(t *testing.T) {
 	}
 	if !readSettings(t, path).Onboarding.Completed {
 		t.Error("跳过也算完成，应写入完成标记")
-	}
-}
-
-// TestPendingPairingRemindsAtStartup 检查待配对请求在下次启动时提示一次，只露尾号。
-func TestPendingPairingRemindsAtStartup(t *testing.T) {
-	app, _ := onboardingApp(t, settings.File{
-		Onboarding:     settings.Onboarding{Completed: true},
-		PendingPairing: &settings.PendingPairing{Code: "482913"},
-	})
-
-	want := app.tf(msgOnboardingPendingReminder, "913")
-	if app.pendingToast != want {
-		t.Fatalf("启动提示 = %q，期望 %q", app.pendingToast, want)
-	}
-	if strings.Contains(app.pendingToast, "482913") {
-		t.Errorf("启动提示不该露出完整配对码: %q", app.pendingToast)
-	}
-
-	tt := onboardingTester(app)
-	if app.pendingToast != "" {
-		t.Error("提示应在第一帧发出后被清空")
-	}
-	if !tt.HasText(want) {
-		t.Errorf("第一帧应显示待配对提示，实际显示：%q", tt.Texts())
-	}
-}
-
-// TestPairingCodeTail 检查提示里只露尾号，短码原样返回。
-func TestPairingCodeTail(t *testing.T) {
-	cases := []struct{ code, want string }{
-		{"482913", "913"},
-		{"913", "913"},
-		{"", ""},
-	}
-	for _, tc := range cases {
-		if got := pairingCodeTail(tc.code); got != tc.want {
-			t.Errorf("pairingCodeTail(%q) = %q，期望 %q", tc.code, got, tc.want)
-		}
-	}
-}
-
-// TestGroupPairingCode 检查完成页把 6 位码按 3+3 分组显示，长度不对时原样返回。
-func TestGroupPairingCode(t *testing.T) {
-	cases := []struct{ code, want string }{
-		{"482913", "482 913"},
-		{"482", "482"},
-		{"4829134", "4829134"},
-	}
-	for _, tc := range cases {
-		if got := groupPairingCode(tc.code); got != tc.want {
-			t.Errorf("groupPairingCode(%q) = %q，期望 %q", tc.code, got, tc.want)
-		}
 	}
 }
 
@@ -567,9 +451,6 @@ func TestBackButtonLetsTheUserChangeTheirMind(t *testing.T) {
 
 	if app.onboardingPath != onboardingFirstDevice {
 		t.Errorf("改选后路径 = %v，期望「这是我的第一台设备」", app.onboardingPath)
-	}
-	if app.onboardingPairingCode != "" {
-		t.Errorf("换路径后不该留着上一次的配对码，实际 %q", app.onboardingPairingCode)
 	}
 }
 

@@ -3,8 +3,6 @@ package main
 import (
 	"strings"
 
-	"gopaste/internal/settings"
-
 	"github.com/egoist/mygo/ui"
 )
 
@@ -189,30 +187,17 @@ func onboardingRadioDot(c *ui.Context, theme *ui.Theme, on bool) {
 	})
 }
 
-// onboardingDetailFields 是第二步的输入：第一台设备起名字，另一台设备填配对码。
-// 输入框与它下面的一两句说明自成一组（组内小间距），与外层的段间距分开：
-// 「6 位数字」和「配对服务还没接入」是同一段话的两行，不能排成两个段。
+// onboardingDetailFields 是第二步的内容：第一台设备起名字，另一台设备只给一句
+// 说明——真正的配对在设备页完成。
 func (a *application) onboardingDetailFields(c *ui.Context, theme *ui.Theme) {
+	if a.onboardingPath == onboardingJoinExisting {
+		// 没有输入框：配对码由一方显示、另一方输入，那一来一回需要发现与网络，
+		// 属于设备页的「添加设备」。向导只把路指清楚。
+		ui.Text(c, a.t(msgOnboardingJoinWhere)).FontSize(font(theme, fontBody)).
+			TextColor(primaryText(theme)).Wrap()
+		return
+	}
 	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 1.5)).Children(func() {
-		if a.onboardingPath == onboardingJoinExisting {
-			ui.TextInput(c.Key("onboarding-pairing-code"), &a.pairingCode).
-				Height(controlHeightSize(c, theme, controlHeight)).Width(onboardingCodeFieldWidth).
-				AlignSelf(ui.Start).
-				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-				Background(theme.Background).Border(1, borderColor(theme)).
-				Label(a.t(msgOnboardingPairingCodeLabel)).Placeholder("000000").
-				AutoFocus().OnSubmit(a.advanceOnboarding)
-			hint, invalid := a.pairingCodeHint()
-			hintColor := secondaryText(theme)
-			if invalid {
-				hintColor = theme.Danger
-			}
-			ui.Text(c, hint).FontSize(font(theme, fontMeta)).TextColor(hintColor).Wrap()
-			// 配对服务还没接，先把这件事说在填之前，而不是让用户填完才发现。
-			ui.Text(c, a.t(msgOnboardingPairingPending)).FontSize(font(theme, fontMeta)).
-				TextColor(secondaryText(theme)).Wrap()
-			return
-		}
 		ui.TextInput(c.Key("onboarding-device-name"), &a.onboardingName).
 			Height(controlHeightSize(c, theme, controlHeight)).FillWidth().
 			Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
@@ -222,21 +207,11 @@ func (a *application) onboardingDetailFields(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-// onboardingCodeFieldWidth 是配对码输入框的宽度（DIP）：6 位数字不需要整栏那么宽。
-const onboardingCodeFieldWidth = 320
-
-// onboardingSummary 复述向导的结果。配对码在这里按分组显示，方便和另一台设备
-// 屏幕上的一致对得上；启动提示里则只露尾号。
+// onboardingSummary 复述向导的结果：起好的名字，或者接下来去哪里配对。
 func (a *application) onboardingSummary(c *ui.Context, theme *ui.Theme) {
-	message := ""
+	message := a.tf(msgOnboardingDoneFirst, a.onboardingDeviceName())
 	if a.onboardingPath == onboardingJoinExisting {
-		code, ok := settings.PairingCode(a.pairingCode)
-		if !ok {
-			code = a.pairingCode
-		}
-		message = a.tf(msgOnboardingDoneJoin, groupPairingCode(code))
-	} else {
-		message = a.tf(msgOnboardingDoneFirst, a.onboardingDeviceName())
+		message = a.t(msgOnboardingDoneJoin)
 	}
 	ui.Text(c, message).FontSize(font(theme, fontBody)).TextColor(primaryText(theme)).Wrap()
 }
@@ -281,10 +256,6 @@ func (a *application) onboardingActions(c *ui.Context, theme *ui.Theme) {
 		primaryLabel = a.t(msgOnboardingStart)
 	}
 	primary := dialogPrimaryButton(c, theme, "onboarding-primary", primaryLabel)
-	if a.onboarding == onboardingStepDetail && a.onboardingPath == onboardingJoinExisting {
-		// 配对码格式不对时没有可提交的东西；回车提交会走 advanceOnboarding 报错。
-		primary.Disabled(!a.pairingCodeAccepted())
-	}
 	if a.onboarding == onboardingStepDone {
 		// 最后一步只有一件事可做，Return 就交给它。
 		primary.AutoFocus()
@@ -318,14 +289,4 @@ func (a *application) onboardingSkipConfirmation(c *ui.Context, theme *ui.Theme)
 			}
 		},
 	})
-}
-
-// groupPairingCode 把 6 位配对码按 3+3 分组，和另一台设备屏幕上显示的样子一致。
-// 长度不是 6 位时原样返回：这里只负责排版，不负责校验。
-func groupPairingCode(code string) string {
-	runes := []rune(code)
-	if len(runes) != 2*pairingCodeTailLength {
-		return code
-	}
-	return string(runes[:pairingCodeTailLength]) + " " + string(runes[pairingCodeTailLength:])
 }
