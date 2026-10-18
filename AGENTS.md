@@ -39,13 +39,16 @@ scripts/preview.sh      # 生成预览数据并启动开发版应用
 
 ```sh
 go run ./scripts/mockdb
-GOPASTE_HISTORY_DB="$PWD/.preview/history.db" GOFLAGS='-tags=preview' go tool mygo dev
+GOPASTE_HISTORY_DB="$PWD/.preview/history.db" go tool mygo dev
 ```
 
-`-tags preview` 额外带出本地设备 fixture：设备发现尚未接入。
+预览数据只造历史记录，不造设备：设备列表来自真实的局域网发现，没配对过就是空的。
 
 ## 开发规则
 
+- 网络代码只放在 `internal/lansync`：身份、mDNS 发现、配对、TLS 连接、投递都在那里，
+  `internal/` 下其余包不碰网络。界面通过 `lansync.Service` 使用它，回调一律经
+  `Window.Update` 回到主线程。
 - 依赖 MyGo API 时以当前 `go.mod` 版本和模块源码为准。
 - MyGo 元素只在当前构建帧有效；持久状态中保存数据、`ui.Handle` 或 `ui.ListState`，不要保存元素。
 - 控件使用稳定且唯一的 key；渲染函数不要无条件执行文件、剪贴板或网络副作用。
