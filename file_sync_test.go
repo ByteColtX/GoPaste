@@ -246,3 +246,62 @@ func TestSettingsStorageShowsTheFileSyncLimit(t *testing.T) {
 		t.Errorf("输入框的值 = %q，期望 2048", app.fileSyncMaxMB)
 	}
 }
+
+// TestPruningHistoryAlsoRemovesReceivedFiles 检查保留策略自动裁剪时，收到的文件记录
+// 落盘的目录也一起清掉：裁剪不是用户点的删除，没有撤销窗口，所以立刻删。
+func TestPruningHistoryAlsoRemovesReceivedFiles(t *testing.T) {
+	app, _ := syncApp()
+	app.receivedFilesDir = t.TempDir()
+	id := history.ContentID(history.Content{Kind: history.KindFile, Files: receivedFileIdentity})
+	local := filepath.Join(app.receivedFilesDir, id, "报表.txt")
+	if err := os.MkdirAll(filepath.Dir(local), 0o700); err != nil {
+		t.Fatalf("create the item directory: %v", err)
+	}
+	if err := os.WriteFile(local, []byte("content"), 0o600); err != nil {
+		t.Fatalf("write the received file: %v", err)
+	}
+	item := receivedFileItem(local)
+	// 超过默认的 90 天，下一次裁剪就会删掉它。
+	item.CreatedAt = time.Now().AddDate(0, 0, -400)
+	app.history = history.New([]history.Item{item})
+
+	app.pruneHistory()
+
+	if items := app.history.Snapshot(history.Query{}).Items; len(items) != 0 {
+		t.Fatalf("items = %d, want the record pruned", len(items))
+	}
+	waitUntil(t, func() bool {
+		_, err := os.Stat(filepath.Dir(local))
+		return errors.Is(err, os.ErrNotExist)
+	})
+}
+
+// TestPruningHistoryLeavesLocalFilesAlone 检查自动裁剪不会去删本机文件的目录：本机
+// 文件项只是指向用户自己的文件。
+func TestPruningHistoryLeavesLocalFilesAlone(t *testing.T) {
+	app, _ := syncApp()
+	app.receivedFilesDir = t.TempDir()
+	// 与收到的条目同 ID，但它是本机捕获的：目录里恰好有这个 ID 也不该被动。
+	id := history.ContentID(history.Content{Kind: history.KindFile, Files: receivedFileIdentity})
+	dir := filepath.Join(app.receivedFilesDir, id)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatalf("create the item directory: %v", err)
+	}
+	item := history.Item{
+		ID:        id,
+		Kind:      kindFile,
+		Text:      "/Users/bytecolt/report.pdf",
+		CreatedAt: time.Now().AddDate(0, 0, -400),
+	}
+	app.history = history.New([]history.Item{item})
+
+	app.pruneHistory()
+
+	if items := app.history.Snapshot(history.Query{}).Items; len(items) != 0 {
+		t.Fatalf("items = %d, want the record pruned", len(items))
+	}
+	time.Sleep(50 * time.Millisecond)
+	if _, err := os.Stat(dir); err != nil {
+		t.Errorf("a locally captured item must not delete anything under Files: %v", err)
+	}
+}

@@ -21,11 +21,15 @@ func defaultRetention() history.RetentionPolicy {
 //
 // 它只在界面线程上调用：规则和落盘各归一处——Store 决定删哪些，唯一的写入
 // goroutine 负责真的从数据库里删掉。被删记录的位图与高亮缓存一并丢掉，免得已经
-// 不存在的记录还占着内存里的图片。
+// 不存在的记录还占着内存里的图片；其中来自同步的文件项，它落盘的文件也一起清掉，
+// 否则 Files/<ID> 会留下一堆没人引用的目录。
 func (a *application) pruneHistory() {
 	if a.history == nil {
 		return
 	}
+	// 裁剪之后 Store 里就查不到被删的条目了，所以先记下来：只有来自设备的文件
+	// 条目才拥有落盘目录（见 receivedFilesPath）。
+	received := a.receivedFileItems()
 	removed := a.history.ApplyRetention(a.retention)
 	if len(removed) == 0 {
 		return
@@ -33,8 +37,27 @@ func (a *application) pruneHistory() {
 	for _, id := range removed {
 		delete(a.historyBitmaps, id)
 		delete(a.codeHighlights, id)
+		if item, ok := received[id]; ok {
+			a.discardReceivedFiles(item)
+		}
 	}
 	a.persistDelete(removed...)
+}
+
+// receivedFileItems 返回当前历史里来自设备的文件条目，按 ID 索引。没有接收目录时
+// 返回 nil：那种情况下本来就没有文件要清。
+func (a *application) receivedFileItems() map[string]history.Item {
+	if a.receivedFilesDir == "" {
+		return nil
+	}
+	items := map[string]history.Item{}
+	for _, item := range a.history.Snapshot(history.Query{}).Items {
+		if item.Kind != kindFile || item.SourceDeviceID == "" {
+			continue
+		}
+		items[item.ID] = item
+	}
+	return items
 }
 
 // retentionSettings 返回要写进设置文件的那一段保留策略，只写用户真改过的维度：
