@@ -479,8 +479,8 @@ func (a *application) sidebarDevices(c *ui.Context, theme *ui.Theme) {
 	// 36 DIP 的按钮居中后会上下各溢出 6 DIP，压住下面第一台设备的高亮。
 	ui.Row(c).Height(controlHeightSize(c, theme, controlHeight)).Shrink(0).AlignItems(ui.Center).
 		Margin(space(theme, 3), 0, 0, 0).Children(func() {
-		ui.Text(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
-			TextColor(secondaryText(theme)).SingleLine()
+		labelText(c, a.t(msgDevicesPaired)).FontSize(font(theme, fontSubheading)).FontWeight(600).
+			TextColor(secondaryText(theme))
 		ui.Spacer(c)
 		a.sidebarIconAction(c, theme, "refresh-paired-devices", icons.refresh, a.t(msgDevicesRefresh), a.deviceRefreshSpinning(c.Now()), func() {
 			a.refreshDevices(c)
@@ -630,9 +630,9 @@ func (a *application) filterSourceItem(c *ui.Context, theme *ui.Theme, index int
 func (a *application) filterSection(c *ui.Context, theme *ui.Theme, title string, body func()) {
 	ui.Column(c).FillWidth().Shrink(0).
 		Padding(space(theme, 4), 0, 0, 0).Children(func() {
-		ui.Text(c, title).FontSize(font(theme, fontCaption)).FontWeight(600).
+		labelText(c, title).FontSize(font(theme, fontCaption)).FontWeight(600).
 			TextColor(secondaryText(theme)).
-			Padding(0, space(theme, 2), space(theme, 2), space(theme, 2)).SingleLine()
+			Padding(0, space(theme, 2), space(theme, 2), space(theme, 2))
 		ui.Column(c).FillWidth().Gap(space(theme, 0.5)).Children(body)
 	})
 }
@@ -732,9 +732,9 @@ func (a *application) filterRailAppearanceButton(c *ui.Context, theme *ui.Theme)
 // 模式打勾。顺序与设置页「模式」分段控件一致。
 func (a *application) appearancePopoverContent(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).Gap(space(theme, optionRowGapUnits)).Children(func() {
-		ui.Text(c, a.t(msgSettingsAppearance)).FontSize(font(theme, fontMeta)).FontWeight(600).
+		labelText(c, a.t(msgSettingsAppearance)).FontSize(font(theme, fontMeta)).FontWeight(600).
 			TextColor(secondaryText(theme)).Padding(space(theme, 0.5), space(theme, 2)).
-			Role(ui.RoleHeading).SingleLine()
+			Role(ui.RoleHeading)
 		for _, mode := range appearanceModes {
 			a.appearancePopoverItem(c, theme, mode)
 		}
@@ -917,9 +917,9 @@ func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history
 		Padding(space(theme, columnTopInset), spaceDIP(theme, paneSideInset), space(theme, 1.5), 0).
 		Children(func() {
 			ui.Column(c).Gap(space(theme, 0.25)).Children(func() {
-				ui.Text(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600).SingleLine()
-				ui.Text(c, countLabel).FontSize(font(theme, fontCaption)).
-					TextColor(secondaryText(theme)).SingleLine()
+				labelText(c, a.t(msgHistoryRecent)).FontSize(font(theme, fontPaneTitle)).FontWeight(600)
+				labelText(c, countLabel).FontSize(font(theme, fontCaption)).
+					TextColor(secondaryText(theme))
 			})
 		})
 }
@@ -975,9 +975,9 @@ func (a *application) searchField(c *ui.Context, theme *ui.Theme) {
 // searchShortcutHint 在搜索框空且未聚焦时提示聚焦搜索的快捷键，
 // 快捷键本身在 globalShortcuts 中注册（Cmd+K / Cmd+F）。
 func searchShortcutHint(c *ui.Context, theme *ui.Theme) {
-	ui.Text(c, searchShortcutLabel()).FontSize(font(theme, fontCaption)).FontWeight(500).
+	labelText(c, searchShortcutLabel()).FontSize(font(theme, fontCaption)).FontWeight(500).
 		TextColor(secondaryText(theme)).Padding(space(theme, 0.5), space(theme, 1)).
-		Radius(radius(theme, controlRadius)).Background(subtleFill(theme)).SingleLine()
+		Radius(radius(theme, controlRadius)).Background(subtleFill(theme))
 }
 
 func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.View) {
@@ -1012,8 +1012,8 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 				Background(subtleFill(theme)).Center().Children(func() {
 				ui.Icon(c, icon).Size(space(theme, 5), space(theme, 5)).TextColor(secondaryText(theme))
 			})
-			ui.Text(c, title).FontSize(font(theme, fontSection)).FontWeight(600).
-				Role(ui.RoleHeading).SingleLine()
+			labelText(c, title).FontSize(font(theme, fontSection)).FontWeight(600).
+				Role(ui.RoleHeading)
 			ui.Text(c, message).FontSize(font(theme, fontControl)).
 				TextColor(secondaryText(theme)).Wrap()
 			if firstUse {
@@ -1027,7 +1027,7 @@ func (a *application) emptyHistory(c *ui.Context, theme *ui.Theme, view history.
 			}
 			reset := neutralButton(c, theme, "history-empty-reset", resetLabel)
 			reset.Children(func() {
-				ui.Text(c, resetLabel).FontSize(font(theme, fontControl)).SingleLine()
+				labelText(c, resetLabel).FontSize(font(theme, fontControl))
 			})
 			if reset.Clicked() {
 				a.query = ""
@@ -1180,17 +1180,17 @@ func (a *application) historyRowMeta(c *ui.Context, theme *ui.Theme, item histor
 	kindColor := colorForKind(theme, item.Kind)
 	// 内容类型靠左、时间靠右：时间与行右侧留白对齐，扫视一列时更整齐。
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
-		ui.Text(c, a.kindLabel(item.Kind)).FontSize(font(theme, fontCaption)).FontWeight(600).
-			TextColor(kindColor).SingleLine()
+		labelText(c, a.kindLabel(item.Kind)).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(kindColor)
 		// 类型后接上识别出的子类型（代码 · Go、文件 · PNG），让列表不读图标也能分辨
 		// 语言和文件格式，长文件名被截断时也还知道是什么文件；识别不出时只留类型。
 		if subtype := a.listSubtypeLabel(item); subtype != "" {
 			ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
-			ui.Text(c, subtype).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+			labelText(c, subtype).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
 		}
 		ui.Spacer(c)
-		ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
-			TextColor(secondaryText(theme)).SingleLine()
+		labelText(c, a.timestampLabel(item.CreatedAt)).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme))
 	})
 }
 
@@ -1234,10 +1234,10 @@ func (a *application) autoTag(c *ui.Context, theme *ui.Theme, item history.Item)
 		return
 	}
 	tagColor := colorForKind(theme, item.Kind)
-	ui.Text(c, tag).FontSize(font(theme, fontCaption)).TextColor(tagColor).
+	labelText(c, tag).FontSize(font(theme, fontCaption)).TextColor(tagColor).
 		Padding(space(theme, metaTagPadY), space(theme, metaTagPadX)).Radius(radius(theme, controlRadius)).
 		Background(tagColor.Alpha(0.10)).
-		Border(metaTagBorder, tagColor.Alpha(0.24)).SingleLine()
+		Border(metaTagBorder, tagColor.Alpha(0.24))
 }
 
 // autoTagWidth 是自动标签占用的宽度；没有标签时为 0，与 autoTag 不创建元素
@@ -1414,12 +1414,12 @@ func (a *application) previewMetaRow(c *ui.Context, theme *ui.Theme, item histor
 
 	kindIconSize := space(theme, metaKindIconSize)
 	ui.Icon(c, iconForKind(baseKind)).Size(kindIconSize, kindIconSize).Shrink(0).TextColor(kindColor)
-	ui.Text(c, a.kindLabel(baseKind)).FontSize(metaSize).FontWeight(600).
-		TextColor(kindColor).SingleLine()
+	labelText(c, a.kindLabel(baseKind)).FontSize(metaSize).FontWeight(600).
+		TextColor(kindColor)
 	a.autoTag(c, theme, item)
 	for _, segment := range segments[:visible] {
 		ui.Text(c, "·").FontSize(metaSize).TextColor(secondary)
-		ui.Text(c, segment).FontSize(metaSize).TextColor(secondary).SingleLine()
+		labelText(c, segment).FontSize(metaSize).TextColor(secondary)
 	}
 	ui.Spacer(c)
 	// 来源与同步标记收进同一子行并收紧间距，让「本机 已同步」读作一组：
@@ -1429,8 +1429,8 @@ func (a *application) previewMetaRow(c *ui.Context, theme *ui.Theme, item histor
 		a.syncIndicator(c, theme, item)
 	})
 	ui.Text(c, "·").FontSize(captionSize).TextColor(secondary)
-	ui.Text(c, a.timestampLabel(item.CreatedAt)).FontSize(captionSize).
-		TextColor(secondary).SingleLine()
+	labelText(c, a.timestampLabel(item.CreatedAt)).FontSize(captionSize).
+		TextColor(secondary)
 }
 
 // previewMetaFixedWidth 返回元信息行里不可隐藏部分占用的宽度，包含子项之间的
@@ -1657,9 +1657,9 @@ func (a *application) filePathList(c *ui.Context, theme *ui.Theme, item history.
 			a.filePathRow(c, theme, item, index, path)
 		}
 		if extra := len(paths) - len(shown); extra > 0 {
-			ui.Text(c, a.l10n().pluralFormat(extra, msgHistoryFileMoreFormatOne, msgHistoryFileMoreFormat, extra)).
+			labelText(c, a.l10n().pluralFormat(extra, msgHistoryFileMoreFormatOne, msgHistoryFileMoreFormat, extra)).
 				FontSize(font(theme, fontCaption)).
-				TextColor(secondaryText(theme)).Padding(0, space(theme, 2)).SingleLine()
+				TextColor(secondaryText(theme)).Padding(0, space(theme, 2))
 		}
 	})
 }
@@ -1785,8 +1785,8 @@ func (a *application) syncIndicator(c *ui.Context, theme *ui.Theme, item history
 	}
 	chip.Children(func() {
 		statusDot(c, color, space(theme, metaSyncDot))
-		ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
-			TextColor(primaryText(theme)).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(primaryText(theme))
 	})
 
 	// 浮层由指针悬停展开：指针停在状态标记或其浮层上时保持展开，移开两者后收起，
@@ -1838,8 +1838,8 @@ func (a *application) syncPopoverHeader(c *ui.Context, theme *ui.Theme, item his
 	ui.Row(c).FillWidth().Height(controlHeightSize(c, theme, syncRowHeight)).
 		Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).
 		Padding(0, space(theme, 1.5)).Children(func() {
-		ui.Text(c, a.t(msgSyncStatusTitle)).FontSize(font(theme, fontMeta)).FontWeight(600).
-			TextColor(secondaryText(theme)).Role(ui.RoleHeading).SingleLine()
+		labelText(c, a.t(msgSyncStatusTitle)).FontSize(font(theme, fontMeta)).FontWeight(600).
+			TextColor(secondaryText(theme)).Role(ui.RoleHeading)
 		ui.Spacer(c)
 		if len(a.pairedDevices) > 0 {
 			a.syncResendButton(c, theme, "batch", item.ID, "", a.t(msgSyncResendAll), a.t(msgSyncResendAllAccess))
@@ -1850,8 +1850,8 @@ func (a *application) syncPopoverHeader(c *ui.Context, theme *ui.Theme, item his
 func (a *application) syncDeviceList(c *ui.Context, theme *ui.Theme, item history.Item) {
 	statuses := a.syncDeviceStatuses(theme, item)
 	if len(statuses) == 0 {
-		ui.Text(c, a.t(msgSyncNoDevices)).FontSize(font(theme, fontCaption)).
-			TextColor(secondaryText(theme)).SingleLine()
+		labelText(c, a.t(msgSyncNoDevices)).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme))
 		return
 	}
 	for _, status := range statuses {
@@ -1874,8 +1874,8 @@ func (a *application) syncDeviceLine(c *ui.Context, theme *ui.Theme, item histor
 		statusDot(c, status.color, space(theme, 1.5))
 		ui.Text(c, status.name).Grow(1).MinWidth(0).FontSize(font(theme, fontControl)).
 			FontWeight(500).TextColor(primaryText(theme)).SingleLine()
-		ui.Text(c, status.label).Shrink(0).FontSize(font(theme, fontControl)).
-			TextColor(status.textColor).SingleLine()
+		labelText(c, status.label).Shrink(0).FontSize(font(theme, fontControl)).
+			TextColor(status.textColor)
 		a.syncResendSlot(c, theme, item, status)
 	})
 }
@@ -1924,7 +1924,7 @@ func (a *application) syncResendButton(c *ui.Context, theme *ui.Theme, scope, it
 	}
 	button.Children(func() {
 		ui.Icon(c, icons.refresh).Size(space(theme, 3), space(theme, 3)).Shrink(0)
-		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl)).FontWeight(500)
 	})
 	if button.Clicked() {
 		a.resendItem(c, itemID, deviceID)
@@ -2043,8 +2043,8 @@ func (a *application) historySource(c *ui.Context, theme *ui.Theme, item history
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, metaSourceGap)).Children(func() {
 		ui.Icon(c, icon).Size(space(theme, metaSourceIcon), space(theme, metaSourceIcon)).Shrink(0).
 			TextColor(secondaryText(theme))
-		ui.Text(c, name).Shrink(0).FontSize(font(theme, fontCaption)).
-			TextColor(secondaryText(theme)).SingleLine()
+		labelText(c, name).Shrink(0).FontSize(font(theme, fontCaption)).
+			TextColor(secondaryText(theme))
 	})
 }
 
@@ -2293,7 +2293,7 @@ func actionButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, labe
 	}
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
-		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl)).FontWeight(500)
 		if shortcut != "" {
 			keycap(c, theme, shortcut, fg)
 		}
@@ -2316,7 +2316,7 @@ func destructiveActionButton(c *ui.Context, theme *ui.Theme, key string, icon *u
 	}
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
-		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl)).FontWeight(500)
 		if shortcut != "" {
 			keycap(c, theme, shortcut, theme.Danger)
 		}

@@ -247,6 +247,17 @@ func controlHeightSize(c *ui.Context, theme *ui.Theme, units float32) float32 {
 	return space(theme, units*textScale(c))
 }
 
+// labelText 画一段固定文案：单行、按内容定宽，不折行也不省略。
+//
+// 按内容定宽的盒子宽度恰好等于文字自身的宽度，而 Windows 的 DirectWrite 拿到的
+// 宽度比它自己量出来的少一个浮点最低位，就按这个宽度断行；中文每两个字之间都是
+// 断行点，「收藏」于是显示成「收…」。NoWrap 让文字按宽度 0 断行，盒子再窄也不会
+// 断，省略号无从发生。可能显示用户长内容（历史正文、文件路径、设备名）的文字仍用
+// SingleLine，按可用宽度截断。
+func labelText(c *ui.Context, text string) ui.Element {
+	return ui.Text(c, text).SingleLine().NoWrap()
+}
+
 // filterRailSize 返回筛选栏当前占用的宽度：收起时为 0，内容区因此占满窗口。
 func (a *application) filterRailSize(c *ui.Context, theme *ui.Theme) float32 {
 	if !a.filterRailOpen {
@@ -275,8 +286,8 @@ func (a *application) compactDetailLayout(c *ui.Context, theme *ui.Theme) bool {
 // which no longer keeps a title-bar band of its own.
 func pageHeader(c *ui.Context, theme *ui.Theme, title, description string) {
 	ui.Column(c).Shrink(0).Gap(space(theme, 1)).DragWindow().Children(func() {
-		ui.Text(c, title).FontSize(font(theme, fontPageTitle)).FontWeight(600).
-			Role(ui.RoleHeading).SingleLine()
+		labelText(c, title).FontSize(font(theme, fontPageTitle)).FontWeight(600).
+			Role(ui.RoleHeading)
 		ui.Text(c, description).FontSize(font(theme, fontBody)).TextColor(secondaryText(theme)).Wrap()
 	})
 }
@@ -374,8 +385,8 @@ func dialog(c *ui.Context, theme *ui.Theme, open *bool, spec dialogSpec) ui.Elem
 		if spec.badge != "" {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
 				statusDot(c, spec.badgeColor, space(theme, 2))
-				ui.Text(c, spec.badge).FontSize(font(theme, fontControl)).
-					TextColor(spec.badgeColor).FontWeight(600).SingleLine()
+				labelText(c, spec.badge).FontSize(font(theme, fontControl)).
+					TextColor(spec.badgeColor).FontWeight(600)
 			})
 		}
 		if spec.message != "" {
@@ -397,7 +408,7 @@ func dialog(c *ui.Context, theme *ui.Theme, open *bool, spec dialogSpec) ui.Elem
 func dialogDismissButton(c *ui.Context, theme *ui.Theme, key, label string) ui.Element {
 	button := neutralButton(c, theme, key, label).Gap(space(theme, 1)).AutoFocus()
 	button.Children(func() {
-		ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl))
 		keycap(c, theme, shortcutKeyLabel(ui.KeyEscape), primaryText(theme))
 	})
 	return button
@@ -419,7 +430,7 @@ func dialogDangerButton(c *ui.Context, theme *ui.Theme, key, label, shortcut str
 		button.Background(theme.Danger.Mix(theme.Text, 0.12))
 	}
 	button.Children(func() {
-		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl)).FontWeight(600)
 		if shortcut != "" {
 			keycap(c, theme, shortcut, theme.AccentText)
 		}
@@ -574,7 +585,7 @@ func selectField[T comparable](
 		Background(theme.Surface).TextColor(primaryText(theme)).
 		Justify(ui.SpaceBetween).Label(label).Transition(motionColors)
 	trigger.Children(func() {
-		ui.Text(c, labelFor(*value, options)).FontSize(font(theme, fontControl)).SingleLine()
+		labelText(c, labelFor(*value, options)).FontSize(font(theme, fontControl))
 		ui.Icon(c, icons.chevron).Size(space(theme, 3.5), space(theme, 3.5)).
 			Shrink(0).TextColor(secondaryText(theme))
 	})
@@ -587,7 +598,7 @@ func selectField[T comparable](
 			background, border := optionRowFill(c, theme, opt.value == *value, item.Highlighted(), item.Pressed())
 			item.Background(background).BorderColor(border)
 			item.Children(func() {
-				ui.Text(c, opt.label).FontSize(font(theme, fontControl)).SingleLine()
+				labelText(c, opt.label).FontSize(font(theme, fontControl))
 			})
 		}
 	})
@@ -624,7 +635,7 @@ func segmentedField(
 				segment.Background(hoverFill(theme))
 			}
 			segment.Children(func() {
-				ui.Text(c, text).FontSize(font(theme, fontControl)).FontWeight(500).SingleLine()
+				labelText(c, text).FontSize(font(theme, fontControl)).FontWeight(500)
 			})
 		}
 	})
@@ -668,7 +679,7 @@ func sidebarItemButton(
 		if icon != nil {
 			ui.Icon(c, icon).Size(space(theme, 4.25), space(theme, 4.25)).Shrink(0).TextColor(iconColor)
 		}
-		ui.Text(c, label).FontSize(font(theme, fontControl)).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl))
 	})
 	if item.Clicked() {
 		onSelect()
@@ -741,8 +752,8 @@ func keycap(c *ui.Context, theme *ui.Theme, key string, fg ui.Color) {
 		MinWidth(space(theme, 4)).Height(space(theme, 4)).
 		Padding(0, space(theme, 0.75)).Radius(radius(theme, controlRadius)).
 		Background(fg.Alpha(0.16)).Border(1, fg.Alpha(0.28)).Children(func() {
-		ui.Text(c, key).FontSize(font(theme, fontCaption)).FontWeight(600).
-			TextColor(fg).SingleLine()
+		labelText(c, key).FontSize(font(theme, fontCaption)).FontWeight(600).
+			TextColor(fg)
 	})
 }
 
@@ -762,7 +773,7 @@ func primaryButton(c *ui.Context, theme *ui.Theme, key string, icon *ui.SVG, lab
 		if icon != nil {
 			ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
 		}
-		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl)).FontWeight(600)
 		if shortcut != "" {
 			keycap(c, theme, shortcut, theme.AccentText)
 		}

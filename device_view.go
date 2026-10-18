@@ -17,8 +17,7 @@ func (a *application) deviceEmptyState(c *ui.Context, theme *ui.Theme) {
 		AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
 		ui.Icon(c, icons.devices).Size(space(theme, 5), space(theme, 5)).
 			TextColor(secondaryText(theme))
-		ui.Text(c, a.t(msgDevicesEmptyTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
-			SingleLine()
+		labelText(c, a.t(msgDevicesEmptyTitle)).FontSize(font(theme, fontControl)).FontWeight(600)
 		ui.Text(c, a.t(msgDevicesEmptyMessage)).
 			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
 	})
@@ -28,8 +27,7 @@ func (a *application) deviceLoadingState(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).FillWidth().Padding(space(theme, 5), space(theme, 3)).
 		AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
 		statusDot(c, theme.Accent, space(theme, 2))
-		ui.Text(c, a.t(msgDevicesLoadingTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
-			SingleLine()
+		labelText(c, a.t(msgDevicesLoadingTitle)).FontSize(font(theme, fontControl)).FontWeight(600)
 		ui.Text(c, a.t(msgDevicesLoadingMessage)).
 			FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
 	})
@@ -43,13 +41,13 @@ func (a *application) deviceErrorState(c *ui.Context, theme *ui.Theme) {
 	ui.Column(c).FillWidth().Padding(space(theme, 5), space(theme, 3)).
 		AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
 		statusDot(c, theme.Danger, space(theme, 2))
-		ui.Text(c, a.t(msgDevicesErrorTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
-			TextColor(theme.Danger).SingleLine()
+		labelText(c, a.t(msgDevicesErrorTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
+			TextColor(theme.Danger)
 		ui.Text(c, message).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).Wrap()
 		retryLabel := a.t(msgDevicesRetry)
 		retry := neutralButton(c, theme, "retry-paired-devices", retryLabel)
 		retry.Children(func() {
-			ui.Text(c, retryLabel).FontSize(font(theme, fontControl)).SingleLine()
+			labelText(c, retryLabel).FontSize(font(theme, fontControl))
 		})
 		if retry.Clicked() {
 			a.refreshDevices(c)
@@ -181,7 +179,7 @@ func (a *application) sidebarWideButton(c *ui.Context, theme *ui.Theme, key stri
 	}
 	button.Children(func() {
 		ui.Icon(c, icon).Size(space(theme, 3.5), space(theme, 3.5)).Shrink(0)
-		ui.Text(c, label).FontSize(font(theme, fontControl)).FontWeight(600).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontControl)).FontWeight(600)
 	})
 	if button.Clicked() {
 		onClick()
@@ -217,8 +215,8 @@ func (a *application) deviceConnectionNotice(c *ui.Context, theme *ui.Theme) {
 			AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
 			statusDot(c, theme.Warning, space(theme, 2))
 			ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
-				ui.Text(c, a.t(msgDevicesOfflineTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
-					TextColor(theme.Warning).SingleLine()
+				labelText(c, a.t(msgDevicesOfflineTitle)).FontSize(font(theme, fontControl)).FontWeight(600).
+					TextColor(theme.Warning)
 				ui.Text(c, a.t(msgDevicesOfflineMessage)).
 					FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 				if !device.lastSeenAt.IsZero() {
@@ -261,7 +259,7 @@ func (a *application) deviceDetailHeader(c *ui.Context, theme *ui.Theme) {
 				}
 				deviceSyncStatus(c, theme, syncEnabled, a.t(msgDevicesSyncOn), a.t(msgDevicesSyncOff))
 				ui.Text(c, "·").FontSize(font(theme, fontControl)).TextColor(secondaryText(theme))
-				ui.Text(c, platform).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
+				labelText(c, platform).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme))
 			})
 		})
 		if paired {
@@ -277,8 +275,8 @@ func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 	button.Children(func() {
 		ui.Icon(c, icons.unlink).Size(space(theme, 3.5), space(theme, 3.5)).
 			Shrink(0).TextColor(theme.Danger)
-		ui.Text(c, unpairLabel).FontSize(font(theme, fontControl)).FontWeight(600).
-			TextColor(theme.Danger).SingleLine()
+		labelText(c, unpairLabel).FontSize(font(theme, fontControl)).FontWeight(600).
+			TextColor(theme.Danger)
 	})
 	if button.Clicked() {
 		if device, ok := a.selectedPairedDevice(); ok {
@@ -290,10 +288,10 @@ func (a *application) unpairButton(c *ui.Context, theme *ui.Theme) {
 func (a *application) deviceConnectionStatus(c *ui.Context, theme *ui.Theme, device *pairedDevice) {
 	deviceStatus(c, theme, a.connectionLabel(device.online), connectionColor(theme, device.online))
 	ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
-	ui.Text(c, a.t(msgDevicesDirect)).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+	labelText(c, a.t(msgDevicesDirect)).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
 	if device.platform != "" {
 		ui.Text(c, "·").FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
-		ui.Text(c, device.platform).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme)).SingleLine()
+		labelText(c, device.platform).FontSize(font(theme, fontCaption)).TextColor(secondaryText(theme))
 	}
 }
 
@@ -335,7 +333,7 @@ func (a *application) pairedSyncRows(c *ui.Context, theme *ui.Theme, device *pai
 	ui.Row(c.Key(device.id+"-sync-content-mode")).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 		Padding(space(theme, 3.5), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
-			ui.Text(c, a.t(msgDevicesSyncContent)).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+			labelText(c, a.t(msgDevicesSyncContent)).FontSize(font(theme, fontBody)).FontWeight(500)
 			ui.Text(c, a.t(msgDevicesSyncContentDesc)).FontSize(font(theme, fontMeta)).
 				TextColor(secondaryText(theme)).Wrap()
 		})
@@ -382,7 +380,7 @@ func (a *application) syncDirectionRow(
 				ui.Icon(c, setting.icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).
 					TextColor(secondaryText(theme))
 				ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
-					ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+					labelText(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(500)
 					ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 				})
 			})
@@ -396,7 +394,7 @@ func (a *application) syncDirectionRow(
 		Padding(space(theme, 3), space(theme, 4)).AlignItems(ui.Center).Gap(space(theme, 3)).Children(func() {
 		ui.Icon(c, setting.icon).Size(space(theme, 4.5), space(theme, 4.5)).Shrink(0).TextColor(secondaryText(theme))
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.5)).Children(func() {
-			ui.Text(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+			labelText(c, setting.label).FontSize(font(theme, fontBody)).FontWeight(500)
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
 		selectField(c, theme, device.id+"-direction-"+setting.key, setting.direction, selectLabel, directions).
@@ -438,7 +436,7 @@ func (a *application) deviceSwitchRow(
 	ui.Row(c.Key("device-setting-"+key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 		Padding(space(theme, 4), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 1)).Children(func() {
-			ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+			labelText(c, title).FontSize(font(theme, fontBody)).FontWeight(500)
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
 		switchControl := ui.Switch(c.Key("device-switch-"+key), value).
@@ -483,7 +481,7 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 		}
 		button.Children(func() {
 			ui.Row(c).FillWidth().AlignItems(ui.Center).Children(func() {
-				ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(600).SingleLine()
+				labelText(c, title).FontSize(font(theme, fontBody)).FontWeight(600)
 				ui.Spacer(c)
 				rotation := float32(-90)
 				if a.deviceInfoExpanded {
@@ -511,8 +509,8 @@ func (a *application) deviceInfoDisclosure(c *ui.Context, theme *ui.Theme) {
 			}
 			ui.Row(c.Key("device-info-row-"+info.key)).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).
 				Padding(space(theme, 2.5), space(theme, 4)).AlignItems(ui.Center).Gap(space(theme, rowGap)).Children(func() {
-				ui.Text(c, info.label).Width(space(theme, labelWidth/4)).Shrink(0).FontSize(font(theme, fontMeta)).
-					TextColor(secondaryText(theme)).SingleLine()
+				labelText(c, info.label).Width(space(theme, labelWidth/4)).Shrink(0).FontSize(font(theme, fontMeta)).
+					TextColor(secondaryText(theme))
 				ui.Text(c, info.value).Grow(1).MinWidth(0).FontSize(font(theme, fontControl)).
 					TextColor(primaryText(theme)).Wrap()
 			})
@@ -635,15 +633,15 @@ func deviceSyncStatus(c *ui.Context, theme *ui.Theme, enabled bool, onLabel, off
 func deviceStatus(c *ui.Context, theme *ui.Theme, label string, color ui.Color) {
 	ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.25)).Children(func() {
 		statusDot(c, color, space(theme, 1.5))
-		ui.Text(c, label).FontSize(font(theme, fontCaption)).
-			TextColor(color).SingleLine()
+		labelText(c, label).FontSize(font(theme, fontCaption)).
+			TextColor(color)
 	})
 }
 
 func deviceBadge(c *ui.Context, theme *ui.Theme, label string) {
-	ui.Text(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
+	labelText(c, label).FontSize(font(theme, fontCaption)).FontWeight(600).
 		TextColor(secondaryText(theme)).Padding(space(theme, 1), space(theme, 2.25)).Radius(radius(theme, cardRadius)).
-		Background(subtleFill(theme)).SingleLine()
+		Background(subtleFill(theme))
 }
 
 func deviceDivider(c *ui.Context, theme *ui.Theme) {

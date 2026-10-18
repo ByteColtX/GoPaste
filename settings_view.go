@@ -139,16 +139,16 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1)).Children(func() {
 				out := neutralButton(c, theme, "settings-zoom-out", a.t(msgSettingsZoomOut))
 				out.Children(func() {
-					ui.Text(c, a.t(msgSettingsZoomOut)).FontSize(font(theme, fontControl)).SingleLine()
+					labelText(c, a.t(msgSettingsZoomOut)).FontSize(font(theme, fontControl))
 				})
 				if out.Clicked() {
 					a.zoomOut()
 				}
-				ui.Text(c, zoomLabel(a.zoom)).FontSize(font(theme, fontControl)).FontWeight(600).
-					TextColor(primaryText(theme)).MinWidth(space(theme, 9)).Center().SingleLine()
+				labelText(c, zoomLabel(a.zoom)).FontSize(font(theme, fontControl)).FontWeight(600).
+					TextColor(primaryText(theme)).MinWidth(space(theme, 9)).Center()
 				in := neutralButton(c, theme, "settings-zoom-in", a.t(msgSettingsZoomIn))
 				in.Children(func() {
-					ui.Text(c, a.t(msgSettingsZoomIn)).FontSize(font(theme, fontControl)).SingleLine()
+					labelText(c, a.t(msgSettingsZoomIn)).FontSize(font(theme, fontControl))
 				})
 				if in.Clicked() {
 					a.zoomIn()
@@ -157,7 +157,7 @@ func (a *application) appearanceSettings(c *ui.Context, theme *ui.Theme) {
 				reset := neutralButton(c, theme, "settings-zoom-reset", a.t(msgSettingsZoomReset)).
 					Disabled(a.zoom == 1)
 				reset.Children(func() {
-					ui.Text(c, a.t(msgSettingsZoomReset)).FontSize(font(theme, fontControl)).SingleLine()
+					labelText(c, a.t(msgSettingsZoomReset)).FontSize(font(theme, fontControl))
 				})
 				if reset.Clicked() {
 					a.resetZoom()
@@ -185,10 +185,10 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 	settingsGroup(c, theme, "settings-storage-group", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsHistoryRow), a.t(msgSettingsHistoryRowDesc), func() {
 			ui.Column(c).Shrink(0).AlignItems(ui.End).Gap(space(theme, 0.5)).Children(func() {
-				ui.Text(c, a.l10n().storageRecord(stats.Total)).FontSize(font(theme, fontControl)).
-					TextColor(primaryText(theme)).SingleLine()
-				ui.Text(c, a.l10n().imageCount(stats.ImageCount)).FontSize(font(theme, fontCaption)).
-					TextColor(secondaryText(theme)).SingleLine()
+				labelText(c, a.l10n().storageRecord(stats.Total)).FontSize(font(theme, fontControl)).
+					TextColor(primaryText(theme))
+				labelText(c, a.l10n().imageCount(stats.ImageCount)).FontSize(font(theme, fontCaption)).
+					TextColor(secondaryText(theme))
 			})
 		})
 		settingsRule(c, theme)
@@ -199,7 +199,7 @@ func (a *application) storageSettings(c *ui.Context, theme *ui.Theme) {
 			button.Children(func() {
 				ui.Icon(c, icons.clear).Size(space(theme, 3.5), space(theme, 3.5)).
 					Shrink(0).TextColor(theme.Danger)
-				ui.Text(c, clearLabel).FontSize(font(theme, fontControl)).SingleLine()
+				labelText(c, clearLabel).FontSize(font(theme, fontControl))
 			})
 			if button.Clicked() && stats.Total > 0 {
 				a.requestDangerousAction(dangerousActionClearHistory, "")
@@ -226,24 +226,24 @@ func (a *application) aboutSettings(c *ui.Context, theme *ui.Theme) {
 	a.settingsSubheading(c, a.t(msgSettingsAppInfo), theme)
 	settingsGroup(c, theme, "settings-about-group", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsVersion), a.t(msgSettingsVersionDesc), func() {
-			ui.Text(c, settingsVersion).FontSize(font(theme, fontControl)).TextColor(secondaryText(theme)).SingleLine()
+			labelText(c, settingsVersion).FontSize(font(theme, fontControl)).TextColor(secondaryText(theme))
 		})
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsSyncScope), a.t(msgSettingsSyncScopeDesc), func() {
-			ui.Text(c, a.t(msgDevicesDirect)).FontSize(font(theme, fontControl)).
-				TextColor(theme.Success).SingleLine()
+			labelText(c, a.t(msgDevicesDirect)).FontSize(font(theme, fontControl)).
+				TextColor(theme.Success)
 		})
 		settingsRule(c, theme)
 		a.settingsRow(c, theme, a.t(msgSettingsPrivacy), a.t(msgSettingsPrivacyDesc), func() {
-			ui.Text(c, a.t(msgSettingsStoredLocally)).FontSize(font(theme, fontControl)).
-				TextColor(secondaryText(theme)).SingleLine()
+			labelText(c, a.t(msgSettingsStoredLocally)).FontSize(font(theme, fontControl)).
+				TextColor(secondaryText(theme))
 		})
 	})
 }
 
 func (a *application) settingsSubheading(c *ui.Context, title string, theme *ui.Theme) {
-	ui.Text(c, title).FontSize(font(theme, fontSubheading)).FontWeight(600).
-		TextColor(secondaryText(theme)).Padding(0, 0, space(theme, 1), 0).SingleLine()
+	labelText(c, title).FontSize(font(theme, fontSubheading)).FontWeight(600).
+		TextColor(secondaryText(theme)).Padding(0, 0, space(theme, 1), 0)
 }
 
 func settingsGroup(c *ui.Context, theme *ui.Theme, key string, body func()) {
@@ -259,7 +259,7 @@ func (a *application) settingsRow(c *ui.Context, theme *ui.Theme, title, descrip
 		ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 2)).
 			Padding(space(theme, 3), space(theme, 4)).Children(func() {
 			ui.Column(c).FillWidth().MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
-				ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+				labelText(c, title).FontSize(font(theme, fontBody)).FontWeight(500)
 				ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 			})
 			control()
@@ -269,7 +269,7 @@ func (a *application) settingsRow(c *ui.Context, theme *ui.Theme, title, descrip
 	ui.Row(c).FillWidth().MinHeight(space(theme, rowHeight)).Shrink(0).Gap(space(theme, 4.5)).
 		Padding(space(theme, 3), space(theme, 4)).AlignItems(ui.Center).Children(func() {
 		ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.75)).Children(func() {
-			ui.Text(c, title).FontSize(font(theme, fontBody)).FontWeight(500).SingleLine()
+			labelText(c, title).FontSize(font(theme, fontBody)).FontWeight(500)
 			ui.Text(c, description).FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).Wrap()
 		})
 		control()
