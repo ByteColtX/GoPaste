@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gopaste/internal/history"
+	"gopaste/internal/settings"
 
 	"github.com/egoist/mygo/ui"
 )
@@ -241,6 +242,26 @@ type application struct {
 	pairingPending           bool
 	pairingError             string
 	onStartPairing           func()
+
+	// 首次启动向导。onboarding 是当前步骤，onboardingStepNone 表示不显示；
+	// onboardingCompleted 是已经落盘的那个事实，跳过也算完成，因此向导不会
+	// 自己再回来。
+	onboarding          onboardingStep
+	onboardingCompleted bool
+	onboardingPath      onboardingPath
+	// onboardingName 是向导里的设备名草稿，进入向导时用当前设备名预填。
+	onboardingName string
+	// pairingCode 是向导里的配对码草稿，按用户输入的原样保存，提交时才规范化。
+	pairingCode string
+	// pairingCodeRejected 记录用户已经用回车提交过一次非法配对码，用来把字段
+	// 下方的说明行转成错误提示。
+	pairingCodeRejected bool
+	// pendingPairing 是一条等待配对服务的请求。它不是已配对设备：不进
+	// pairedDevices，不进托盘，也不出现在来源筛选里。
+	pendingPairing *settings.PendingPairing
+	// settingsPath 是本次运行读写的设置文件；为空时不落盘（例如拿不到数据目录）。
+	settingsPath string
+
 	launchAtLogin            bool
 	languagePreference       languagePreference // 设置页选的语言，language 是它解析后的结果
 	language                 language

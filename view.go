@@ -109,6 +109,7 @@ func (a *application) view(c *ui.Context) {
 		a.titleBarToggle(c, theme)
 	})
 	a.dangerousConfirmation(c, theme)
+	a.onboardingDialog(c, theme)
 	a.flushPendingToast(c)
 	a.flushPendingUndo(c)
 }
@@ -147,6 +148,10 @@ func (a *application) requestDeleteItem(c *ui.Context, id string) {
 // 切到设备页再打开配对对话框，因为对话框只在设备页构建。Cmd+R 刷新只在设备页
 // 生效，离开设备页刷新没有可见反馈；macOS 的视图菜单项同步置灰。
 func (a *application) deviceShortcuts(c *ui.Context) {
+	// 首次启动向导开着时不再开别的弹窗：模态已经挡住了指针，快捷键不该绕过它。
+	if a.onboardingVisible() {
+		return
+	}
 	c.OnShortcut(ui.Cmd, ui.KeyN, func() {
 		a.setPage(pageDevices)
 		a.openAddDeviceDialog()
