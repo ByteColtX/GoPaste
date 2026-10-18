@@ -1,11 +1,8 @@
 package main
 
 import (
-	"os"
-
 	"gopaste/internal/history"
 
-	"github.com/egoist/mygo"
 	"github.com/egoist/mygo/ui"
 )
 
@@ -197,8 +194,9 @@ func (a *application) appearanceLabel(appearance int) string {
 // syncSettings 是设置 › 同步：总开关、自动发送，以及文件同步的整块参数。设备页
 // 的本地卡与这里绑定同一份状态，两处都能改。
 func (a *application) syncSettings(c *ui.Context, theme *ui.Theme) {
+	// 页面标题已经写着「同步」，第一张卡直接跟在标题下：再加一个「同步开关」的
+	// 小标题只是把同一件事说两遍。
 	a.settingsHeader(c, a.t(msgSettingsSync), a.t(msgSettingsSyncDesc), theme)
-	a.settingsSubheading(c, a.t(msgSettingsSyncSwitches), theme)
 	settingsGroup(c, theme, "settings-sync-switches", func() {
 		a.settingsRow(c, theme, a.t(msgSettingsSyncEnabled), a.t(msgSettingsSyncEnabledDesc), func() {
 			control := ui.Switch(c.Key("settings-sync-enabled"), &a.syncEnabled).
@@ -253,22 +251,25 @@ func (a *application) fileSyncParamsDisabled() bool {
 	return !a.syncEnabled || !a.fileSyncEnabled
 }
 
-// fileSyncDirRow 是「保存位置」一行：路径文本 + 选择目录 + 恢复默认。路径可能很长，
-// 所以它按可用宽度截断；只有用户自己的路径才用 SingleLine。
+// fileSyncDirRow 是「保存位置」一行：路径与两个按钮排在右侧一栏，路径在按钮上方。
+//
+// 路径把用户主目录缩成 ~，所以默认位置一行就放得下；自定义的长路径按可用宽度截断，
+// 悬停时用提示框显示完整位置——截断本身不说明文件落在哪，提示才说明。
 func (a *application) fileSyncDirRow(c *ui.Context, theme *ui.Theme) {
 	disabled := a.fileSyncParamsDisabled()
-	path := a.receivedFilesDir
+	path := abbreviateHomePath(a.receivedFilesDir)
 	if path == "" {
 		path = a.t(msgSettingsFileSyncDirUnset)
 	}
 	a.settingsRow(c, theme, a.t(msgSettingsFileSyncDir), a.t(msgSettingsFileSyncDirDesc), func() {
-		ui.Column(c).Shrink(0).Gap(space(theme, 1)).Children(func() {
+		// 按钮靠右对齐：它们贴着路径与卡片的右边缘，而不是从路径左边开始。
+		ui.Column(c).Shrink(0).AlignItems(ui.End).Gap(space(theme, 1)).Children(func() {
 			pathText := ui.Text(c, path).FontSize(font(theme, fontMeta)).
-				TextColor(secondaryText(theme)).SingleLine()
+				TextColor(secondaryText(theme)).SingleLine().Tooltip(path)
 			if a.compactDetailLayout(c, theme) {
 				pathText.FillWidth()
 			} else {
-				pathText.Width(240)
+				pathText.Width(260)
 			}
 			ui.Row(c).Shrink(0).Gap(space(theme, 1)).Children(func() {
 				chooseLabel := a.t(msgSettingsFileSyncDirChoose)
@@ -277,7 +278,7 @@ func (a *application) fileSyncDirRow(c *ui.Context, theme *ui.Theme) {
 					labelText(c, chooseLabel).FontSize(font(theme, fontControl))
 				})
 				if choose.Clicked() {
-					a.chooseFileSyncDir(c)
+					a.chooseFileSyncDir()
 				}
 				resetLabel := a.t(msgSettingsFileSyncDirReset)
 				reset := neutralButton(c, theme, "settings-file-sync-dir-reset", resetLabel).
@@ -293,25 +294,16 @@ func (a *application) fileSyncDirRow(c *ui.Context, theme *ui.Theme) {
 	})
 }
 
-// chooseFileSyncDir 弹出系统目录选择框，把选中的目录变成保存位置。目录先建出来
-// 并确认能写：选一个只读的位置只会让之后收到的文件全部「未送达」。
-func (a *application) chooseFileSyncDir(c *ui.Context) {
-	paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
-		Title:             a.t(msgSettingsFileSyncDir),
-		DefaultPath:       a.receivedFilesDir,
-		ButtonLabel:       a.t(msgSettingsFileSyncDirChoose),
-		Directory:         true,
-		CreateDirectories: true,
-	})
-	if err != nil || len(paths) == 0 {
+// chooseFileSyncDir 请运行时打开系统目录选择框。
+//
+// 对话框会阻塞到用户作出选择，所以它必须在界面线程之外跑：直接在点击回调里等它，
+// 界面线程会卡在事件循环里重入，实测有概率根本弹不出来。选完的结果经 Window.Update
+// 回到 applyDirectoryChoice。
+func (a *application) chooseFileSyncDir() {
+	if a.onChooseDirectory == nil {
 		return
 	}
-	dir := paths[0]
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		c.Toast(a.t(msgToastFileDirUnusable))
-		return
-	}
-	a.setFileSyncDir(dir)
+	a.onChooseDirectory(a.receivedFilesDir)
 }
 
 // fileSyncLimitRow 是单个文件项的体积上限，原来在储存空间页，现在跟其它文件同步
@@ -388,11 +380,13 @@ func (a *application) fileCacheUsageRow(c *ui.Context, theme *ui.Theme) {
 		ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 2)).Children(func() {
 			labelText(c, formatBytes(a.storageUsage.files)).FontSize(font(theme, fontControl)).
 				TextColor(secondaryText(theme))
+			// 清理会删记录，所以用危险色：与「全部清除」同一套视觉。它不弹确认
+			// ——做的正是自动清理会做的事，只是现在就做。
 			cleanLabel := a.t(msgSettingsFileCacheClean)
-			button := neutralButton(c, theme, "settings-file-cache-clean", cleanLabel).
+			button := dangerButton(c, theme, "settings-file-cache-clean", cleanLabel).
 				Disabled(a.fileCachePending)
 			button.Children(func() {
-				labelText(c, cleanLabel).FontSize(font(theme, fontControl))
+				labelText(c, cleanLabel).FontSize(font(theme, fontControl)).TextColor(theme.Danger)
 			})
 			if button.Clicked() {
 				a.requestFileCacheCleanup(true)

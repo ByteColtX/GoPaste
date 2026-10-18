@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -83,6 +85,39 @@ func (a *application) setFileSyncDir(dir string) {
 // resetFileSyncDir 把保存位置恢复成默认目录。
 func (a *application) resetFileSyncDir() {
 	a.setFileSyncDir("")
+}
+
+// applyDirectoryChoice 处理系统目录选择框的结果：目录先建出来并确认能写，能写就
+// 变成保存位置；写不了就保持原值并提示——选一个只读的位置只会让之后收到的文件全部
+// 「未送达」。
+func (a *application) applyDirectoryChoice(dir string) {
+	if dir == "" {
+		return
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		a.pendingToast = a.t(msgToastFileDirUnusable)
+		return
+	}
+	a.setFileSyncDir(dir)
+}
+
+// abbreviateHomePath 把用户主目录缩成 ~，让默认位置在设置行里一行放得下。主目录
+// 本身是 ~，主目录下的路径是 ~/…，别处的路径原样返回。
+func abbreviateHomePath(path string) string {
+	if path == "" {
+		return ""
+	}
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return path
+	}
+	if path == home {
+		return "~"
+	}
+	if strings.HasPrefix(path, home+string(filepath.Separator)) {
+		return "~" + path[len(home):]
+	}
+	return path
 }
 
 // applySyncSettings 用设置文件里的同步设置覆盖内存状态。缺省值保持默认：旧版本

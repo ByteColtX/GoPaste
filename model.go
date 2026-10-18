@@ -214,6 +214,10 @@ type application struct {
 	// 的记录，结果经 Window.Update 回填（见 applyFileCacheCleanup）。为 nil 时
 	// （测试、没有窗口）不清理。
 	onCleanFileCache func(entries []filescache.Entry, policy filescache.Policy)
+	// onChooseDirectory 由运行时安装：在界面线程之外打开系统目录选择框，选完经
+	// Window.Update 回到 applyDirectoryChoice。为 nil 时（测试、没有窗口）按钮什么
+	// 都不做。
+	onChooseDirectory func(defaultPath string)
 	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
 	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
 	onZoomChanged func(zoom float32)

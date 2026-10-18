@@ -127,7 +127,7 @@ func (a *application) applyFileCacheCleanup(removed []string) {
 			}
 		}()
 	}
-	a.pendingToast = a.tf(msgToastFileCacheCleaned, len(removed))
+	a.pendingToast = a.l10n().fileCacheCleaned(len(removed))
 	// 文件刚被删掉，用量要等它们真的没了再测，否则刚清掉的那一份还会被算进去。
 	a.requestStorageUsage(nil)
 }

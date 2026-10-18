@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -154,6 +155,129 @@ func TestSyncPageShowsTheFileCacheUsage(t *testing.T) {
 		if !tt.HasText(want) {
 			t.Errorf("同步页应显示 %q，实际显示：%q", want, tt.Texts())
 		}
+	}
+}
+
+// TestSyncPageAbbreviatesTheSaveLocation 检查保存位置把主目录缩成 ~，并且不在
+// 页面上摊开绝对路径：默认位置一行就放得下，长路径靠悬停提示补全。
+func TestSyncPageAbbreviatesTheSaveLocation(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("没有用户主目录，跳过")
+	}
+	app := previewApp("")
+	app.setPage(pageSettings)
+	app.settingsArea = settingsSync
+	app.setDefaultFilesDir(filepath.Join(home, "Library", "GoPaste", "Files"))
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	tt.Frame()
+
+	if !tt.HasText("~/Library/GoPaste/Files") {
+		t.Errorf("同步页应显示缩写后的路径，实际显示：%q", tt.Texts())
+	}
+	if tt.HasText(filepath.Join(home, "Library", "GoPaste", "Files")) {
+		t.Errorf("同步页不该摊开绝对路径，实际显示：%q", tt.Texts())
+	}
+}
+
+// TestSaveLocationButtonsAlignRight 检查「选择…」与「恢复默认」靠右对齐：按钮的右边缘
+// 与路径（也就是卡片内容区）的右边缘齐平，而不是从路径左边开始排。
+func TestSaveLocationButtonsAlignRight(t *testing.T) {
+	app := previewApp("")
+	app.setPage(pageSettings)
+	app.settingsArea = settingsSync
+	app.setDefaultFilesDir("/data/GoPaste/Files")
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	tt.Frame()
+
+	path, ok := tt.Find("/data/GoPaste/Files")
+	if !ok {
+		t.Fatalf("同步页应显示保存位置，实际显示：%q", tt.Texts())
+	}
+	reset, ok := tt.Find(app.t(msgSettingsFileSyncDirReset))
+	if !ok {
+		t.Fatalf("同步页应显示恢复默认按钮，实际显示：%q", tt.Texts())
+	}
+	if gap := path.X + path.W - (reset.X + reset.W); gap > 4 {
+		t.Errorf("按钮右边缘离路径右边缘还差 %.1f DIP，期望靠右对齐", gap)
+	}
+}
+
+// TestAbbreviateHomePath 检查缩写只动主目录前缀：主目录本身、主目录下的路径、
+// 只是字符串前缀相同但不在主目录里的路径，各有各的结果。
+func TestAbbreviateHomePath(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		t.Skip("没有用户主目录，跳过")
+	}
+	cases := []struct{ in, want string }{
+		{"", ""},
+		{home, "~"},
+		{filepath.Join(home, "Library", "GoPaste", "Files"), "~/Library/GoPaste/Files"},
+		{home + "-backup", home + "-backup"},
+		{filepath.Join(string(filepath.Separator), "opt", "gopaste", "files"), filepath.Join(string(filepath.Separator), "opt", "gopaste", "files")},
+	}
+	for _, testCase := range cases {
+		if got := abbreviateHomePath(testCase.in); got != testCase.want {
+			t.Errorf("abbreviateHomePath(%q) = %q，期望 %q", testCase.in, got, testCase.want)
+		}
+	}
+}
+
+// TestChooseFileSyncDirAsksTheRuntime 检查「选择…」把对话框交给运行时：对话框会
+// 阻塞，不能直接在手势回调里等它。
+func TestChooseFileSyncDirAsksTheRuntime(t *testing.T) {
+	app := newApplication()
+	app.setDefaultFilesDir("/data/GoPaste/Files")
+
+	var asked string
+	app.onChooseDirectory = func(defaultPath string) { asked = defaultPath }
+	app.chooseFileSyncDir()
+	if asked != "/data/GoPaste/Files" {
+		t.Errorf("交给运行时的默认目录 = %q，期望当前生效目录", asked)
+	}
+
+	// 没有运行时钩子（测试、没有窗口）时什么都不做，也不 panic。
+	app.onChooseDirectory = nil
+	app.chooseFileSyncDir()
+}
+
+// TestApplyDirectoryChoiceCreatesAndApplies 检查选中的目录先建出来再生效。
+func TestApplyDirectoryChoiceCreatesAndApplies(t *testing.T) {
+	app := newApplication()
+	app.setDefaultFilesDir("/data/GoPaste/Files")
+	dir := filepath.Join(t.TempDir(), "chosen")
+
+	app.applyDirectoryChoice(dir)
+
+	if app.fileSyncDir != dir || app.receivedFilesDir != dir {
+		t.Errorf("保存位置 = %q / 生效目录 = %q，期望 %q", app.fileSyncDir, app.receivedFilesDir, dir)
+	}
+	if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		t.Errorf("选中的目录应当已经建出来: %v", err)
+	}
+}
+
+// TestApplyDirectoryChoiceKeepsTheOldLocationWhenUnusable 检查建不出来的目录不会
+// 变成保存位置：换个只读的位置只会让之后收到的文件全部「未送达」。
+func TestApplyDirectoryChoiceKeepsTheOldLocationWhenUnusable(t *testing.T) {
+	app := newApplication()
+	app.setDefaultFilesDir("/data/GoPaste/Files")
+	// 一个普通文件下面的路径建不出来，任何平台都一样。
+	file := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
+		t.Fatalf("写文件出错: %v", err)
+	}
+
+	app.applyDirectoryChoice(filepath.Join(file, "sub"))
+
+	if app.fileSyncDir != "" || app.receivedFilesDir != "/data/GoPaste/Files" {
+		t.Errorf("保存位置不该改变，实际 %q / %q", app.fileSyncDir, app.receivedFilesDir)
+	}
+	if app.pendingToast != app.t(msgToastFileDirUnusable) {
+		t.Errorf("提示 = %q，期望「无法使用这个目录」", app.pendingToast)
 	}
 }
 

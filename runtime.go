@@ -108,6 +108,7 @@ func (r *applicationRuntime) ready() {
 	r.app.onPageChanged = r.pageChanged
 	r.app.onMeasureStorageUsage = r.measureStorageUsage
 	r.app.onCleanFileCache = r.cleanFileCache
+	r.app.onChooseDirectory = r.chooseDirectory
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
@@ -647,6 +648,31 @@ func (r *applicationRuntime) storageUsagePaths() storageUsagePaths {
 		paths.database = database
 	}
 	return paths
+}
+
+// chooseDirectory 在界面线程之外打开系统目录选择框，选完经 Window.Update 回到界面
+// 线程。
+//
+// 对话框会阻塞到用户作出选择，所以不能直接在手势回调里等它：那会让界面线程卡在
+// 事件循环里重入，实测有概率根本弹不出来。窗口作为 Parent 传进去，macOS 上它是窗口的
+// sheet，不会跑到别的窗口后面。
+func (r *applicationRuntime) chooseDirectory(defaultPath string) {
+	title := r.app.t(msgSettingsFileSyncDir)
+	button := r.app.t(msgSettingsFileSyncDirChoose)
+	go func() {
+		paths, err := mygo.Dialog.Open(mygo.OpenDialogOptions{
+			Parent:            r.window,
+			Title:             title,
+			DefaultPath:       defaultPath,
+			ButtonLabel:       button,
+			Directory:         true,
+			CreateDirectories: true,
+		})
+		if err != nil || len(paths) == 0 {
+			return
+		}
+		r.update(func() { r.app.applyDirectoryChoice(paths[0]) })
+	}()
 }
 
 // cleanFileCache 在界面线程之外测量收到的文件，并按保留期限与配额挑出该删的记录。
