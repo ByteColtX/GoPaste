@@ -8,39 +8,77 @@ import (
 	"github.com/egoist/mygo/ui"
 )
 
-// onboardingDialog 渲染首次启动向导。三步共用一个弹窗外壳：外观、焦点陷阱、
-// Escape 与点击外部都由 dialog 提供，这里只换内容。
+// onboardingPage 是首次启动向导的整页形态：向导期间不画侧栏、历史列表和预览，
+// 整个窗口内容区都属于它。窗口尺寸与标题栏不变——不进系统全屏，也不新开窗口，
+// 因此完成或跳过后回到三栏界面时，窗口不会变形、也不会掉出原来的桌面空间。
 //
-// 弹窗被关掉（Escape、点外部）时 open 会变成 false，与「跳过」走同一条结束路径，
-// 所以向导不存在「关掉之后状态不明」的中间态。
-func (a *application) onboardingDialog(c *ui.Context, theme *ui.Theme) {
-	if !a.onboardingVisible() {
-		return
-	}
-	open := true
-	dialog(c, theme, &open, dialogSpec{
-		title:   a.onboardingTitle(),
-		role:    ui.RoleDialog,
-		message: a.onboardingMessage(),
-		// 第一步就把这条约束说清楚：这个应用只连同一局域网里的已配对设备。
-		badge:      a.onboardingBadge(),
-		badgeColor: accentColor(theme),
-		content: func() {
-			a.onboardingStepIndicator(c, theme)
-			switch a.onboarding {
-			case onboardingStepWelcome:
-				a.onboardingPathChoices(c, theme)
-			case onboardingStepDetail:
-				a.onboardingDetailFields(c, theme)
-			case onboardingStepDone:
-				a.onboardingSummary(c, theme)
-			}
-		},
-		actions: func() { a.onboardingActions(c, theme) },
+// Escape 等于跳过：以前由弹窗自己处理，整页之后由这里注册。向导期间没有别的
+// 快捷键，所以不存在和输入框争抢 Escape 的情况。
+func (a *application) onboardingPage(c *ui.Context, theme *ui.Theme) {
+	c.OnShortcut(0, ui.KeyEscape, a.dismissOnboarding)
+	// 内容至少和可视区一样高，中间那层才能把向导纵向居中；内容比可视区高时
+	// MinHeight 被自然高度顶开，滚动容器接手，不会裁掉按钮行。
+	_, windowHeight := c.Size()
+	viewportHeight := windowHeight - chromeHeight(c)
+	ui.Column(c).Fill().Background(theme.Background).Children(func() {
+		paneTop(c)
+		ui.Scroll(c).Grow(1).MinHeight(0).Children(func() {
+			ui.Column(c).FillWidth().MinHeight(viewportHeight).Justify(ui.Center).Children(func() {
+				ui.Column(c).FillWidth().MaxWidth(onboardingMaxWidth(theme)).AlignSelf(ui.Center).
+					Padding(space(theme, onboardingTopInset), space(theme, spacePageSide),
+						space(theme, onboardingTopInset), space(theme, spacePageSide)).
+					Gap(space(theme, spaceSection)).Children(func() {
+					a.onboardingHeader(c, theme)
+					switch a.onboarding {
+					case onboardingStepWelcome:
+						a.onboardingPathChoices(c, theme)
+					case onboardingStepDetail:
+						a.onboardingDetailFields(c, theme)
+					case onboardingStepDone:
+						a.onboardingSummary(c, theme)
+					}
+					// 按钮行与弹窗时一样靠右：主操作在尾侧，跳过在它前面。
+					ui.Row(c).FillWidth().Shrink(0).Justify(ui.End).Gap(space(theme, dialogGap)).
+						Children(func() { a.onboardingActions(c, theme) })
+				})
+			})
+		})
 	})
-	if !open {
-		a.dismissOnboarding()
-	}
+}
+
+// onboardingMaxWidth 是向导内容栏的宽度上限。向导只有一条纵向阅读线，太宽反而难读；
+// 三栏界面的内容宽度是给列表和预览用的，不适用于这里。
+func onboardingMaxWidth(theme *ui.Theme) float32 {
+	return spaceDIP(theme, onboardingColumnWidth)
+}
+
+// onboardingTopInset 是向导内容距拖拽条的下方留白（单位：4 DIP 网格）。
+const onboardingTopInset = 10
+
+// onboardingColumnWidth 是向导内容栏的宽度（DIP）。
+const onboardingColumnWidth = 560
+
+// onboardingHeader 是向导的页头：标题、状态、说明与步骤。整块都是窗口拖动区，
+// 因为整页形态没有标题栏带可拖。
+func (a *application) onboardingHeader(c *ui.Context, theme *ui.Theme) {
+	ui.Column(c).Shrink(0).Gap(space(theme, 1.5)).DragWindow().Children(func() {
+		ui.Text(c, a.onboardingTitle()).FontSize(font(theme, fontPageTitle)).FontWeight(600).
+			Role(ui.RoleHeading).SingleLine()
+		// 第一步就把这条约束说清楚：这个应用只连同一局域网里的已配对设备。
+		if badge := a.onboardingBadge(); badge != "" {
+			ui.Row(c).Shrink(0).AlignItems(ui.Center).Gap(space(theme, 1.5)).Children(func() {
+				statusDot(c, accentColor(theme), space(theme, 2))
+				ui.Text(c, badge).FontSize(font(theme, fontControl)).FontWeight(600).
+					TextColor(accentColor(theme)).SingleLine()
+			})
+		}
+		if message := a.onboardingMessage(); message != "" {
+			ui.Text(c, message).FontSize(font(theme, fontBody)).
+				TextColor(secondaryText(theme)).Wrap()
+		}
+		ui.Text(c, a.tf(msgOnboardingStep, int(a.onboarding), onboardingStepCount)).
+			FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
+	})
 }
 
 func (a *application) onboardingTitle() string {
@@ -81,13 +119,7 @@ func (a *application) onboardingBadge() string {
 	return ""
 }
 
-// onboardingStepIndicator 是内容顶部的「第 1 步，共 3 步」。用文字而不是圆点，
-// 读屏和色觉障碍用户都能拿到同样的信息。
-func (a *application) onboardingStepIndicator(c *ui.Context, theme *ui.Theme) {
-	step := int(a.onboarding)
-	ui.Text(c, a.tf(msgOnboardingStep, step, onboardingStepCount)).
-		FontSize(font(theme, fontMeta)).TextColor(secondaryText(theme)).SingleLine()
-}
+// onboardingStepIndicator 不再单独绘制：步骤文字现在属于页头，见 onboardingHeader。
 
 // onboardingPathChoices 是第一步的两条路径。每一项整行可点（RadioBase），
 // 说明文字属于这个选择本身，而不是悬在旁边的注解。
@@ -155,32 +187,40 @@ func onboardingRadioDot(c *ui.Context, theme *ui.Theme, on bool) {
 }
 
 // onboardingDetailFields 是第二步的输入：第一台设备起名字，另一台设备填配对码。
+// 输入框与它下面的一两句说明自成一组（组内小间距），与外层的段间距分开：
+// 「6 位数字」和「配对服务还没接入」是同一段话的两行，不能排成两个段。
 func (a *application) onboardingDetailFields(c *ui.Context, theme *ui.Theme) {
-	if a.onboardingPath == onboardingJoinExisting {
-		ui.TextInput(c.Key("onboarding-pairing-code"), &a.pairingCode).
+	ui.Column(c).FillWidth().Shrink(0).Gap(space(theme, 1.5)).Children(func() {
+		if a.onboardingPath == onboardingJoinExisting {
+			ui.TextInput(c.Key("onboarding-pairing-code"), &a.pairingCode).
+				Height(controlHeightSize(c, theme, controlHeight)).Width(onboardingCodeFieldWidth).
+				AlignSelf(ui.Start).
+				Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
+				Background(theme.Background).Border(1, borderColor(theme)).
+				Label(a.t(msgOnboardingPairingCodeLabel)).Placeholder("000000").
+				AutoFocus().OnSubmit(a.advanceOnboarding)
+			hint, invalid := a.pairingCodeHint()
+			hintColor := secondaryText(theme)
+			if invalid {
+				hintColor = theme.Danger
+			}
+			ui.Text(c, hint).FontSize(font(theme, fontMeta)).TextColor(hintColor).Wrap()
+			// 配对服务还没接，先把这件事说在填之前，而不是让用户填完才发现。
+			ui.Text(c, a.t(msgOnboardingPairingPending)).FontSize(font(theme, fontMeta)).
+				TextColor(secondaryText(theme)).Wrap()
+			return
+		}
+		ui.TextInput(c.Key("onboarding-device-name"), &a.onboardingName).
 			Height(controlHeightSize(c, theme, controlHeight)).FillWidth().
 			Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
 			Background(theme.Background).Border(1, borderColor(theme)).
-			Label(a.t(msgOnboardingPairingCodeLabel)).Placeholder("000000").
+			Label(a.t(msgOnboardingNameLabel)).Placeholder(a.deviceDisplayName()).
 			AutoFocus().OnSubmit(a.advanceOnboarding)
-		hint, invalid := a.pairingCodeHint()
-		hintColor := secondaryText(theme)
-		if invalid {
-			hintColor = theme.Danger
-		}
-		ui.Text(c, hint).FontSize(font(theme, fontMeta)).TextColor(hintColor).Wrap()
-		// 配对服务还没接，先把这件事说在填之前，而不是让用户填完才发现。
-		ui.Text(c, a.t(msgOnboardingPairingPending)).FontSize(font(theme, fontMeta)).
-			TextColor(secondaryText(theme)).Wrap()
-		return
-	}
-	ui.TextInput(c.Key("onboarding-device-name"), &a.onboardingName).
-		Height(controlHeightSize(c, theme, controlHeight)).FillWidth().
-		Padding(0, space(theme, 2.5)).Radius(radius(theme, controlRadius)).
-		Background(theme.Background).Border(1, borderColor(theme)).
-		Label(a.t(msgOnboardingNameLabel)).Placeholder(a.deviceDisplayName()).
-		AutoFocus().OnSubmit(a.advanceOnboarding)
+	})
 }
+
+// onboardingCodeFieldWidth 是配对码输入框的宽度（DIP）：6 位数字不需要整栏那么宽。
+const onboardingCodeFieldWidth = 320
 
 // onboardingSummary 复述向导的结果。配对码在这里按分组显示，方便和另一台设备
 // 屏幕上的一致对得上；启动提示里则只露尾号。

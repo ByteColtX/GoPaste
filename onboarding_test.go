@@ -506,6 +506,54 @@ func TestWizardBlocksTheAddDeviceShortcut(t *testing.T) {
 	}
 }
 
+// TestWizardReplacesTheWholeWindow 检查向导期间整个内容区都是向导：侧栏与历史列表
+// 不在，跳过后三栏界面回来。这是「整页」与「弹窗盖在上面」的区别所在。
+func TestWizardReplacesTheWholeWindow(t *testing.T) {
+	app, _ := onboardingApp(t, settings.File{})
+	tt := onboardingTester(app)
+
+	if !tt.HasText(app.t(msgOnboardingWelcomeTitle)) {
+		t.Fatalf("首次启动应显示向导，实际显示：%q", tt.Texts())
+	}
+	for _, label := range []string{app.t(msgHistoryRecent), app.t(msgFilterAll)} {
+		if tt.HasText(label) {
+			t.Errorf("向导期间不该画出三栏界面的 %q，实际显示：%q", label, tt.Texts())
+		}
+	}
+
+	if err := tt.Click(app.t(msgOnboardingSkip)); err != nil {
+		t.Fatalf("点击「%s」出错: %v", app.t(msgOnboardingSkip), err)
+	}
+	tt.Frame()
+
+	if !tt.HasText(app.t(msgHistoryRecent)) {
+		t.Errorf("跳过后应回到三栏界面，实际显示：%q", tt.Texts())
+	}
+}
+
+// TestWizardContentIsCentered 检查向导内容在窗口里纵向居中：整页形态下如果贴着
+// 顶边，上面会空出一大片，读起来像没加载完。
+func TestWizardContentIsCentered(t *testing.T) {
+	app, _ := onboardingApp(t, settings.File{})
+	tt := onboardingTester(app)
+
+	title, ok := tt.Find(app.t(msgOnboardingWelcomeTitle))
+	if !ok {
+		t.Fatalf("首次启动应显示向导，实际显示：%q", tt.Texts())
+	}
+	primary, ok := tt.Find(app.t(msgOnboardingContinue))
+	if !ok {
+		t.Fatalf("第一步应显示「%s」，实际显示：%q", app.t(msgOnboardingContinue), tt.Texts())
+	}
+
+	contentCenter := (title.Y + primary.Y + primary.H) / 2
+	windowCenter := float32(defaultWindowHeight) / 2
+	if diff := contentCenter - windowCenter; diff > 40 || diff < -40 {
+		t.Errorf("内容纵向中心 %.1f 偏离窗口中心 %.1f 过多（内容 %v～%v）",
+			contentCenter, windowCenter, title, primary)
+	}
+}
+
 // TestWizardFollowsTheInterfaceLanguage 检查向导跟着界面语言走：英文界面下没有
 // 中文残留。
 func TestWizardFollowsTheInterfaceLanguage(t *testing.T) {
