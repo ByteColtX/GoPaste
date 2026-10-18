@@ -85,23 +85,37 @@ type broadcaster struct {
 	name     func() string
 	platform string
 	version  string
-	port     func() int
-	onPeer   func(Peer)
+	// servicePort reports the TCP port the application listens on, which is
+	// what the announcement carries.
+	servicePort func() int
+	onPeer      func(Peer)
 
 	conn   *net.UDPConn
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
+	// port is the announcement port; zero means broadcastPort. Tests set it to
+	// a free port so they do not collide with a GoPaste that is running on the
+	// same machine.
+	port int
+}
+
+// announcementPort is the port this broadcaster uses.
+func (b *broadcaster) announcementPort() int {
+	if b.port > 0 {
+		return b.port
+	}
+	return broadcastPort
 }
 
 // newBroadcaster builds a broadcaster. Call start to begin.
 func newBroadcaster(identity Identity, name func() string, platform, version string, port func() int, onPeer func(Peer)) *broadcaster {
 	return &broadcaster{
-		identity: identity,
-		name:     name,
-		platform: platform,
-		version:  version,
-		port:     port,
-		onPeer:   onPeer,
+		identity:    identity,
+		name:        name,
+		platform:    platform,
+		version:     version,
+		servicePort: port,
+		onPeer:      onPeer,
 	}
 }
 
@@ -121,7 +135,7 @@ func (b *broadcaster) start(ctx context.Context) error {
 			return err
 		},
 	}
-	packet, err := listenConfig.ListenPacket(ctx, "udp4", fmt.Sprintf(":%d", broadcastPort))
+	packet, err := listenConfig.ListenPacket(ctx, "udp4", fmt.Sprintf(":%d", b.announcementPort()))
 	if err != nil {
 		return fmt.Errorf("lansync: listen for announcements: %w", err)
 	}
@@ -192,7 +206,7 @@ func (b *broadcaster) announce() {
 		for _, network := range interfaceNetworks(iface) {
 			// A failed send means this interface cannot broadcast (a tunnel,
 			// an adapter without a gateway); the others still can.
-			_, _ = b.conn.WriteToUDP(payload, &net.UDPAddr{IP: network.broadcast, Port: broadcastPort})
+			_, _ = b.conn.WriteToUDP(payload, &net.UDPAddr{IP: network.broadcast, Port: b.announcementPort()})
 		}
 	}
 }
@@ -206,7 +220,7 @@ func (b *broadcaster) message() announcement {
 		Platform:  truncateTXT(b.platform),
 		App:       truncateTXT(b.version),
 		PublicKey: b.identity.Public,
-		Port:      b.port(),
+		Port:      b.servicePort(),
 	}
 }
 

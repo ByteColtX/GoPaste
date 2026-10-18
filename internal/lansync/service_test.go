@@ -228,6 +228,84 @@ func TestImageTravelsIntact(t *testing.T) {
 	}
 }
 
+// TestRichTextKeepsItsMarkup 检查富文本把标记原样送到：接收端存成富文本条目，
+// HTML 与纯文本两种表示都在，条目 ID 也按内容算得一致。
+func TestRichTextKeepsItsMarkup(t *testing.T) {
+	sender := newTestService(t, "MacBook Pro")
+	receiver := newTestService(t, "工作室 PC")
+	pairWith(t, sender, receiver)
+
+	html := `<p><strong>加粗</strong>与<a href="https://example.com">链接</a></p>`
+	content := history.Content{Kind: history.KindRichText, HTML: html, Text: "加粗与链接"}
+	item := history.Item{
+		ID:        history.ContentID(content),
+		Kind:      history.KindRichText,
+		HTML:      html,
+		Text:      "加粗与链接",
+		CreatedAt: time.Now(),
+	}
+	sender.service.Send(item)
+
+	if got, want := sender.deliveryFor(t, item.ID, receiver.service.Identity().ID), history.DeliveryReceived; got != want {
+		t.Fatalf("delivery state = %v, want %v", got, want)
+	}
+	waitFor(t, func() bool { return len(receiver.received()) == 1 })
+	clip := receiver.received()[0]
+	if clip.Kind != history.KindRichText {
+		t.Errorf("kind = %v, want rich text", clip.Kind)
+	}
+	if clip.HTML != html {
+		t.Errorf("HTML = %q, want the sender's markup", clip.HTML)
+	}
+	if clip.Text != "加粗与链接" {
+		t.Errorf("text = %q, want the plain-text representation", clip.Text)
+	}
+	stored := clip.HistoryItem(sender.service.Identity().ID, time.Now())
+	if stored.ID != item.ID {
+		t.Error("a rich-text item must keep its content-derived ID")
+	}
+	if stored.HTML != html {
+		t.Error("the stored item must keep the markup")
+	}
+}
+
+// TestLinkAndCodeTravelAsText 检查链接和代码这类文本子类型：方向设置按文本走，
+// 接收端保留发送端判定出来的类型，内容不变。
+func TestLinkAndCodeTravelAsText(t *testing.T) {
+	cases := []struct {
+		name string
+		kind history.Kind
+	}{
+		{"link", history.KindLink},
+		{"code", history.KindCode},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			kind := tc.kind
+			sender := newTestService(t, "MacBook Pro")
+			receiver := newTestService(t, "工作室 PC")
+			pairWith(t, sender, receiver)
+
+			text := "https://example.com/docs"
+			if kind == history.KindCode {
+				text = "func main() {\n\tprintln(\"hi\")\n}"
+			}
+			content := history.Content{Kind: kind, Text: text}
+			item := history.Item{ID: history.ContentID(content), Kind: kind, Text: text, CreatedAt: time.Now()}
+			sender.service.Send(item)
+
+			if got, want := sender.deliveryFor(t, item.ID, receiver.service.Identity().ID), history.DeliveryReceived; got != want {
+				t.Fatalf("delivery state = %v, want %v", got, want)
+			}
+			waitFor(t, func() bool { return len(receiver.received()) == 1 })
+			clip := receiver.received()[0]
+			if clip.Kind != kind || clip.Text != text {
+				t.Errorf("clip = %v %q, want %v %q", clip.Kind, clip.Text, kind, text)
+			}
+		})
+	}
+}
+
 // TestFileItemTravelsAsPaths 检查文件项只同步路径，不传文件内容，接收端存成
 // 文件条目、不读盘。
 func TestFileItemTravelsAsPaths(t *testing.T) {

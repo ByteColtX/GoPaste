@@ -101,17 +101,28 @@ func TestLivePeerSync(t *testing.T) {
 	}
 	waitForOnline(t, service, peer.ID, 60*time.Second)
 
-	// 3. Deliver both a text and an image clip, retrying until the other side
-	// has pinned this device too (until then it answers 403).
-	text := liveText(name)
-	image := liveImage(name)
-	waitForDelivery(t, service, delivered, text, peer.ID, 90*time.Second)
-	waitForDelivery(t, service, delivered, image, peer.ID, 90*time.Second)
+	// 3. Deliver one payload of every content type, retrying until the other
+	// side has pinned this device too (until then it answers 403).
+	payloads := []history.Item{
+		liveText(name),
+		liveRichText(name),
+		liveImage(name),
+		liveFile(name),
+	}
+	for _, payload := range payloads {
+		waitForDelivery(t, service, delivered, payload, peer.ID, 90*time.Second)
+	}
 
-	// 4. The other machine delivers the same way; wait for both payloads.
-	waitForClip(t, received, history.KindText, 90*time.Second)
-	waitForClip(t, received, history.KindImage, 90*time.Second)
-	t.Logf("%s: received both payloads from %q", name, peer.Name)
+	// 4. The other machine delivers the same way; wait for every payload.
+	for _, kind := range []history.Kind{
+		history.KindText,
+		history.KindRichText,
+		history.KindImage,
+		history.KindFile,
+	} {
+		waitForClip(t, received, kind, 90*time.Second)
+	}
+	t.Logf("%s: received all four payloads from %q", name, peer.Name)
 }
 
 // waitForPeer waits for the other machine to appear through discovery.
@@ -153,6 +164,35 @@ func liveText(name string) history.Item {
 		ID:        history.ContentID(history.Content{Kind: history.KindText, Text: text}),
 		Kind:      history.KindText,
 		Text:      text,
+		CreatedAt: time.Now(),
+	}
+}
+
+// liveRichText is the rich-text payload this side delivers: the markup carries
+// the device name, so the other side can check both representations arrived.
+func liveRichText(name string) history.Item {
+	html := "<p><strong>gopaste live</strong> from " + name + "</p>"
+	text := "gopaste live from " + name
+	return history.Item{
+		ID:        history.ContentID(history.Content{Kind: history.KindRichText, HTML: html, Text: text}),
+		Kind:      history.KindRichText,
+		HTML:      html,
+		Text:      text,
+		CreatedAt: time.Now(),
+	}
+}
+
+// liveFile is the file payload this side delivers: the paths a file manager
+// would put on the clipboard. Only the paths travel.
+func liveFile(name string) history.Item {
+	paths := []string{
+		filepath.Join(os.TempDir(), name+"-report.txt"),
+		filepath.Join(os.TempDir(), name+"-notes.md"),
+	}
+	return history.Item{
+		ID:        history.ContentID(history.Content{Kind: history.KindFile, Files: paths}),
+		Kind:      history.KindFile,
+		Text:      strings.Join(paths, "\n"),
 		CreatedAt: time.Now(),
 	}
 }
@@ -217,11 +257,26 @@ func waitForClip(t *testing.T, received chan Clip, kind history.Kind, timeout ti
 			if clip.Kind != kind {
 				continue
 			}
-			if kind == history.KindText && !strings.HasPrefix(clip.Text, "gopaste live from ") {
-				t.Errorf("unexpected text clip: %q", clip.Text)
-			}
-			if kind == history.KindImage && (clip.Image == nil || len(clip.Image.PNG) == 0) {
-				t.Error("an image clip arrived without its payload")
+			switch kind {
+			case history.KindText:
+				if !strings.HasPrefix(clip.Text, "gopaste live from ") {
+					t.Errorf("unexpected text clip: %q", clip.Text)
+				}
+			case history.KindRichText:
+				if !strings.Contains(clip.HTML, "gopaste live") {
+					t.Errorf("the rich-text clip lost its markup: %q", clip.HTML)
+				}
+				if clip.Text == "" {
+					t.Error("the rich-text clip lost its plain-text representation")
+				}
+			case history.KindImage:
+				if clip.Image == nil || len(clip.Image.PNG) == 0 {
+					t.Error("an image clip arrived without its payload")
+				}
+			case history.KindFile:
+				if len(clip.Files) == 0 {
+					t.Error("a file clip arrived without its paths")
+				}
 			}
 			return
 		case <-deadline:

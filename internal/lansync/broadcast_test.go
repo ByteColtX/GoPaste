@@ -145,6 +145,14 @@ func TestBroadcasterReceivesAnnouncement(t *testing.T) {
 		t.Fatalf("NewIdentity: %v", err)
 	}
 
+	// 用一个空闲端口，免得和本机正在运行的 GoPaste 抢公告端口。
+	probe, err := net.ListenUDP("udp4", &net.UDPAddr{IP: net.IPv4zero, Port: 0})
+	if err != nil {
+		t.Fatalf("reserve a port: %v", err)
+	}
+	port := probe.LocalAddr().(*net.UDPAddr).Port
+	probe.Close()
+
 	peers := make(chan Peer, 4)
 	broadcast := newBroadcaster(identity, func() string { return "本机" }, "macOS", "0.1.0", func() int { return 47823 }, func(peer Peer) {
 		select {
@@ -152,6 +160,7 @@ func TestBroadcasterReceivesAnnouncement(t *testing.T) {
 		default:
 		}
 	})
+	broadcast.port = port
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	if err := broadcast.start(ctx); err != nil {
@@ -170,7 +179,7 @@ func TestBroadcasterReceivesAnnouncement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
-	conn, err := net.DialUDP("udp4", nil, &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: broadcastPort})
+	conn, err := net.DialUDP("udp4", nil, &net.UDPAddr{IP: net.ParseIP("127.0.0.1"), Port: port})
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
