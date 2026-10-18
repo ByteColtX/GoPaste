@@ -41,6 +41,10 @@ const (
 	clipReasonDirection = "direction"
 	clipReasonVersion   = "version"
 	clipReasonSize      = "size"
+	// clipReasonSync refuses a payload while the receiving device has sync, or
+	// file sync, switched off. It is its own reason because the two are
+	// settings the user just changed, not a content type they never wanted.
+	clipReasonSync = "sync"
 	// clipReasonKind refuses a payload whose kind does not fit the endpoint it
 	// arrived on: a file item must come through the file transfer endpoints.
 	clipReasonKind = "kind"
@@ -291,6 +295,14 @@ type Service struct {
 	// updates it while the service runs; it is guarded by mu like the rest of
 	// the mutable state.
 	fileLimit int64
+	// syncEnabled and fileSyncEnabled are the sync page's switches. They gate
+	// content in both directions — nothing is sent, and anything arriving is
+	// refused with a reason — while discovery and pairing keep working.
+	syncEnabled     bool
+	fileSyncEnabled bool
+	// filesDir is where received file payloads land. SetFilesDir updates it while
+	// the service runs, so a new save location takes effect on the next item.
+	filesDir string
 	// files holds the file uploads this device has agreed to take, keyed by the
 	// token it handed out. Each entry is removed when its upload starts or when
 	// the staging sweep expires it.
@@ -318,6 +330,11 @@ func NewService(options Options) (*Service, error) {
 		unreachable: map[string]time.Time{},
 		fileLimit:   options.FileLimitBytes,
 		files:       map[string]*fileTransfer{},
+		// Both switches start on: a service that was never told otherwise is
+		// the behaviour every build before them had.
+		syncEnabled:     true,
+		fileSyncEnabled: true,
+		filesDir:        options.FilesDir,
 	}
 	service.client = newHTTPClient(store.Identity(), service.deviceAt)
 	service.fileClient = newFileClient(store.Identity(), service.deviceAt)
@@ -623,6 +640,58 @@ func (s *Service) SetFileLimitBytes(limit int64) {
 	s.mu.Unlock()
 }
 
+// SetSyncEnabled is the sync page's master switch. Off means this device neither
+// sends nor receives content: Send and Resend do nothing, and an arriving clip
+// or file offer is refused with clipReasonSync. Discovery and pairing are not
+// affected — a device with sync off can still be paired and seen.
+func (s *Service) SetSyncEnabled(enabled bool) {
+	s.mu.Lock()
+	s.syncEnabled = enabled
+	s.mu.Unlock()
+}
+
+// SetFileSyncEnabled is file sync's own switch. Off stops file content in both
+// directions while text, images and rich text keep travelling.
+func (s *Service) SetFileSyncEnabled(enabled bool) {
+	s.mu.Lock()
+	s.fileSyncEnabled = enabled
+	s.mu.Unlock()
+}
+
+// SetFilesDir changes where received file payloads are stored. It applies to the
+// next item: one already being uploaded finishes in the directory it started
+// in. An empty directory makes this device refuse file items.
+func (s *Service) SetFilesDir(dir string) {
+	s.mu.Lock()
+	s.filesDir = dir
+	s.mu.Unlock()
+}
+
+// syncOn reports whether the master switch allows content in either direction.
+func (s *Service) syncOn() bool {
+	s.mu.RLock()
+	enabled := s.syncEnabled
+	s.mu.RUnlock()
+	return enabled
+}
+
+// fileSyncOn reports whether file content may travel.
+func (s *Service) fileSyncOn() bool {
+	s.mu.RLock()
+	enabled := s.fileSyncEnabled
+	s.mu.RUnlock()
+	return enabled
+}
+
+// filesDirPath returns the directory received files land in, or the empty string
+// when none is configured.
+func (s *Service) filesDirPath() string {
+	s.mu.RLock()
+	dir := s.filesDir
+	s.mu.RUnlock()
+	return dir
+}
+
 // fileLimitBytes returns the limit in force, never below one byte so a zero
 // option cannot mean "refuse every file".
 func (s *Service) fileLimitBytes() int64 {
@@ -696,6 +765,9 @@ func (s *Service) Send(item history.Item) {
 		// travel on.
 		return
 	}
+	if !s.maySend(item.Kind) {
+		return
+	}
 	clip := ClipOf(item)
 	targets := s.targets(clip.Kind)
 	if len(targets) == 0 {
@@ -707,6 +779,9 @@ func (s *Service) Send(item history.Item) {
 // Resend delivers one item to one device again, as the preview's resend action
 // asks for.
 func (s *Service) Resend(item history.Item, deviceID string) {
+	if !s.maySend(item.Kind) {
+		return
+	}
 	clip := ClipOf(item)
 	device, ok := s.store.Device(deviceID)
 	if !ok {
@@ -717,6 +792,16 @@ func (s *Service) Resend(item history.Item, deviceID string) {
 		return
 	}
 	s.goRun(func(context.Context) { s.deliver(item.ID, clip, devices) })
+}
+
+// maySend reports whether the switches allow content of one kind to leave this
+// device. It is checked here as well as by the caller, so a manual resend cannot
+// slip past a switch the user turned off.
+func (s *Service) maySend(kind history.Kind) bool {
+	if !s.syncOn() {
+		return false
+	}
+	return kind != history.KindFile || s.fileSyncOn()
 }
 
 // targets returns the devices an item of one kind should be delivered to.
@@ -821,6 +906,12 @@ func (s *Service) handleClip(w http.ResponseWriter, r *http.Request) {
 	device, ok := pairedPeer(r)
 	if !ok {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
+	}
+	// The master switch decides before the payload is even read: a device with
+	// sync off has nothing to decode, and the sender should hear about it now.
+	if !s.syncOn() {
+		writeJSON(w, http.StatusOK, clipReply{Status: clipStatusIgnored, Reason: clipReasonSync})
 		return
 	}
 	body := http.MaxBytesReader(w, r.Body, maxClipBytes)

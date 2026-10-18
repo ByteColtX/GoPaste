@@ -135,7 +135,11 @@ type fileTransfer struct {
 	offer    fileOffer
 	// dir is the staging directory the upload lands in. It becomes the item's
 	// directory once every byte is there and has been unpacked.
-	dir       string
+	dir string
+	// root is the files directory this transfer started in. An upload keeps
+	// landing where it began even if the user picks another directory while it
+	// runs: the staging directory cannot be renamed across filesystems.
+	root      string
 	createdAt time.Time
 }
 
@@ -524,6 +528,7 @@ func (s *Service) handleFileOffer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
+	root := s.filesDirPath()
 	refuse := func(reason string) {
 		writeJSON(w, http.StatusOK, fileOfferReply{Status: clipStatusIgnored, Reason: reason})
 	}
@@ -543,7 +548,16 @@ func (s *Service) handleFileOffer(w http.ResponseWriter, r *http.Request) {
 	case offer.Form == fileFormRaw && !safeFileName(offer.Name):
 		refuse(clipReasonKind)
 		return
-	case s.options.FilesDir == "":
+	case !s.syncOn():
+		// The master switch is off: refuse like any other setting that does not
+		// allow this content, so the sending device records a refusal instead
+		// of a delivery.
+		refuse(clipReasonSync)
+		return
+	case !s.fileSyncOn():
+		refuse(clipReasonSync)
+		return
+	case root == "":
 		// 没有落盘目录就收不了文件：如实拒收，而不是收下一半。
 		refuse(clipReasonUnsupported)
 		return
@@ -561,7 +575,7 @@ func (s *Service) handleFileOffer(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	dir := filepath.Join(s.options.FilesDir, stagingDirName, token)
+	dir := filepath.Join(root, stagingDirName, token)
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
@@ -571,6 +585,7 @@ func (s *Service) handleFileOffer(w http.ResponseWriter, r *http.Request) {
 		deviceID:  device.ID,
 		offer:     offer,
 		dir:       dir,
+		root:      root,
 		createdAt: s.now(),
 	}
 	s.filesMu.Unlock()
@@ -650,7 +665,7 @@ func (s *Service) receiveFileBody(w http.ResponseWriter, transfer *fileTransfer,
 // directory and returns the payload the application stores.
 func (s *Service) installFileTransfer(transfer *fileTransfer, top []string) (Clip, error) {
 	id := history.ContentID(history.Content{Kind: history.KindFile, Files: transfer.offer.Paths})
-	final := filepath.Join(s.options.FilesDir, id)
+	final := filepath.Join(transfer.root, id)
 	var local []string
 	if existing, ok := topLevelNames(final); ok {
 		// The same content is already here: drop the copy just uploaded and use
@@ -658,7 +673,7 @@ func (s *Service) installFileTransfer(transfer *fileTransfer, top []string) (Cli
 		os.RemoveAll(transfer.dir)
 		local = topLevelPaths(final, existing)
 	} else {
-		if err := os.MkdirAll(s.options.FilesDir, 0o700); err != nil {
+		if err := os.MkdirAll(transfer.root, 0o700); err != nil {
 			return Clip{}, err
 		}
 		if err := os.Rename(transfer.dir, final); err != nil {
@@ -711,7 +726,7 @@ func (s *Service) takeFileTransfer(token, deviceID string) (*fileTransfer, bool)
 // sweepFileStaging drops offers nobody uploaded and directories left behind by a
 // crashed run, so the staging area cannot grow without bound.
 func (s *Service) sweepFileStaging() {
-	root := filepath.Join(s.options.FilesDir, stagingDirName)
+	root := filepath.Join(s.filesDirPath(), stagingDirName)
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		return
