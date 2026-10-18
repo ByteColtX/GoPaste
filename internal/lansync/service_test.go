@@ -1,10 +1,12 @@
 package lansync
 
 import (
+	"bytes"
 	"context"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -44,6 +46,7 @@ func newTestService(t *testing.T, name string) *testService {
 		Name:      name,
 		Platform:  "macOS",
 		Version:   "0.1.0",
+		FilesDir:  filepath.Join(t.TempDir(), "Files"),
 		OnClip: func(clip Clip, from Device) {
 			recorder.mu.Lock()
 			defer recorder.mu.Unlock()
@@ -306,19 +309,25 @@ func TestLinkAndCodeTravelAsText(t *testing.T) {
 	}
 }
 
-// TestFileItemTravelsAsPaths 检查文件项只同步路径，不传文件内容，接收端存成
-// 文件条目、不读盘。
-func TestFileItemTravelsAsPaths(t *testing.T) {
+// TestFileItemTravelsWithItsContent 检查文件项把内容真的送过去：接收端在
+// FilesDir 下落到以内容 ID 命名的目录，LocalFiles 指向这些本地文件，条目 ID 仍
+// 由发送端的路径算出。
+func TestFileItemTravelsWithItsContent(t *testing.T) {
 	sender := newTestService(t, "MacBook Pro")
 	receiver := newTestService(t, "工作室 PC")
 	pairWith(t, sender, receiver)
 
-	paths := []string{"/Users/bytecolt/report.pdf", "/Users/bytecolt/notes.md"}
-	content := history.Content{Kind: history.KindFile, Files: paths}
+	payload := []byte("第一季度的数字")
+	source := filepath.Join(t.TempDir(), "报表.txt")
+	if err := os.WriteFile(source, payload, 0o600); err != nil {
+		t.Fatalf("write the source file: %v", err)
+	}
+	paths := []string{source}
 	item := history.Item{
-		ID:        history.ContentID(content),
+		ID:        history.ContentID(history.Content{Kind: history.KindFile, Files: paths}),
 		Kind:      history.KindFile,
-		Text:      "/Users/bytecolt/report.pdf\n/Users/bytecolt/notes.md",
+		Text:      source,
+		FileSize:  int64(len(payload)),
 		CreatedAt: time.Now(),
 	}
 	sender.service.Send(item)
@@ -328,15 +337,39 @@ func TestFileItemTravelsAsPaths(t *testing.T) {
 	}
 	waitFor(t, func() bool { return len(receiver.received()) == 1 })
 	clip := receiver.received()[0]
-	if len(clip.Files) != 2 || clip.Files[0] != paths[0] {
-		t.Errorf("files = %v, want %v", clip.Files, paths)
+	if len(clip.LocalFiles) != 1 {
+		t.Fatalf("local files = %v, want one", clip.LocalFiles)
 	}
-	stored := clip.HistoryItem(sender.service.Identity().ID, time.Now())
-	if stored.FilePreview != nil {
-		t.Error("a received file item must not carry a preview: the file is elsewhere")
+	local := clip.LocalFiles[0]
+	if filepath.Base(local) != "报表.txt" {
+		t.Errorf("local name = %q, want the copied name", filepath.Base(local))
 	}
-	if stored.ID != item.ID {
+	if !strings.HasPrefix(local, receiver.service.options.FilesDir) {
+		t.Errorf("local path %q is outside the receiver's files directory", local)
+	}
+	if !strings.HasPrefix(local, filepath.Join(receiver.service.options.FilesDir, clip.ID())) {
+		t.Errorf("local path %q is not inside the item directory", local)
+	}
+	stored, err := os.ReadFile(local)
+	if err != nil {
+		t.Fatalf("read the received file: %v", err)
+	}
+	if !bytes.Equal(stored, payload) {
+		t.Errorf("received content = %q, want %q", stored, payload)
+	}
+
+	entry := clip.HistoryItem(sender.service.Identity().ID, time.Now())
+	if entry.ID != item.ID {
 		t.Error("the file item must keep its content-derived ID")
+	}
+	if entry.Text != local {
+		t.Errorf("stored text = %q, want the local path %q", entry.Text, local)
+	}
+	if entry.FileSize != int64(len(payload)) {
+		t.Errorf("stored size = %d, want %d", entry.FileSize, len(payload))
+	}
+	if entry.FilePreview != nil {
+		t.Error("a received file item carries no preview, like a local one")
 	}
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"strconv"
 	"strings"
 
 	"gopaste/internal/settings"
@@ -123,15 +124,43 @@ func (a *application) applySettings(file settings.File) {
 	a.applyPreferences(file.UI)
 	a.onboardingCompleted = file.Onboarding.Completed
 	a.applyRetentionSettings(file.Retention)
+	a.applyFileSyncLimit(file.FileSyncMaxMB)
 	if !a.onboardingCompleted {
 		a.startOnboarding()
 	}
 }
 
-// saveSettings 把要跨启动保留的项写进设置文件：向导的完成标记、改过的设备名，以及
-// 界面偏好。每次都是整份重写，所以向导结束或任一项偏好改变都会带上其它字段。写失败
-// 只记日志：本次运行内的状态照旧，下次启动会重新显示向导、偏好回到默认，这是可接受
-// 的降级。
+// applyFileSyncLimit 把上限（MB）变成输入框里的文本、生效的字节数，并推给正在运行的
+// 同步服务。小于最小值表示设置文件里没写，用默认值。
+func (a *application) applyFileSyncLimit(megabytes int) {
+	if megabytes < settings.MinFileSyncMaxMB {
+		megabytes = settings.DefaultFileSyncMaxMB
+	}
+	a.fileSyncMaxMB = strconv.Itoa(megabytes)
+	a.fileSyncLimitBytes = settings.FileSyncMaxBytes(megabytes)
+	if a.syncService != nil {
+		a.syncService.SetFileLimitBytes(a.fileSyncLimitBytes)
+	}
+}
+
+// editFileSyncLimit 处理设置页里上限输入的变化：只接受不小于最小值的整数，不合法
+// 时保留上一个有效值（输入框里的字不动，用户还能接着改）。
+func (a *application) editFileSyncLimit(text string) {
+	megabytes, err := strconv.Atoi(strings.TrimSpace(text))
+	if err != nil || megabytes < settings.MinFileSyncMaxMB {
+		return
+	}
+	a.fileSyncLimitBytes = settings.FileSyncMaxBytes(megabytes)
+	if a.syncService != nil {
+		a.syncService.SetFileLimitBytes(a.fileSyncLimitBytes)
+	}
+	a.saveSettings()
+}
+
+// saveSettings 把要跨启动保留的项写进设置文件：向导的完成标记、改过的设备名、界面
+// 偏好、保留上限与文件同步上限。每次都是整份重写，所以向导结束或任一项改变都会带上
+// 其它字段。写失败只记日志：本次运行内的状态照旧，下次启动会重新显示向导、偏好回到
+// 默认，这是可接受的降级。
 func (a *application) saveSettings() {
 	if a.settingsPath == "" {
 		return
@@ -145,6 +174,10 @@ func (a *application) saveSettings() {
 	// 之后改主机名就不再生效。只有用户真的改过名字才记下来。
 	if a.deviceName != a.deviceNameDefault {
 		file.DeviceName = a.deviceName
+	}
+	// 上限同理：默认值靠缺省字段表达，只有用户改过才写进文件。
+	if limit := a.fileSyncLimitBytes >> 20; limit > 0 && limit != settings.DefaultFileSyncMaxMB {
+		file.FileSyncMaxMB = int(limit)
 	}
 	if err := settings.Save(a.settingsPath, file); err != nil {
 		log.Printf("无法保存设置: %v", err)

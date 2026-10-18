@@ -70,6 +70,12 @@ func (mygoClipboardWriter) WriteImage(png []byte) error {
 	return mygo.Clipboard.WriteImage(png)
 }
 
+// WriteFiles 把收到的文件本身写进剪贴板（文件列表，不是路径文本），对方因此能直接
+// 粘贴出文件。MyGo 只接受绝对路径。
+func (mygoClipboardWriter) WriteFiles(paths ...string) error {
+	return mygo.Clipboard.WriteFiles(paths...)
+}
+
 func newApplicationRuntime(databasePath string) *applicationRuntime {
 	return &applicationRuntime{app: newApplication(), databasePath: databasePath}
 }
@@ -484,11 +490,20 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		r.publishDiscoveryFailure(r.app.t(msgDevicesDiscoveryUnavailable))
 		return
 	}
+	// 收到的文件落在数据目录下，与历史数据库、配对信息同一处。拿不到位置就
+	// 不接收文件（其它类型的同步照常），而不是把文件写到某个猜出来的地方。
+	if dir, err := receivedFilesDirectory(); err != nil {
+		log.Printf("无法确定接收文件的位置，本次不接收同步文件: %v", err)
+	} else {
+		r.app.receivedFilesDir = dir
+	}
 	options := lansync.Options{
-		StorePath: path,
-		Name:      r.app.deviceName,
-		Platform:  r.app.devicePlatform,
-		Version:   settingsVersion,
+		StorePath:      path,
+		Name:           r.app.deviceName,
+		Platform:       r.app.devicePlatform,
+		Version:        settingsVersion,
+		FilesDir:       r.app.receivedFilesDir,
+		FileLimitBytes: r.app.fileSyncLimitBytes,
 		OnPeersChanged: func(peers []lansync.Peer) {
 			r.update(func() { r.app.applySyncPeers(peers) })
 		},

@@ -82,6 +82,23 @@ func TestSummarizeSync(t *testing.T) {
 			},
 			want: syncStateOffline,
 		},
+		{
+			// 文件超过上限不是「等对方上线」就能变好的事，所以汇总读「文件过大」。
+			name: "refused as too large",
+			deliveries: []history.DeviceDelivery{
+				{DeviceID: "a", State: deliveryTooLarge},
+			},
+			want: syncStateTooLarge,
+		},
+		{
+			// 一台设备收到、另一台因为体积没收到：还是部分同步。
+			name: "one received, one too large",
+			deliveries: []history.DeviceDelivery{
+				{DeviceID: "a", State: deliveryReceived},
+				{DeviceID: "b", State: deliveryTooLarge},
+			},
+			want: syncStatePartial,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

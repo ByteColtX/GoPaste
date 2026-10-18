@@ -312,12 +312,18 @@ func TestHistoryRowShowsTheFileFormat(t *testing.T) {
 type recordingClipboard struct {
 	texts  []string
 	images [][]byte
+	files  [][]string
 }
 
 func (r *recordingClipboard) WriteText(text string) { r.texts = append(r.texts, text) }
 
 func (r *recordingClipboard) WriteImage(png []byte) error {
 	r.images = append(r.images, png)
+	return nil
+}
+
+func (r *recordingClipboard) WriteFiles(paths ...string) error {
+	r.files = append(r.files, append([]string(nil), paths...))
 	return nil
 }
 

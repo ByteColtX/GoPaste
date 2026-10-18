@@ -21,6 +21,10 @@ const (
 	// SyncStateReplaced means the item never reached any device and a newer
 	// item has replaced it.
 	SyncStateReplaced
+	// SyncStateTooLarge means no target device holds the item and at least one
+	// refused it for exceeding the file size limit. Unlike an offline device it
+	// is not waiting on the network: nothing changes until the limit does.
+	SyncStateTooLarge
 )
 
 // DeliveryState is one paired device's outcome for a history item.
@@ -33,6 +37,9 @@ const (
 	DeliveryReceived
 	// DeliveryOffline means the device is offline, so delivery is waiting.
 	DeliveryOffline
+	// DeliveryTooLarge means the item was not delivered because it is bigger
+	// than the file size limit in effect on one side.
+	DeliveryTooLarge
 )
 
 // DeviceDelivery is one target device's delivery outcome for an item. The

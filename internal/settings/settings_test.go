@@ -2,6 +2,7 @@ package settings
 
 import (
 	"encoding/json"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -314,5 +315,48 @@ func TestLoadKeepsUnknownUIPreferenceValues(t *testing.T) {
 	}
 	if got.UI == nil || got.UI.Language != "de" || got.UI.Appearance != "sepia" {
 		t.Errorf("未知取值应原样读回，实际 %+v", got.UI)
+	}
+}
+
+// TestFileSyncMaxBytesFallsBackToTheDefault 检查没写、写 0、写负数时都用默认上限：
+// 0 不是「不限」，而是「没设过」。
+func TestFileSyncMaxBytesFallsBackToTheDefault(t *testing.T) {
+	for _, megabytes := range []int{0, -1} {
+		file := File{FileSyncMaxMB: megabytes}
+		if got, want := file.FileSyncMaxBytes(), int64(DefaultFileSyncMaxMB)<<20; got != want {
+			t.Errorf("FileSyncMaxMB = %d 时上限 = %d，期望 %d", megabytes, got, want)
+		}
+	}
+}
+
+// TestFileSyncMaxBytesUsesTheConfiguredLimit 检查配置的 MiB 数按字节生效。
+func TestFileSyncMaxBytesUsesTheConfiguredLimit(t *testing.T) {
+	file := File{FileSyncMaxMB: 64}
+	if got, want := file.FileSyncMaxBytes(), int64(64)<<20; got != want {
+		t.Errorf("上限 = %d，期望 %d", got, want)
+	}
+}
+
+// TestFileSyncMaxBytesClampsAnAbsurdLimit 检查超大值不会回绕成负数上限：那样比较
+// 体积时永远不超限，等于悄悄取消了上限。
+func TestFileSyncMaxBytesClampsAnAbsurdLimit(t *testing.T) {
+	file := File{FileSyncMaxMB: math.MaxInt}
+	if got := file.FileSyncMaxBytes(); got != math.MaxInt64 {
+		t.Errorf("上限 = %d，期望 %d", got, int64(math.MaxInt64))
+	}
+}
+
+// TestSaveLoadRoundTripFileSyncLimit 检查配好的上限能存进文件再读回来。
+func TestSaveLoadRoundTripFileSyncLimit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	if err := Save(path, File{FileSyncMaxMB: 64}); err != nil {
+		t.Fatalf("Save 出错: %v", err)
+	}
+	got, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load 出错: %v", err)
+	}
+	if got.FileSyncMaxMB != 64 {
+		t.Errorf("上限 = %d，期望 64", got.FileSyncMaxMB)
 	}
 }
