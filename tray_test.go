@@ -10,9 +10,10 @@ import (
 // 菜单模板本身不需要 MyGo 应用就绪。
 func trayTestTray(devices []trayDevice, toggled *string) *systemTray {
 	return &systemTray{options: systemTrayOptions{
-		syncEnabled: func() bool { return true },
-		devices:     func() []trayDevice { return devices },
-		text:        newLocalizer(languageSimplifiedChinese).text,
+		syncEnabled:   func() bool { return true },
+		capturePaused: func() bool { return false },
+		devices:       func() []trayDevice { return devices },
+		text:          newLocalizer(languageSimplifiedChinese).text,
 		onToggleDeviceSync: func(id string) {
 			if toggled != nil {
 				*toggled = id
@@ -41,20 +42,23 @@ func TestTrayDeviceSyncSubmenuFollowsToggle(t *testing.T) {
 
 	menu := tray.menu()
 	items := menu.Items()
-	if len(items) < 2 {
-		t.Fatalf("托盘菜单至少要有同步开关和设备同步两项，实际 %d 项", len(items))
+	if len(items) < 3 {
+		t.Fatalf("托盘菜单至少要有暂停捕获、同步开关和设备同步三项，实际 %d 项", len(items))
 	}
-	if items[0].ID != "tray-toggle-sync" {
-		t.Fatalf("托盘菜单第一项应是同步开关，实际是 %q", items[0].ID)
+	if items[0].ID != "tray-toggle-capture" {
+		t.Fatalf("托盘菜单第一项应是暂停捕获，实际是 %q", items[0].ID)
 	}
-	if items[1].ID != "tray-device-sync" {
-		t.Fatalf("设备同步子菜单应紧跟在同步开关下面，实际第二项是 %q", items[1].ID)
+	if items[1].ID != "tray-toggle-sync" {
+		t.Fatalf("托盘菜单第二项应是同步开关，实际是 %q", items[1].ID)
 	}
-	if got := items[1].Label; got != "设备同步" {
+	if items[2].ID != "tray-device-sync" {
+		t.Fatalf("设备同步子菜单应紧跟在同步开关下面，实际第三项是 %q", items[2].ID)
+	}
+	if got := items[2].Label; got != "设备同步" {
 		t.Errorf("子菜单标题 = %q，想要 %q", got, "设备同步")
 	}
 
-	submenu := items[1].Submenu
+	submenu := items[2].Submenu
 	if len(submenu) != 2 {
 		t.Fatalf("子菜单应列出 2 台设备，实际 %d 项", len(submenu))
 	}
@@ -75,6 +79,39 @@ func TestTrayDeviceSyncSubmenuFollowsToggle(t *testing.T) {
 		if submenu[index].Checked != device.checked {
 			t.Errorf("%q 的勾选状态 = %v，想要 %v", device.name, submenu[index].Checked, device.checked)
 		}
+	}
+}
+
+// TestTrayCaptureItemPausesAndResumes 检查托盘第一项是暂停捕获：文案在「暂停捕获」
+// 与「恢复捕获」之间切换，点击把切换交回应用层。
+func TestTrayCaptureItemPausesAndResumes(t *testing.T) {
+	paused := false
+	toggled := 0
+	tray := &systemTray{options: systemTrayOptions{
+		capturePaused: func() bool { return paused },
+		text:          newLocalizer(languageSimplifiedChinese).text,
+		onToggleCapture: func() {
+			toggled++
+			paused = !paused
+		},
+	}}
+
+	item := tray.menu().Items()[0]
+	if item.ID != "tray-toggle-capture" {
+		t.Fatalf("托盘菜单第一项应是暂停捕获，实际是 %q", item.ID)
+	}
+	if got, want := item.Label, tray.text(msgCapturePause); got != want {
+		t.Errorf("未暂停时的文案 = %q，想要 %q", got, want)
+	}
+
+	item.Click(item, nil)
+	if toggled != 1 || !paused {
+		t.Fatalf("点击后回调 %d 次，暂停状态 = %v", toggled, paused)
+	}
+	// 应用改完状态后让托盘跟上文案，与 syncStateChanged 同一个做法。
+	tray.captureStateChanged()
+	if got, want := item.Label, tray.text(msgCaptureResume); got != want {
+		t.Errorf("暂停后的文案 = %q，想要 %q", got, want)
 	}
 }
 

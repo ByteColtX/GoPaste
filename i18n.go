@@ -442,6 +442,13 @@ const (
 	msgTrayRelaunch    messageKey = "tray.relaunch"
 	msgTrayQuit        messageKey = "tray.quit"
 
+	// Capture pause. The tray item and the history notice name the same action,
+	// so the resume label is written once.
+	msgCapturePause        messageKey = "capture.pause"
+	msgCaptureResume       messageKey = "capture.resume"
+	msgCapturePausedTitle  messageKey = "capture.pausedTitle"
+	msgCapturePausedNotice messageKey = "capture.pausedNotice"
+
 	// Timestamps.
 	msgDateToday     messageKey = "date.today"
 	msgDateYesterday messageKey = "date.yesterday"
@@ -794,6 +801,11 @@ var simplifiedChineseCatalog = catalog{
 	msgTrayRelaunch:    "重新启动",
 	msgTrayQuit:        "退出",
 
+	msgCapturePause:        "暂停捕获",
+	msgCaptureResume:       "恢复捕获",
+	msgCapturePausedTitle:  "捕获已暂停",
+	msgCapturePausedNotice: "新的复制内容不会被记录",
+
 	msgDateToday:     "今天 %s",
 	msgDateYesterday: "昨天 %s",
 	msgDateThisYear:  "1月2日 15:04",
@@ -1139,6 +1151,11 @@ var englishCatalog = catalog{
 	msgTraySettings:    "Settings",
 	msgTrayRelaunch:    "Relaunch",
 	msgTrayQuit:        "Quit",
+
+	msgCapturePause:        "Pause capture",
+	msgCaptureResume:       "Resume capture",
+	msgCapturePausedTitle:  "Capture is paused",
+	msgCapturePausedNotice: "New copies are not recorded",
 
 	msgDateToday:     "Today at %s",
 	msgDateYesterday: "Yesterday at %s",

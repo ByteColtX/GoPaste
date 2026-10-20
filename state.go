@@ -286,6 +286,19 @@ func (a *application) setSyncEnabled(enabled bool) {
 	a.syncStateChanged()
 }
 
+// setCapturePaused 暂停或恢复剪贴板捕获。托盘菜单与窗口里的提示条共用这里；真正
+// 停下或重启监听由运行时通过 onCapturePausedChanged 完成。暂停状态不落盘：重启后
+// 回到正常捕获。
+func (a *application) setCapturePaused(paused bool) {
+	if a.capturePaused == paused {
+		return
+	}
+	a.capturePaused = paused
+	if a.onCapturePausedChanged != nil {
+		a.onCapturePausedChanged(paused)
+	}
+}
+
 // setAutoSendEnabled 开关「自动发送新内容」。关掉后新内容只进本地历史，需要时
 // 用条目上的重发手动发送。
 func (a *application) setAutoSendEnabled(enabled bool) {
