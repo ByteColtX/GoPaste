@@ -111,10 +111,10 @@ type Image struct {
 }
 
 // FilePreview is an optional, already-materialised preview of a file payload.
-// The file's own bytes stay on disk: the capture path fills this in only when
-// it can produce a preview without a filesystem read at render time, so drawing
-// a frame never touches the disk. A nil FilePreview, or one with neither field
-// set, means the item has no preview to show.
+// The file's own bytes stay on disk: the preview is filled in where the content
+// lands — the capture path for a local copy, the file transfer for a received
+// one — so drawing a frame never touches the disk. A nil FilePreview, or one
+// with neither field set, means the item has no preview to show.
 type FilePreview struct {
 	// Image is a downscaled PNG rendering of an image file.
 	Image *Image
