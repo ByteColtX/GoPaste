@@ -907,6 +907,7 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 		// 顶部保留标题栏带，列表内容从带子下方统一的第一行开始。
 		paneTop(c)
 		a.historyHeader(c, theme, view)
+		a.capturePausedNotice(c, theme)
 
 		if len(view.Items) == 0 {
 			a.emptyHistory(c, theme, view)
@@ -915,6 +916,36 @@ func (a *application) historyList(c *ui.Context, theme *ui.Theme, view history.V
 
 		a.historyRows(c, theme, view)
 	})
+}
+
+// capturePausedNotice 在历史列表顶部说明捕获已暂停：暂停期间复制的内容不会出现在
+// 下面的列表里，提示因此紧贴列表顶部，并直接给出恢复入口。不暂停时它不占位置。
+func (a *application) capturePausedNotice(c *ui.Context, theme *ui.Theme) {
+	if !a.capturePaused {
+		return
+	}
+	// 与列表行同一套几何：左右边与行卡片对齐，内部留白与 listRow 一致，
+	// 提示里的状态点因此正好落在行的图标块那一列上。
+	ui.Row(c.Key("capture-paused-notice")).AlignSelf(ui.Stretch).Shrink(0).
+		AlignItems(ui.Center).Gap(space(theme, 2)).
+		Padding(space(theme, 1.5), space(theme, 2), space(theme, 1.5), space(theme, 2)).
+		Margin(space(theme, listRowGap/2), spaceDIP(theme, paneSideInset), space(theme, listRowGap/2), 0).
+		Radius(radius(theme, controlRadius)).Background(theme.Warning.Alpha(0.12)).
+		Children(func() {
+			statusDot(c, theme.Warning, space(theme, 2))
+			ui.Column(c).Grow(1).MinWidth(0).Gap(space(theme, 0.25)).Children(func() {
+				labelText(c, a.t(msgCapturePausedTitle)).FontSize(font(theme, fontControl)).FontWeight(600)
+				labelText(c, a.t(msgCapturePausedNotice)).FontSize(font(theme, fontMeta)).
+					TextColor(secondaryText(theme))
+			})
+			button := neutralButton(c, theme, "capture-paused-resume", a.t(msgCaptureResume))
+			button.Children(func() {
+				labelText(c, a.t(msgCaptureResume)).FontSize(font(theme, fontControl)).FontWeight(600)
+			})
+			if button.Clicked() {
+				a.setCapturePaused(false)
+			}
+		})
 }
 
 func (a *application) historyHeader(c *ui.Context, theme *ui.Theme, view history.View) {

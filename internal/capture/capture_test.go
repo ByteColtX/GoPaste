@@ -43,11 +43,18 @@ func receiveSnapshot(t *testing.T, emits <-chan Snapshot) Snapshot {
 // channel its emissions arrive on.
 func runLoop(t *testing.T, src Source, trigger Trigger) (<-chan Snapshot, context.CancelFunc, <-chan error) {
 	t.Helper()
+	return runLoopWith(t, src, trigger, testOptions())
+}
+
+// runLoopWith is runLoop with the options spelled out, for the tests that need
+// a non-default one.
+func runLoopWith(t *testing.T, src Source, trigger Trigger, opts Options) (<-chan Snapshot, context.CancelFunc, <-chan error) {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	emits := make(chan Snapshot, 8)
 	done := make(chan error, 1)
 	go func() {
-		done <- New(src, trigger, testOptions()).Loop(ctx, func(snap Snapshot) {
+		done <- New(src, trigger, opts).Loop(ctx, func(snap Snapshot) {
 			emits <- snap
 		})
 	}()
@@ -356,6 +363,30 @@ func TestDigestStableAcrossCRLFAndLF(t *testing.T) {
 	}
 	if nul.ID != lf.ID {
 		t.Fatalf("trailing NULs changed the ID: %s != %s", nul.ID, lf.ID)
+	}
+}
+
+func TestSkipStartReadIgnoresContentAlreadyOnTheClipboard(t *testing.T) {
+	src := newFakeSource()
+	src.setText("copied while paused")
+	trigger := newFakeTrigger()
+	opts := testOptions()
+	opts.SkipStartRead = true
+	emits, cancel, _ := runLoopWith(t, src, trigger, opts)
+	defer cancel()
+
+	// Nothing may be emitted at start: that reading is what a paused capture
+	// would otherwise file as history the moment it resumes.
+	select {
+	case got := <-emits:
+		t.Fatalf("skipped start read emitted %q, want nothing", got.Text)
+	case <-time.After(4 * opts.Quiet):
+	}
+
+	src.setText("copied after resume")
+	trigger.signal()
+	if got := receiveSnapshot(t, emits); got.Text != "copied after resume" {
+		t.Fatalf("settled reading text = %q, want the content copied after resume", got.Text)
 	}
 }
 

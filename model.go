@@ -198,6 +198,9 @@ type application struct {
 
 	onSyncStateChanged func()
 	onLanguageChanged  func()
+	// onCapturePausedChanged 由运行时安装：真正停下或重启剪贴板监听，并刷新
+	// 托盘菜单与窗口。为 nil 时（测试、没有窗口）只改状态。
+	onCapturePausedChanged func(paused bool)
 	// onDevicesChanged 在已配对设备增删后触发，让托盘「设备同步」子菜单重建。
 	onDevicesChanged func()
 	// onFilterRailToggled 在侧栏展开/收起后触发，让 macOS 视图菜单里的
@@ -255,6 +258,10 @@ type application struct {
 	// clipboardEcho 记录应用自己刚写到剪贴板的读数 ID，见 recordClipboardWrite。
 	persistence   *historyPersistence
 	clipboardEcho map[string]struct{}
+	// capturePaused 表示用户暂停了剪贴板捕获。暂停期间完全不监听剪贴板，真正
+	// 停下监听的是运行时（见 onCapturePausedChanged）。它是临时开关，不写设置
+	// 文件：重启后回到正常捕获。
+	capturePaused bool
 	// retention 是当前的自动清理上限，见 pruneHistory。默认值由
 	// defaultRetention 给出，用户改过才落盘。
 	retention history.RetentionPolicy

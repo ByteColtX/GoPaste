@@ -19,11 +19,15 @@ type trayDevice struct {
 // systemTrayOptions 把托盘事件转换成应用层回调，避免托盘直接依赖 application。
 type systemTrayOptions struct {
 	syncEnabled func() bool
+	// capturePaused 报告捕获是否被用户暂停，菜单项据此在「暂停捕获」与「恢复
+	// 捕获」之间切换文案。
+	capturePaused func() bool
 	// devices 返回当前已配对设备，托盘据此重建「设备同步」子菜单。
 	devices            func() []trayDevice
 	text               func(messageKey) string
 	onToggleSync       func()
 	onToggleDeviceSync func(id string)
+	onToggleCapture    func()
 	onOpen             func()
 	onSettings         func()
 	onRelaunch         func()
@@ -32,8 +36,10 @@ type systemTrayOptions struct {
 
 // systemTray 只保存托盘自身的原生对象和交互状态。
 type systemTray struct {
-	native       *mygo.Tray
-	syncMenuItem *mygo.MenuItem
+	native *mygo.Tray
+	// captureMenuItem 是暂停捕获项，文案随暂停状态切换。
+	captureMenuItem *mygo.MenuItem
+	syncMenuItem    *mygo.MenuItem
 	// deviceItems 记录每台设备在子菜单里的勾选项，用于在状态变化后同步勾选。
 	deviceItems map[string]*mygo.MenuItem
 	options     systemTrayOptions
@@ -68,6 +74,16 @@ func (t *systemTray) text(key messageKey) string {
 }
 
 func (t *systemTray) menu() *mygo.Menu {
+	// 暂停捕获放在最上面：它是本地隐私开关，不跟下面的同步菜单混在一起。
+	t.captureMenuItem = &mygo.MenuItem{
+		ID:    "tray-toggle-capture",
+		Label: t.captureMenuLabel(),
+		Click: func(*mygo.MenuItem, *mygo.Window) {
+			if t.options.onToggleCapture != nil {
+				t.options.onToggleCapture()
+			}
+		},
+	}
 	t.syncMenuItem = &mygo.MenuItem{
 		ID:    "tray-toggle-sync",
 		Label: t.syncMenuLabel(),
@@ -78,6 +94,7 @@ func (t *systemTray) menu() *mygo.Menu {
 		},
 	}
 	return mygo.NewMenu([]*mygo.MenuItem{
+		t.captureMenuItem,
 		t.syncMenuItem,
 		{
 			ID:      "tray-device-sync",
@@ -149,6 +166,25 @@ func (t *systemTray) syncMenuLabel() string {
 		return t.text(msgTrayTurnSyncOff)
 	}
 	return t.text(msgTrayTurnSyncOn)
+}
+
+// captureMenuLabel 返回暂停项当前的文案：暂停时说「恢复捕获」，否则说「暂停捕获」。
+func (t *systemTray) captureMenuLabel() string {
+	if t.options.capturePaused != nil && t.options.capturePaused() {
+		return t.text(msgCaptureResume)
+	}
+	return t.text(msgCapturePause)
+}
+
+// captureStateChanged 在捕获被暂停或恢复后更新菜单文案。与 syncStateChanged 一样
+// 只改文案不重建菜单：该方法在托盘菜单跟踪点击的过程中同步执行。
+func (t *systemTray) captureStateChanged() {
+	if t == nil {
+		return
+	}
+	if t.captureMenuItem != nil {
+		t.captureMenuItem.SetLabel(t.captureMenuLabel())
+	}
 }
 
 // syncStateChanged 在同步开关被窗口或托盘菜单改变后更新菜单文案和勾选状态。

@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"time"
 
+	"gopaste/internal/capture"
 	"gopaste/internal/filescache"
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
@@ -55,6 +56,9 @@ type applicationRuntime struct {
 	quitting bool
 	// captureCancel 结束剪贴板监听；为 nil 表示监听没有启动。
 	captureCancel context.CancelFunc
+	// captureSuspended 记下暂停捕获那一刻监听是否真的在跑：数据库没打开时监听
+	// 根本没启动，恢复时不能凭空把它启动起来。
+	captureSuspended bool
 	// syncCancel 结束局域网同步服务；为 nil 表示服务没有启动。
 	syncCancel context.CancelFunc
 }
@@ -102,6 +106,7 @@ func runApplication(databasePath string) error {
 // ready 在 MyGo 完成平台初始化后运行，此时才能创建窗口和托盘。
 func (r *applicationRuntime) ready() {
 	r.app.onSyncStateChanged = r.syncStateChanged
+	r.app.onCapturePausedChanged = r.capturePausedChanged
 	r.app.onLanguageChanged = r.languageChanged
 	r.app.onDevicesChanged = r.devicesChanged
 	r.app.onFilterRailToggled = r.filterRailToggled
@@ -169,11 +174,15 @@ func (r *applicationRuntime) ready() {
 	})
 
 	tray, err := newSystemTray(systemTrayOptions{
-		syncEnabled: func() bool { return r.app.syncEnabled },
-		devices:     r.app.trayDevices,
-		text:        r.app.t,
+		syncEnabled:   func() bool { return r.app.syncEnabled },
+		capturePaused: func() bool { return r.app.capturePaused },
+		devices:       r.app.trayDevices,
+		text:          r.app.t,
 		onToggleSync: func() {
 			r.app.setSyncEnabled(!r.app.syncEnabled)
+		},
+		onToggleCapture: func() {
+			r.app.setCapturePaused(!r.app.capturePaused)
 		},
 		onToggleDeviceSync: r.app.toggleDeviceSync,
 		onOpen:             r.showMainWindow,
@@ -401,6 +410,27 @@ func (r *applicationRuntime) syncStateChanged() {
 	if r.window != nil {
 		r.window.Invalidate()
 	}
+}
+
+// capturePausedChanged 在用户暂停或恢复捕获后真正停下或重启剪贴板监听。
+//
+// 暂停是隐私开关，所以这里取消捕获上下文：Loop 随之退出，平台侧的监听也跟着结束，
+// 暂停期间不读剪贴板。恢复时重新开始监听，但不补记暂停期间复制的内容（见
+// capture.Options.SkipStartRead）。
+func (r *applicationRuntime) capturePausedChanged(paused bool) {
+	if paused {
+		r.captureSuspended = r.captureCancel != nil
+		r.stopCapture()
+	} else if r.captureSuspended {
+		r.captureSuspended = false
+		ctx, cancel := context.WithCancel(context.Background())
+		r.captureCancel = cancel
+		r.startClipboardCapture(ctx, capture.Options{SkipStartRead: true})
+	}
+	if r.tray != nil {
+		r.tray.captureStateChanged()
+	}
+	r.invalidate()
 }
 
 // languageChanged 在界面语言变化后重建托盘菜单并重绘窗口。

@@ -248,17 +248,26 @@ func (r *applicationRuntime) startHistoryPersistence(captureCtx context.Context)
 		// 等装载结果落到界面状态之后再开始捕获，否则启动瞬间捕获到的内容会被
 		// 装载结果覆盖掉。
 		<-installed
-		r.startClipboardCapture(captureCtx)
+		r.startClipboardCapture(captureCtx, capture.Options{})
 	}()
 }
 
 // startClipboardCapture 开始监听系统剪贴板，把新复制的内容并入历史记录。
 //
 // 监听只读剪贴板，不写入、不联网：捕获结果先落到内存里的 Store，再排进写队列。
-// 本次构建不监听时直接返回，历史只来自已装载的数据库。
-func (r *applicationRuntime) startClipboardCapture(ctx context.Context) {
+// 本次构建不监听时直接返回，历史只来自已装载的数据库；捕获被用户暂停时也不启动，
+// 暂停期间不碰剪贴板。
+func (r *applicationRuntime) startClipboardCapture(ctx context.Context, opts capture.Options) {
 	if !clipboardCaptureEnabled() {
 		log.Printf("预览构建不监听剪贴板，历史只来自预览数据库")
+		return
+	}
+	if r.app.capturePaused {
+		return
+	}
+	// 上下文已经取消时什么都不做：装载完成前就点了暂停的话，这里拿到的正是那个被
+	// 取消的上下文，启动它只会白读一次剪贴板。
+	if ctx.Err() != nil {
 		return
 	}
 	source, err := clipboard.New()
@@ -266,7 +275,7 @@ func (r *applicationRuntime) startClipboardCapture(ctx context.Context) {
 		log.Printf("剪贴板不可用，本次不自动记录复制内容: %v", err)
 		return
 	}
-	capturer := capture.New(source, source, capture.Options{})
+	capturer := capture.New(source, source, opts)
 	go func() {
 		if err := capturer.Loop(ctx, r.captured); err != nil {
 			log.Printf("剪贴板监听已停止: %v", err)
