@@ -221,6 +221,10 @@ type application struct {
 	// Window.Update 回到 applyDirectoryChoice。为 nil 时（测试、没有窗口）按钮什么
 	// 都不做。
 	onChooseDirectory func(defaultPath string)
+	// onFilePreview 由运行时安装：在界面线程之外按路径生成一条文件记录的预览，
+	// 结果经 Window.Update 回到 applyFilePreview（见 requestFilePreview）。为 nil
+	// 时（测试、没有窗口）不生成，预览区显示没有预览。
+	onFilePreview func(id, path string)
 	// onZoomChanged 在界面缩放变化后让运行时调整窗口的最小尺寸与大小；
 	// onMaxZoom 由运行时按窗口所在屏幕的可用区域回答当前能放到多大。
 	onZoomChanged func(zoom float32)
@@ -250,9 +254,13 @@ type application struct {
 	history        *history.Store
 	historyBitmaps map[string]*ui.Bitmap
 	codeHighlights codeHighlightCache
-	clipboard      clipboardPort
-	historySearch  ui.Handle
-	listState      ui.ListState
+	// filePreviews 缓存本次运行里生成过的文件预览，filePreviewPending 记着还在
+	// 后台生成的条目（见 file_preview.go）。两个表都只在界面线程上改动。
+	filePreviews       map[string]filePreviewEntry
+	filePreviewPending map[string]struct{}
+	clipboard          clipboardPort
+	historySearch      ui.Handle
+	listState          ui.ListState
 
 	// persistence 是历史记录的落盘队列；为 nil 时只保存在内存里。
 	// clipboardEcho 记录应用自己刚写到剪贴板的读数 ID，见 recordClipboardWrite。

@@ -37,6 +37,7 @@ func (a *application) pruneHistory() {
 	for _, id := range removed {
 		delete(a.historyBitmaps, id)
 		delete(a.codeHighlights, id)
+		a.forgetFilePreview(id)
 		if item, ok := received[id]; ok {
 			a.discardReceivedFiles(item)
 		}

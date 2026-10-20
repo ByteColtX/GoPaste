@@ -22,9 +22,6 @@ import "context"
 //   - An item with no image and an item whose Image holds an empty PNG both
 //     load back with a nil Image, and an item with no deliveries loads back
 //     with nil Deliveries.
-//   - FilePreview is stored with the item: a nil preview, and one with neither
-//     a picture nor an excerpt, load back as nil, and a stored preview keeps
-//     its payload bytes and its excerpt byte for byte.
 //   - Text and HTML are stored verbatim and load back byte for byte, so a
 //     rich-text item keeps the markup beside its plain-text representation.
 //   - CreatedAt is stored with millisecond precision in UTC, so a loaded item

@@ -444,6 +444,8 @@ func (a *application) clearHistory() {
 	a.history.Clear()
 	a.historyBitmaps = nil
 	a.codeHighlights = nil
+	a.filePreviews = nil
+	a.filePreviewPending = nil
 	a.persistDelete(ids...)
 	// 文件在后台删，用量等它们真的没了再测，否则刚清掉的那一份还会被算进去。
 	a.requestStorageUsage(removed)
@@ -578,6 +580,7 @@ func (a *application) deleteHistoryItem(c *ui.Context, id string) {
 		return
 	}
 	delete(a.historyBitmaps, id)
+	a.forgetFilePreview(id)
 	a.persistDelete(id)
 	a.addUndoToast(c, a.t(msgToastDeleted), func() { a.restoreHistoryItem(item) }, func() { a.discardReceivedFiles(item) })
 }

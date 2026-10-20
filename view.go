@@ -1624,7 +1624,11 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 						TextColor(theme.Accent).Wrap()
 				})
 			case kindImage:
-				a.imagePreview(c, theme, item.Image, a.historyBitmap(item))
+				if bitmap := a.historyBitmap(item); bitmap != nil {
+					a.imagePreview(c, theme, bitmap)
+				} else {
+					a.unavailablePreview(c, theme, a.t(msgHistoryImageUnavailable))
+				}
 			case kindFile:
 				a.filePreview(c, theme, item)
 			default:
@@ -1636,14 +1640,10 @@ func (a *application) previewContent(c *ui.Context, theme *ui.Theme, item histor
 	})
 }
 
-// imagePreview renders an image payload, or the unavailable note when there is
-// nothing to draw. An image item and a file item's image preview both go
-// through here, so the two keep one card and one empty state.
-func (a *application) imagePreview(c *ui.Context, theme *ui.Theme, image *history.Image, bitmap *ui.Bitmap) {
-	if image == nil || bitmap == nil {
-		a.unavailablePreview(c, theme, a.t(msgHistoryImageUnavailable))
-		return
-	}
+// imagePreview draws an image payload on the preview card. An image item and a
+// file item's picture both go through here, so the two keep one card; the caller
+// decides what an empty payload looks like, because the two say different things.
+func (a *application) imagePreview(c *ui.Context, theme *ui.Theme, bitmap *ui.Bitmap) {
 	ui.Box(c).MaxWidth(detailMaxWidth(theme)).Center().Padding(space(theme, 3)).Radius(radius(theme, cardRadius)).
 		Background(panelFill(theme)).Border(1, borderColor(theme)).Children(func() {
 		ui.Image(c, bitmap).MaxWidth(detailMaxWidth(theme) - space(theme, 6)).MaxHeight(520).
@@ -1657,25 +1657,25 @@ func (a *application) imagePreview(c *ui.Context, theme *ui.Theme, image *histor
 const filePathRowsLimit = 20
 
 // filePreview renders a file item: the copied path or paths as clickable rows,
-// then the preview the capture path materialised. An image file shows its
-// picture, a text-like file an excerpt, and a file with no payload shows a
-// note. The preview header already names the type and size, and a path ends in
-// the file's own name, so nothing repeats them above the path.
+// then the file's own content, the way a quick look shows it. Selecting the
+// record is the whole trigger — an image file shows its picture and a text-like
+// file its text, generated on demand the first time and cached for the run. The
+// header already names the type and size, and a path ends in the file's own
+// name, so nothing repeats them above the path.
 func (a *application) filePreview(c *ui.Context, theme *ui.Theme, item history.Item) {
 	a.filePathList(c, theme, item)
-	if preview := item.FilePreview; preview != nil {
-		if preview.Image != nil {
-			a.imagePreview(c, theme, preview.Image, a.filePreviewBitmap(item))
-			return
-		}
-		if strings.TrimSpace(preview.Text) != "" {
-			ui.Text(c, preview.Text).Font("monospace").FontSize(font(theme, fontCode)).
-				TextColor(primaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
-				Background(panelFill(theme)).Border(1, borderColor(theme)).Wrap().Selectable()
-			return
-		}
+	switch preview := a.filePreviewFor(item); {
+	case preview.bitmap != nil:
+		a.imagePreview(c, theme, preview.bitmap)
+	case preview.text != "":
+		ui.Text(c, preview.text).Font("monospace").FontSize(font(theme, fontCode)).
+			TextColor(primaryText(theme)).Padding(space(theme, 4)).Radius(radius(theme, cardRadius)).
+			Background(panelFill(theme)).Border(1, borderColor(theme)).Wrap().Selectable()
+	case a.filePreviewGenerating(item.ID):
+		a.unavailablePreview(c, theme, a.t(msgHistoryFilePreviewPending))
+	default:
+		a.unavailablePreview(c, theme, a.t(msgHistoryFilePreviewGone))
 	}
-	a.unavailablePreview(c, theme, a.t(msgHistoryFilePreviewGone))
 }
 
 // filePathList renders the copied paths as clickable rows. The full path is the
@@ -2210,15 +2210,6 @@ func calendarDaysAgo(value, now time.Time) int {
 
 func (a *application) historyBitmap(item history.Item) *ui.Bitmap {
 	return a.decodeBitmap(item.ID, item.Image)
-}
-
-// filePreviewBitmap decodes and caches a file item's image preview under its
-// own key, so it never collides with the item's own image payload.
-func (a *application) filePreviewBitmap(item history.Item) *ui.Bitmap {
-	if item.FilePreview == nil {
-		return nil
-	}
-	return a.decodeBitmap(item.ID+"#file-preview", item.FilePreview.Image)
 }
 
 // decodeBitmap decodes an image payload once per cache key and reuses the

@@ -1,12 +1,12 @@
-// Package filepreview materialises the preview a file history item carries:
-// a downscaled picture for an image file, a short excerpt for a text-like one,
-// and nothing for everything else. It runs where the file's content lands — the
-// capture goroutine for a local copy, the transfer handler for a received one —
-// so drawing a frame never touches the filesystem.
+// Package filepreview produces the preview of a file on disk: a downscaled
+// picture for an image file, the file's text for a text-like one, and nothing
+// for everything else. It is what the preview pane shows when a file item is
+// selected, so it reads the file — callers run it off the UI thread and keep
+// the result for as long as they like.
 //
 // It depends on nothing but the standard library, golang.org/x/image and the
-// two packages that own the item type and the file classification, so the rules
-// can be tested on their own against real files.
+// package that classifies file names, so the rules can be tested on their own
+// against real files.
 package filepreview
 
 import (
@@ -22,7 +22,6 @@ import (
 	xdraw "golang.org/x/image/draw"
 
 	"gopaste/internal/filetype"
-	"gopaste/internal/history"
 
 	// The blank imports register every format a copied file may be in with
 	// image.Decode. PNG comes with the encoder above; the rest are decode-only.
@@ -46,29 +45,74 @@ const (
 	// shows the "no preview" note instead of stalling the capture.
 	maxSourcePixels = 40_000_000
 
-	// excerptBytes is how much of a text file is read. Everything the excerpt
-	// keeps fits in it, so one read is enough and a huge file costs the same.
-	excerptBytes = 4 << 10
-	// excerptLines and excerptRunes bound the excerpt itself: a minified file
-	// is one enormous line, a log is thousands of short ones, and both are cut
-	// at whichever limit comes first.
-	excerptLines = 30
-	excerptRunes = 1200
-	// ellipsis marks a cut excerpt, so the preview does not read as the whole
-	// file.
+	// maxTextBytes is how much of a text file is read and shown. A preview is
+	// for reading, not for editing: this covers a README or a few thousand log
+	// lines, and bounds both the read and what the interface has to lay out.
+	maxTextBytes = 32 << 10
+	// maxTextLines bounds the same content by lines, because a file of short
+	// lines reaches a lot of them inside maxTextBytes. Laying out one text block
+	// of a few thousand lines costs tens of milliseconds per frame (measured:
+	// past ~1200 lines the preview drops from well under a millisecond to ~25),
+	// so a preview stops at a thousand and says it was cut.
+	maxTextLines = 1000
+	// ellipsis marks a cut text, so the preview does not read as the whole file.
 	ellipsis = "…"
 )
 
-// Generate returns the preview to store for the file at path, or nil when the
-// file has nothing to show: an unsupported format, a directory, a file that is
-// gone, or content that does not match its name. A nil preview is not an error;
-// it is what the interface renders as "no preview".
-func Generate(path string) *history.FilePreview {
-	format := filetype.Detect(path)
+// previewKind is what a format's content can be shown as.
+type previewKind uint8
+
+const (
+	// previewNone means the format has nothing this package can show.
+	previewNone previewKind = iota
+	// previewPicture is a downscaled rendering of an image file.
+	previewPicture
+	// previewExcerpt is the beginning of a text-like file.
+	previewExcerpt
+)
+
+// previewOf decides what a format is previewed as. It is the one place that
+// answers the question, so CanPreview and Generate cannot drift apart.
+func previewOf(format filetype.Format) previewKind {
 	switch {
 	case format.Kind() == filetype.KindImage:
-		return imagePreview(path)
+		return previewPicture
 	case isTextLike(format):
+		return previewExcerpt
+	default:
+		return previewNone
+	}
+}
+
+// CanPreview reports whether Generate would attempt a preview for a name. It
+// reads the format only, so it costs no I/O: the preview pane asks it before
+// starting a background generation, so an archive or a font never causes one.
+func CanPreview(path string) bool {
+	return previewOf(filetype.Detect(path)) != previewNone
+}
+
+// Preview is what a file is previewed as: either a picture or the text itself.
+// Exactly one of the two is filled in, because a format is previewed as one or
+// the other.
+type Preview struct {
+	// PNG is a downscaled PNG rendering of an image file.
+	PNG []byte
+	// Width and Height are the PNG's pixel size.
+	Width  int
+	Height int
+	// Text is the content of a text-like file, cut at maxTextBytes.
+	Text string
+}
+
+// Generate returns the preview of the file at path, or nil when the file has
+// nothing to show: an unsupported format, a directory, a file that is gone, or
+// content that does not match its name. A nil preview is not an error; it is
+// what the interface renders as "no preview".
+func Generate(path string) *Preview {
+	switch previewOf(filetype.Detect(path)) {
+	case previewPicture:
+		return imagePreview(path)
+	case previewExcerpt:
 		return textPreview(path)
 	default:
 		return nil
@@ -93,7 +137,7 @@ func isTextLike(format filetype.Format) bool {
 // also where the EXIF orientation lives, so the picture is turned upright
 // before it is scaled. Applying the turn after scaling keeps it cheap — the
 // transform runs over the thumbnail, not the original.
-func imagePreview(path string) *history.FilePreview {
+func imagePreview(path string) *Preview {
 	file, ok := openRegular(path)
 	if !ok {
 		return nil
@@ -124,11 +168,11 @@ func imagePreview(path string) *history.FilePreview {
 	if err := png.Encode(&payload, thumbnail); err != nil {
 		return nil
 	}
-	return &history.FilePreview{Image: &history.Image{
+	return &Preview{
 		PNG:    payload.Bytes(),
 		Width:  thumbnail.Bounds().Dx(),
 		Height: thumbnail.Bounds().Dy(),
-	}}
+	}
 }
 
 // downscale returns the picture fitted into thumbLongEdge, keeping its aspect
@@ -152,18 +196,19 @@ func downscale(source image.Image) *image.RGBA {
 	return target
 }
 
-// textPreview returns the beginning of a text-like file, or nil when the bytes
-// are not text: an excerpt of a binary file is worse than the "no preview"
+// textPreview returns the content of a text-like file, or nil when the bytes
+// are not text: a rendering of a binary file is worse than the "no preview"
 // note, because it looks like the file's content.
-func textPreview(path string) *history.FilePreview {
+func textPreview(path string) *Preview {
 	file, ok := openRegular(path)
 	if !ok {
 		return nil
 	}
 	defer file.Close()
 
-	buffer := make([]byte, excerptBytes)
+	buffer := make([]byte, maxTextBytes)
 	read, err := io.ReadFull(file, buffer)
+	truncated := err == nil
 	if err != nil && err != io.ErrUnexpectedEOF && err != io.EOF {
 		return nil
 	}
@@ -171,11 +216,18 @@ func textPreview(path string) *history.FilePreview {
 	if !utf8.Valid(data) || bytes.IndexByte(data, 0) >= 0 {
 		return nil
 	}
-	text := excerpt(string(data))
+	text := readableText(string(data))
 	if text == "" {
 		return nil
 	}
-	return &history.FilePreview{Text: text}
+	if lines := strings.Split(text, "\n"); len(lines) > maxTextLines {
+		text = strings.TrimRight(strings.Join(lines[:maxTextLines], "\n"), " \t\n")
+		truncated = true
+	}
+	if truncated {
+		text += ellipsis
+	}
+	return &Preview{Text: text}
 }
 
 // trimPartialRune drops the incomplete character a byte bound can leave at the
@@ -195,31 +247,14 @@ func trimPartialRune(data []byte) []byte {
 	return data
 }
 
-// excerpt cuts the read prefix down to the line and rune bounds and marks the
-// cut. Blank text yields "", so a file of whitespace reads as having nothing to
-// preview.
-func excerpt(text string) string {
+// readableText normalises line endings and drops the byte-order mark, so the
+// text reads the same as in an editor. Blank text yields "", so a file of
+// whitespace reads as having nothing to preview.
+func readableText(text string) string {
 	text = strings.TrimPrefix(text, "\ufeff")
 	text = strings.ReplaceAll(text, "\r\n", "\n")
 	text = strings.ReplaceAll(text, "\r", "\n")
-
-	truncated := false
-	if lines := strings.Split(text, "\n"); len(lines) > excerptLines {
-		text = strings.Join(lines[:excerptLines], "\n")
-		truncated = true
-	}
-	if runes := []rune(text); len(runes) > excerptRunes {
-		text = string(runes[:excerptRunes])
-		truncated = true
-	}
-	text = strings.TrimRight(text, " \t\n")
-	if text == "" {
-		return ""
-	}
-	if truncated {
-		text += ellipsis
-	}
-	return text
+	return strings.TrimRight(text, " \t\n")
 }
 
 // openRegular opens path when it is a regular file. A directory, a device or a

@@ -110,22 +110,10 @@ type Image struct {
 	Height int
 }
 
-// FilePreview is an optional, already-materialised preview of a file payload.
-// The file's own bytes stay on disk: the preview is filled in where the content
-// lands — the capture path for a local copy, the file transfer for a received
-// one — so drawing a frame never touches the disk. A nil FilePreview, or one
-// with neither field set, means the item has no preview to show.
-type FilePreview struct {
-	// Image is a downscaled PNG rendering of an image file.
-	Image *Image
-	// Text is a short excerpt of a text-like file.
-	Text string
-}
-
 // Item is the data owned by the history module. Image carries an inline PNG
 // payload, while FileSize carries the byte size of a file payload whose
-// content stays on disk, so rendering never touches the filesystem. A file
-// item may carry a FilePreview alongside that on-disk content.
+// content stays on disk. A file payload itself is never stored here: the
+// preview of one is produced from the file when the interface shows it.
 type Item struct {
 	ID   string
 	Kind Kind
@@ -137,9 +125,6 @@ type Item struct {
 	HTML     string
 	Image    *Image
 	FileSize int64
-	// FilePreview is an optional preview of a file payload, nil for every
-	// other kind and for a file whose content has no preview.
-	FilePreview *FilePreview
 	// SourceDeviceID is the stable ID of the paired device the item arrived
 	// from, the same ID the device list uses. It is empty when the item was
 	// captured on this machine. The device name is never stored: the preview
@@ -539,13 +524,6 @@ func cloneItem(item Item) Item {
 	}
 	if item.Image != nil {
 		item.Image = cloneImage(item.Image)
-	}
-	if item.FilePreview != nil {
-		preview := *item.FilePreview
-		if preview.Image != nil {
-			preview.Image = cloneImage(preview.Image)
-		}
-		item.FilePreview = &preview
 	}
 	return item
 }

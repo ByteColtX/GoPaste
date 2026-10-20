@@ -115,6 +115,7 @@ func (r *applicationRuntime) ready() {
 	r.app.onMeasureStorageUsage = r.measureStorageUsage
 	r.app.onCleanFileCache = r.cleanFileCache
 	r.app.onChooseDirectory = r.chooseDirectory
+	r.app.onFilePreview = r.generateFilePreview
 	r.app.onUndoAvailabilityChanged = r.undoAvailabilityChanged
 	r.app.onZoomChanged = r.zoomChanged
 	r.app.onMaxZoom = r.maxZoom
@@ -543,9 +544,6 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		Version:        settingsVersion,
 		FilesDir:       r.app.receivedFilesDir,
 		FileLimitBytes: r.app.fileSyncLimitBytes,
-		// 收到的文件跟本机复制的一样生成预览；调用发生在传输 goroutine 上，
-		// 界面线程不等解码。
-		PreviewFile: filepreview.Generate,
 		OnPeersChanged: func(peers []lansync.Peer) {
 			r.update(func() { r.app.applySyncPeers(peers) })
 		},
@@ -717,6 +715,16 @@ func (r *applicationRuntime) cleanFileCache(entries []filescache.Entry, policy f
 	go func() {
 		removed := filescache.Plan(filescache.Measure(entries), policy, time.Now())
 		r.update(func() { r.app.applyFileCacheCleanup(removed) })
+	}()
+}
+
+// generateFilePreview 在界面线程之外为一条文件记录生成预览：读盘与解码都不该
+// 发生在画帧的地方。结果经 Window.Update 回到界面线程，由 applyFilePreview 缓存
+// 起来并重画一帧。
+func (r *applicationRuntime) generateFilePreview(id, path string) {
+	go func() {
+		preview := filepreview.Generate(path)
+		r.update(func() { r.app.applyFilePreview(id, preview) })
 	}()
 }
 

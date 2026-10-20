@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"gopaste/internal/capture"
+	"gopaste/internal/filepreview"
 	"gopaste/internal/filetype"
 	"gopaste/internal/history"
 
@@ -179,47 +180,8 @@ func TestFilePreviewNamesTheFileAndItsFormat(t *testing.T) {
 	}
 }
 
-// TestFilePreviewRendersAnImagePayload checks the image path: a file that
-// carries an image preview decodes and draws it instead of the empty note.
-func TestFilePreviewRendersAnImagePayload(t *testing.T) {
-	item := fileItem("file-photo", "~/Pictures/photo.png", 4096)
-	item.FilePreview = &history.FilePreview{Image: &history.Image{PNG: fileTestPNG(t), Width: 4, Height: 3}}
-	app := fileApp(item)
-
-	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
-	texts := tt.Texts()
-	if !hasExactText(texts, "~/Pictures/photo.png") {
-		t.Errorf("文件预览缺少路径，实际显示：%q", texts)
-	}
-	if !tt.HasText("PNG") || !tt.HasText("4.0 KB") {
-		t.Errorf("文件预览缺少格式与大小，实际显示：%q", texts)
-	}
-	if tt.HasText(app.t(msgHistoryFilePreviewGone)) {
-		t.Errorf("带图片预览的文件不应显示“无预览”提示，实际显示：%q", texts)
-	}
-	if bitmap := app.filePreviewBitmap(item); bitmap == nil {
-		t.Errorf("图片文件应解码出预览位图")
-	}
-}
-
-// TestFilePreviewRendersATextExcerpt checks the text path: a file that carries
-// a text excerpt shows it as plain, selectable text.
-func TestFilePreviewRendersATextExcerpt(t *testing.T) {
-	item := fileItem("file-notes", "~/Documents/release-notes.md", 512)
-	item.FilePreview = &history.FilePreview{Text: "第一行摘录"}
-	app := fileApp(item)
-
-	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
-	if !tt.HasText("第一行摘录") {
-		t.Errorf("文件预览缺少文本摘录，实际显示：%q", tt.Texts())
-	}
-	if tt.HasText(app.t(msgHistoryFilePreviewGone)) {
-		t.Errorf("带文本摘录的文件不应显示“无预览”提示，实际显示：%q", tt.Texts())
-	}
-}
-
 // TestFilePreviewFallsBackToANote checks the empty path: a file with no
-// payload still names itself and says why there is nothing to draw.
+// content to show still names itself and says why there is nothing to draw.
 func TestFilePreviewFallsBackToANote(t *testing.T) {
 	app := fileApp(fileItem("file-export", "~/Desktop/design-export.zip", 18_874_368))
 	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
@@ -230,16 +192,24 @@ func TestFilePreviewFallsBackToANote(t *testing.T) {
 	}
 }
 
-// capturedFile runs one file copy through the capture path the way the running
-// application does: the snapshot becomes an item, and the preview is generated
-// from the file on disk.
-func capturedFile(t *testing.T, paths ...string) history.Item {
-	t.Helper()
-	item, ok := (capture.Snapshot{Kind: kindFile, Files: paths}).Item()
-	if !ok {
-		t.Fatalf("捕获 %v 没有产出条目", paths)
-	}
-	return withFilePreview(item)
+// previewRequests records the preview generations the preview pane asked for.
+type previewRequests struct {
+	ids   []string
+	paths []string
+}
+
+func (r *previewRequests) record(id, path string) {
+	r.ids = append(r.ids, id)
+	r.paths = append(r.paths, path)
+}
+
+// fileAppWithPreview renders one file item with the runtime hook wired to a
+// recorder, the way the running application has it wired.
+func fileAppWithPreview(item history.Item) (*application, *previewRequests) {
+	app := fileApp(item)
+	requests := &previewRequests{}
+	app.onFilePreview = requests.record
+	return app, requests
 }
 
 // writeTestFile writes body into a temporary file with the supplied name, so
@@ -253,69 +223,126 @@ func writeTestFile(t *testing.T, name string, body []byte) string {
 	return path
 }
 
-// TestCapturedFileGetsItsPreview covers the seam the bug was in: a captured
-// file item carries the preview the capture path generated, so the preview
-// pane has something to draw instead of the "no preview" note.
-func TestCapturedFileGetsItsPreview(t *testing.T) {
-	imageItem := capturedFile(t, writeTestFile(t, "screenshot.png", fileTestPNG(t)))
-	if imageItem.FilePreview == nil || imageItem.FilePreview.Image == nil {
-		t.Fatalf("复制的图片文件应带图片预览，实际 %#v", imageItem.FilePreview)
+// TestFilePreviewAppearsOnSelection covers the whole path the user sees: the
+// record is selected, the preview is generated from the file, and the pane
+// draws the picture. A record captured now and a record that predates previews
+// go through exactly the same steps — nothing about a record's age decides
+// whether it previews.
+func TestFilePreviewAppearsOnSelection(t *testing.T) {
+	path := writeTestFile(t, "screenshot.png", fileTestPNG(t))
+	captured, ok := (capture.Snapshot{Kind: kindFile, Files: []string{path}}).Item()
+	if !ok {
+		t.Fatal("捕获测试文件没有产出条目")
 	}
-	if imageItem.FilePreview.Image.Width != 4 || imageItem.FilePreview.Image.Height != 3 {
-		t.Errorf("缩略图尺寸 = %dx%d，期望 4x3",
-			imageItem.FilePreview.Image.Width, imageItem.FilePreview.Image.Height)
+	cases := map[string]history.Item{
+		"刚复制的文件": captured,
+		"旧记录":    fileItem("file-old", path, 4096),
 	}
+	for name, item := range cases {
+		t.Run(name, func(t *testing.T) {
+			app, requests := fileAppWithPreview(item)
+			tt := ui.NewTester(app.view, defaultWindowWidth, 720)
 
-	textItem := capturedFile(t, writeTestFile(t, "notes.md", []byte("# 标题\n\n正文\n")))
-	if textItem.FilePreview == nil || !strings.Contains(textItem.FilePreview.Text, "# 标题") {
-		t.Fatalf("复制的 Markdown 文件应带文本摘录，实际 %#v", textItem.FilePreview)
-	}
+			if len(requests.paths) != 1 || requests.paths[0] != path {
+				t.Fatalf("选中后应请求一次预览，实际请求 %v", requests.paths)
+			}
+			if !tt.HasText(app.t(msgHistoryFilePreviewPending)) {
+				t.Errorf("生成期间应显示「正在生成预览…」，实际显示：%q", tt.Texts())
+			}
 
-	// A format with nothing to preview keeps no payload, and a copy of several
-	// files previews the first one — the same file the list row names.
-	if zipItem := capturedFile(t, writeTestFile(t, "release.zip", []byte("PK\x03\x04"))); zipItem.FilePreview != nil {
-		t.Errorf("压缩包不该有预览，实际 %#v", zipItem.FilePreview)
-	}
-	many := capturedFile(t,
-		writeTestFile(t, "first.txt", []byte("第一个文件\n")),
-		writeTestFile(t, "second.png", fileTestPNG(t)),
-	)
-	if many.FilePreview == nil || !strings.Contains(many.FilePreview.Text, "第一个文件") {
-		t.Errorf("多文件复制应只预览第一个文件，实际 %#v", many.FilePreview)
+			app.applyFilePreview(item.ID, filepreview.Generate(path))
+			tt.Frame()
+			if tt.HasText(app.t(msgHistoryFilePreviewPending)) || tt.HasText(app.t(msgHistoryFilePreviewGone)) {
+				t.Errorf("生成完成后应画出图片，实际显示：%q", tt.Texts())
+			}
+			if len(requests.paths) != 1 {
+				t.Errorf("预览已缓存，不该再请求一次，实际请求 %v", requests.paths)
+			}
+		})
 	}
 }
 
-// TestCapturedPreviewReachesThePreviewPane checks the whole path the user sees:
-// the captured item renders its picture or excerpt rather than the "no
-// preview" note.
-func TestCapturedPreviewReachesThePreviewPane(t *testing.T) {
-	imageItem := capturedFile(t, writeTestFile(t, "screenshot.png", fileTestPNG(t)))
-	imageApp := fileApp(imageItem)
-	tt := ui.NewTester(imageApp.view, defaultWindowWidth, 720)
-	if tt.HasText(imageApp.t(msgHistoryFilePreviewGone)) {
-		t.Errorf("带缩略图的图片文件不该显示「无预览」提示，实际显示：%q", tt.Texts())
-	}
-	if bitmap := imageApp.filePreviewBitmap(imageItem); bitmap == nil {
-		t.Errorf("图片文件的缩略图应能解码成位图")
-	}
+// TestFilePreviewShowsTheFilesText checks the text path: selecting a text-like
+// file shows the file's own content, not a shortened excerpt of it.
+func TestFilePreviewShowsTheFilesText(t *testing.T) {
+	body := "# 标题\n\n正文第一段\n正文第二段\n"
+	path := writeTestFile(t, "notes.md", []byte(body))
+	item := fileItem("file-notes", path, int64(len(body)))
+	app, _ := fileAppWithPreview(item)
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
 
-	textItem := capturedFile(t, writeTestFile(t, "notes.md", []byte("# 标题\n\n正文\n")))
-	app := fileApp(textItem)
-	tt = ui.NewTester(app.view, defaultWindowWidth, 720)
-	if !tt.HasText("# 标题") {
-		t.Errorf("文本文件的摘录应显示在预览区，实际显示：%q", tt.Texts())
+	app.applyFilePreview(item.ID, filepreview.Generate(path))
+	tt.Frame()
+	if !tt.HasText("# 标题") || !tt.HasText("正文第二段") {
+		t.Errorf("预览区应显示文件内容，实际显示：%q", tt.Texts())
 	}
 	if tt.HasText(app.t(msgHistoryFilePreviewGone)) {
-		t.Errorf("带摘录的文本文件不该显示「无预览」提示，实际显示：%q", tt.Texts())
+		t.Errorf("有内容的文本文件不该显示「无预览」提示，实际显示：%q", tt.Texts())
 	}
 }
 
-// TestOtherKindsKeepTheirOwnPayload checks that the preview step only touches
-// file items: a text copy has no file payload to preview and must not gain one.
-func TestOtherKindsKeepTheirOwnPayload(t *testing.T) {
-	text := history.Item{ID: "text-1", Kind: kindText, Text: "hello"}
-	if got := withFilePreview(text); got.FilePreview != nil {
-		t.Errorf("文本条目不该带文件预览，实际 %#v", got.FilePreview)
+// TestFilePreviewKeepsTheNoteWhenThereIsNothingToShow checks the failure path:
+// a file that cannot be previewed falls back to the note, and is not asked for
+// again on every frame.
+func TestFilePreviewKeepsTheNoteWhenThereIsNothingToShow(t *testing.T) {
+	path := writeTestFile(t, "broken.png", []byte("not an image"))
+	item := fileItem("file-broken", path, 12)
+	app, requests := fileAppWithPreview(item)
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
+
+	app.applyFilePreview(item.ID, filepreview.Generate(path))
+	tt.Frame()
+	if !tt.HasText(app.t(msgHistoryFilePreviewGone)) {
+		t.Errorf("生成不出内容时应显示「无法预览此文件」，实际显示：%q", tt.Texts())
+	}
+	tt.Frame()
+	if len(requests.paths) != 1 {
+		t.Errorf("生成不出内容时不该反复请求，实际请求 %v", requests.paths)
+	}
+}
+
+// TestFilePreviewSkipsFormatsItCannotShow checks that a file with nothing to
+// preview never starts a background task: an archive or a font is not read.
+func TestFilePreviewSkipsFormatsItCannotShow(t *testing.T) {
+	app, requests := fileAppWithPreview(fileItem("file-export", "~/Desktop/design-export.zip", 18_874_368))
+	tt := ui.NewTester(app.view, defaultWindowWidth, 720)
+	if len(requests.paths) != 0 {
+		t.Errorf("压缩包不该请求生成预览，实际请求 %v", requests.paths)
+	}
+	if !tt.HasText(app.t(msgHistoryFilePreviewGone)) {
+		t.Errorf("压缩包应显示「无法预览此文件」，实际显示：%q", tt.Texts())
+	}
+}
+
+// TestFilePreviewUsesTheFirstOfSeveralFiles checks a multi-file copy: the
+// preview is built from the first path, the same file the list row names.
+func TestFilePreviewUsesTheFirstOfSeveralFiles(t *testing.T) {
+	first := writeTestFile(t, "first.txt", []byte("第一个文件\n"))
+	second := writeTestFile(t, "second.png", fileTestPNG(t))
+	app, requests := fileAppWithPreview(fileItem("file-many", first+"\n"+second, 2048))
+	ui.NewTester(app.view, defaultWindowWidth, 720)
+	if len(requests.paths) != 1 || requests.paths[0] != first {
+		t.Errorf("应只请求第一个文件的预览，实际请求 %v", requests.paths)
+	}
+}
+
+// TestNonFileItemsNeverAskForAPreview checks that the on-demand step belongs to
+// file items alone: a text copy has no file to read.
+func TestNonFileItemsNeverAskForAPreview(t *testing.T) {
+	app := newApplication()
+	called := false
+	app.onFilePreview = func(string, string) { called = true }
+	app.history = history.New([]history.Item{{
+		ID:        "text-1",
+		Kind:      kindText,
+		Text:      "hello",
+		CreatedAt: time.Date(2020, 3, 4, 5, 6, 7, 0, time.Local),
+	}})
+	app.pairedDevices = nil
+
+	ui.NewTester(app.view, defaultWindowWidth, 720)
+	if called {
+		t.Error("文本条目不该请求文件预览")
 	}
 }
 

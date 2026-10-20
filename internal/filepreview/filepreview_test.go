@@ -92,16 +92,16 @@ func TestGenerateThumbnailsImages(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			preview := Generate(writeFile(t, tc.file, tc.data))
-			if preview == nil || preview.Image == nil {
+			if preview == nil || len(preview.PNG) == 0 {
 				t.Fatalf("%s 应生成图片预览", tc.name)
 			}
 			if preview.Text != "" {
-				t.Errorf("图片预览不该带文本摘录，实际 %q", preview.Text)
+				t.Errorf("图片预览不该带文本内容，实际 %q", preview.Text)
 			}
-			if preview.Image.Width != 4 || preview.Image.Height != 3 {
-				t.Errorf("缩略图尺寸 = %dx%d，期望 4x3（小图不放大）", preview.Image.Width, preview.Image.Height)
+			if preview.Width != 4 || preview.Height != 3 {
+				t.Errorf("缩略图尺寸 = %dx%d，期望 4x3（小图不放大）", preview.Width, preview.Height)
 			}
-			cfg, format, err := image.DecodeConfig(bytes.NewReader(preview.Image.PNG))
+			cfg, format, err := image.DecodeConfig(bytes.NewReader(preview.PNG))
 			if err != nil || format != "png" {
 				t.Fatalf("缩略图载荷应是可解码的 PNG，实际 format=%q err=%v", format, err)
 			}
@@ -118,23 +118,23 @@ func TestGenerateDownscalesToTheLongEdge(t *testing.T) {
 	big := solidImage(2000, 1000, red, blue)
 	path := writeFile(t, "wide.png", encode(t, func(b *bytes.Buffer) error { return png.Encode(b, big) }))
 	preview := Generate(path)
-	if preview == nil || preview.Image == nil {
+	if preview == nil || len(preview.PNG) == 0 {
 		t.Fatal("大图应生成图片预览")
 	}
-	if preview.Image.Width != thumbLongEdge || preview.Image.Height != thumbLongEdge/2 {
+	if preview.Width != thumbLongEdge || preview.Height != thumbLongEdge/2 {
 		t.Errorf("缩略图尺寸 = %dx%d，期望 %dx%d",
-			preview.Image.Width, preview.Image.Height, thumbLongEdge, thumbLongEdge/2)
+			preview.Width, preview.Height, thumbLongEdge, thumbLongEdge/2)
 	}
 
 	tall := solidImage(1000, 2000, red, blue)
 	path = writeFile(t, "tall.png", encode(t, func(b *bytes.Buffer) error { return png.Encode(b, tall) }))
 	preview = Generate(path)
-	if preview == nil || preview.Image == nil {
+	if preview == nil || len(preview.PNG) == 0 {
 		t.Fatal("竖图应生成图片预览")
 	}
-	if preview.Image.Width != thumbLongEdge/2 || preview.Image.Height != thumbLongEdge {
+	if preview.Width != thumbLongEdge/2 || preview.Height != thumbLongEdge {
 		t.Errorf("竖图缩略图尺寸 = %dx%d，期望 %dx%d",
-			preview.Image.Width, preview.Image.Height, thumbLongEdge/2, thumbLongEdge)
+			preview.Width, preview.Height, thumbLongEdge/2, thumbLongEdge)
 	}
 }
 
@@ -163,13 +163,13 @@ func TestGenerateAppliesJPEGOrientation(t *testing.T) {
 
 	// Orientation 6 means "rotate 90° clockwise for display".
 	upright := Generate(writeFile(t, "portrait.jpg", withOrientation(t, data, 6)))
-	if upright == nil || upright.Image == nil {
+	if upright == nil || len(upright.PNG) == 0 {
 		t.Fatal("带 EXIF 方向的 JPEG 应生成图片预览")
 	}
-	if upright.Image.Width != 4 || upright.Image.Height != 8 {
-		t.Fatalf("旋正后的缩略图尺寸 = %dx%d，期望 4x8", upright.Image.Width, upright.Image.Height)
+	if upright.Width != 4 || upright.Height != 8 {
+		t.Fatalf("旋正后的缩略图尺寸 = %dx%d，期望 4x8", upright.Width, upright.Height)
 	}
-	img, _, err := image.Decode(bytes.NewReader(upright.Image.PNG))
+	img, _, err := image.Decode(bytes.NewReader(upright.PNG))
 	if err != nil {
 		t.Fatalf("解码缩略图失败: %v", err)
 	}
@@ -182,16 +182,16 @@ func TestGenerateAppliesJPEGOrientation(t *testing.T) {
 
 	// The same bytes without the tag keep their stored orientation.
 	plain := Generate(writeFile(t, "landscape.jpg", data))
-	if plain == nil || plain.Image == nil {
+	if plain == nil || len(plain.PNG) == 0 {
 		t.Fatal("无 EXIF 方向的 JPEG 应生成图片预览")
 	}
-	if plain.Image.Width != 8 || plain.Image.Height != 4 {
-		t.Errorf("无方向标记时缩略图尺寸 = %dx%d，期望 8x4", plain.Image.Width, plain.Image.Height)
+	if plain.Width != 8 || plain.Height != 4 {
+		t.Errorf("无方向标记时缩略图尺寸 = %dx%d，期望 8x4", plain.Width, plain.Height)
 	}
 }
 
-// TestGenerateTextExcerpt covers the text path: the start of a text-like file
-// becomes the preview, whatever the code or markup format.
+// TestGenerateTextPreview covers the text path: a text-like file is previewed as
+// its own content, whatever the code or markup format.
 func TestGenerateTextExcerpt(t *testing.T) {
 	cases := []struct{ name, body string }{
 		{"notes.txt", "第一行\n第二行\n"},
@@ -205,62 +205,76 @@ func TestGenerateTextExcerpt(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			preview := Generate(writeFile(t, tc.name, []byte(tc.body)))
 			if preview == nil {
-				t.Fatalf("%s 应生成文本摘录", tc.name)
+				t.Fatalf("%s 应生成文本预览", tc.name)
 			}
-			if preview.Image != nil {
+			if len(preview.PNG) != 0 {
 				t.Errorf("文本预览不该带图片载荷")
 			}
 			if got, want := preview.Text, strings.TrimRight(tc.body, "\n"); got != want {
-				t.Errorf("摘录 = %q，期望 %q", got, want)
+				t.Errorf("文本预览 = %q，期望 %q", got, want)
 			}
 		})
 	}
 }
 
-// TestTextExcerptLimits checks the bounds the excerpt keeps: a long file is cut
-// to the line and rune limits with a marker, so one minified file cannot turn
-// the preview into a wall of text.
-func TestTextExcerptLimits(t *testing.T) {
+// TestTextPreviewShowsTheWholeFile checks that a preview is the file, not an
+// excerpt of it: a long document is shown to the end, and only a file past the
+// read bound is cut, with a marker.
+func TestTextPreviewShowsTheWholeFile(t *testing.T) {
 	var manyLines strings.Builder
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 400; i++ {
 		manyLines.WriteString("line\n")
 	}
 	preview := Generate(writeFile(t, "many.txt", []byte(manyLines.String())))
 	if preview == nil {
-		t.Fatal("多行文本应生成摘录")
+		t.Fatal("多行文本应生成预览")
 	}
-	if lines := strings.Count(preview.Text, "\n") + 1; lines != excerptLines {
-		t.Errorf("摘录行数 = %d，期望 %d", lines, excerptLines)
-	}
-	if !strings.HasSuffix(preview.Text, ellipsis) {
-		t.Errorf("截断的摘录应以 %q 结尾，实际 %q", ellipsis, preview.Text[len(preview.Text)-10:])
+	if got, want := preview.Text, strings.TrimRight(manyLines.String(), "\n"); got != want {
+		t.Errorf("预览应显示整份文本，实际 %d 行", strings.Count(got, "\n")+1)
 	}
 
-	long := strings.Repeat("字", excerptRunes*2)
+	// Just past the read bound: the preview stops there and says so.
+	long := strings.Repeat("a", maxTextBytes+100)
 	preview = Generate(writeFile(t, "long.md", []byte(long)))
 	if preview == nil {
-		t.Fatal("长行文本应生成摘录")
+		t.Fatal("超长文本应生成预览")
 	}
-	if got := len([]rune(strings.TrimSuffix(preview.Text, ellipsis))); got != excerptRunes {
-		t.Errorf("摘录 rune 数 = %d，期望 %d", got, excerptRunes)
+	if !strings.HasSuffix(preview.Text, ellipsis) {
+		t.Errorf("被截断的预览应以 %q 结尾", ellipsis)
+	}
+	if got := len(strings.TrimSuffix(preview.Text, ellipsis)); got != maxTextBytes {
+		t.Errorf("预览长度 = %d 字节，期望 %d", got, maxTextBytes)
+	}
+
+	// Short lines reach the line bound before the byte bound, and stop there.
+	short := strings.Repeat("x\n", maxTextLines+500)
+	preview = Generate(writeFile(t, "short-lines.txt", []byte(short)))
+	if preview == nil {
+		t.Fatal("短行文本应生成预览")
+	}
+	if got := strings.Count(preview.Text, "\n") + 1; got != maxTextLines {
+		t.Errorf("预览行数 = %d，期望 %d", got, maxTextLines)
+	}
+	if !strings.HasSuffix(preview.Text, ellipsis) {
+		t.Errorf("被截断的预览应以 %q 结尾", ellipsis)
 	}
 }
 
-// TestTextExcerptSurvivesATruncatedRune checks the byte bound: cutting the
-// prefix inside a multi-byte character must not make a Chinese file read as
-// binary. The half character is dropped, the rest of the excerpt survives.
-func TestTextExcerptSurvivesATruncatedRune(t *testing.T) {
+// TestTextPreviewSurvivesATruncatedRune checks the byte bound: cutting the read
+// inside a multi-byte character must not make a Chinese file read as binary. The
+// half character is dropped, the rest of the text survives.
+func TestTextPreviewSurvivesATruncatedRune(t *testing.T) {
 	// Two bytes of a three-byte character sit exactly at the read bound.
-	body := strings.Repeat("a", excerptBytes-2) + "中" + "\n尾行"
+	body := strings.Repeat("a", maxTextBytes-2) + "中" + "\n尾行"
 	preview := Generate(writeFile(t, "cut.txt", []byte(body)))
 	if preview == nil {
-		t.Fatal("截断处落在多字节字符中间时仍应生成摘录")
+		t.Fatal("截断处落在多字节字符中间时仍应生成预览")
 	}
 	if strings.ContainsRune(preview.Text, '中') {
-		t.Errorf("被截断的半个字符不该出现在摘录里，实际尾部 %q", preview.Text[len(preview.Text)-6:])
+		t.Errorf("被截断的半个字符不该出现在预览里，实际尾部 %q", preview.Text[len(preview.Text)-6:])
 	}
 	if !strings.HasPrefix(preview.Text, "aaa") {
-		t.Errorf("摘录应保留截断点之前的内容，实际 %q", preview.Text[:10])
+		t.Errorf("预览应保留截断点之前的内容，实际 %q", preview.Text[:10])
 	}
 }
 

@@ -70,10 +70,6 @@ func fixture() history.Item {
 		CreatedAt:      time.Date(2026, time.March, 4, 5, 6, 7, 891_000_000, time.UTC),
 		Favorite:       true,
 		Sync:           history.SyncStatePartial,
-		FilePreview: &history.FilePreview{
-			Image: &history.Image{PNG: []byte{0x89, 'P', 'N', 'G', 0x01}, Width: 64, Height: 48},
-			Text:  "第一行摘录",
-		},
 		Deliveries: []history.DeviceDelivery{
 			{DeviceID: "peer-a", State: history.DeliveryReceived},
 			{DeviceID: "peer-b", State: history.DeliveryOffline},
@@ -150,57 +146,6 @@ func TestRoundTripStoresRichTextMarkup(t *testing.T) {
 	}
 	if !reflect.DeepEqual(normalized(got[0]), normalized(want)) {
 		t.Errorf("round trip lost the markup:\n got %#v\nwant %#v", normalized(got[0]), normalized(want))
-	}
-}
-
-func TestRoundTripStoresFilePreviews(t *testing.T) {
-	base := time.UnixMilli(1_700_000_000_000).UTC()
-	cases := []struct {
-		name    string
-		preview *history.FilePreview
-		want    *history.FilePreview
-	}{
-		{
-			name:    "图片缩略图",
-			preview: &history.FilePreview{Image: &history.Image{PNG: []byte{0x89, 'P', 'N', 'G'}, Width: 640, Height: 480}},
-			want:    &history.FilePreview{Image: &history.Image{PNG: []byte{0x89, 'P', 'N', 'G'}, Width: 640, Height: 480}},
-		},
-		{
-			name:    "文本摘录",
-			preview: &history.FilePreview{Text: "第一行摘录\n第二行"},
-			want:    &history.FilePreview{Text: "第一行摘录\n第二行"},
-		},
-		{
-			name:    "没有预览",
-			preview: nil,
-			want:    nil,
-		},
-		{
-			name:    "空预览",
-			preview: &history.FilePreview{},
-			want:    nil,
-		},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			repository := openMemory(t)
-			want := history.Item{
-				ID:          "file-1",
-				Kind:        history.KindFile,
-				Text:        "/tmp/notes.md",
-				CreatedAt:   base,
-				FilePreview: tc.preview,
-			}
-			mustPut(t, repository, want)
-
-			got := mustLoad(t, repository)
-			if len(got) != 1 {
-				t.Fatalf("Load() returned %d items, want 1", len(got))
-			}
-			if !reflect.DeepEqual(got[0].FilePreview, tc.want) {
-				t.Errorf("FilePreview = %#v, want %#v", got[0].FilePreview, tc.want)
-			}
-		})
 	}
 }
 
@@ -407,28 +352,6 @@ func TestOpenMigratesVersionOneDatabase(t *testing.T) {
 	for _, item := range got {
 		if item.ID == want.ID && item.HTML != want.HTML {
 			t.Errorf("HTML after the upgrade = %q, want %q", item.HTML, want.HTML)
-		}
-	}
-
-	// The same goes for the preview columns a later step adds: a row written
-	// before they existed reads back without a preview, and a new one keeps
-	// the preview it was given.
-	for _, item := range got {
-		if item.ID == "legacy" && item.FilePreview != nil {
-			t.Errorf("legacy FilePreview = %#v, want nil", item.FilePreview)
-		}
-	}
-	withPreview := history.Item{
-		ID:          "file-1",
-		Kind:        history.KindFile,
-		Text:        "/tmp/notes.md",
-		CreatedAt:   time.UnixMilli(1_700_000_002_000).UTC(),
-		FilePreview: &history.FilePreview{Text: "第一行摘录"},
-	}
-	mustPut(t, repository, withPreview)
-	for _, item := range mustLoad(t, repository) {
-		if item.ID == withPreview.ID && (item.FilePreview == nil || item.FilePreview.Text != "第一行摘录") {
-			t.Errorf("FilePreview after the upgrade = %#v, want the stored excerpt", item.FilePreview)
 		}
 	}
 }
