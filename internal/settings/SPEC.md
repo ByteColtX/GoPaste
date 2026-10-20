@@ -33,6 +33,7 @@ tags:
   "sync": {
     "enabled": false,
     "autoSend": false,
+    "sound": "off",
     "files": {
       "enabled": false,
       "dir": "/Users/me/GoPasteFiles",
@@ -62,9 +63,10 @@ tags:
 - `fileSyncMaxMB` 是单个文件项发往另一台设备的体积上限（MiB）。缺省或小于 1 时
   取默认 2048；没有「不限」这一档，因为 0 意味着「什么都传不了」，不是一个可表达的
   选择。改回默认值时同样不写进文件。上限在界面上的位置与即时生效见 `gopaste`。
-- `sync` 存同步页的全部选择：总开关（`enabled`）、自动发送（`autoSend`）与文件同步
-  那一段（`files`）。默认值为「开」的开关用 `*bool`：缺字段就是开，写 `false` 才是用户
-  关过；与 `ui.confirmDelete` 同一套写法。全是默认值时整个对象不写进文件。
+- `sync` 存同步页的全部选择：总开关（`enabled`）、自动发送（`autoSend`）、提示音
+  （`sound`）与文件同步那一段（`files`）。默认值为「开」的开关用 `*bool`：缺字段就是开，
+  写 `false` 才是用户关过；与 `ui.confirmDelete` 同一套写法。全是默认值时整个对象不写
+  进文件。
   - `files.dir` 是收到的文件落盘的目录，空表示用应用自己的默认位置；改它只影响之后
     收到的文件，所以文件里只记当前选择，不记历史目录。
   - `files.quotaMB` 是收到的文件缓存上限（MiB），缺省或小于 1 时取默认 2048。没有
@@ -74,6 +76,8 @@ tags:
     等于把老用户的期限静默关掉。
   - `files.autoClean` 是自动清理开关，只决定过期文件要不要自动删；配额是上限，不受它
     影响（见 `gopaste`）。
+  - `sound` 是提示音档位：`"off"`、`"sync"`（缺省）或 `"all"`。默认档不写进文件；
+    认不出的取值由应用回退到 `"sync"`，与其它字段一样不让整份文件读失败。
 - `fileSyncMaxMB` 与 `sync.files.quotaMB` 是两个不同的上限：前者管单个文件项，后者管
   收到的文件一共能占多少盘。两者都用「缺省即默认、默认不落盘」的写法。
 - 配对码不在这里：配对由 `internal/lansync` 的设备页流程完成，配对结果落在
