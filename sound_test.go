@@ -2,6 +2,7 @@ package main
 
 import (
 	"math"
+	"slices"
 	"testing"
 	"time"
 
@@ -44,47 +45,40 @@ func TestSoundModeNames(t *testing.T) {
 	}
 }
 
-// TestPlayArrivalChime 检查「响不响」只有一套规则：档位决定哪种到达算数，合并窗口
-// 决定连发的多条合成一声。
+// TestPlayArrivalChime 检查「响不响」只有一套规则：档位决定哪种到达算数，除此之外
+// 一律立刻响，没有合并窗口、也不延迟。
 func TestPlayArrivalChime(t *testing.T) {
-	base := time.Date(2026, 10, 20, 9, 0, 0, 0, time.UTC)
 	for _, tc := range []struct {
 		name     string
 		mode     soundMode
 		fromSync bool
-		gap      time.Duration
 		want     int
 	}{
-		{name: "关闭时同步到达也不响", mode: soundOff, fromSync: true, gap: time.Hour, want: 0},
-		{name: "关闭时本机复制也不响", mode: soundOff, fromSync: false, gap: time.Hour, want: 0},
-		{name: "仅同步时同步到达响", mode: soundSync, fromSync: true, gap: time.Hour, want: 1},
-		{name: "仅同步时本机复制不响", mode: soundSync, fromSync: false, gap: time.Hour, want: 0},
-		{name: "所有新内容时本机复制响", mode: soundAll, fromSync: false, gap: time.Hour, want: 1},
-		{name: "所有新内容时同步到达也响", mode: soundAll, fromSync: true, gap: time.Hour, want: 1},
-		{name: "合并窗口内不重复响", mode: soundSync, fromSync: true, gap: chimeWindow - time.Millisecond, want: 0},
-		{name: "刚好过了窗口就响", mode: soundSync, fromSync: true, gap: chimeWindow, want: 1},
+		{name: "关闭时同步到达也不响", mode: soundOff, fromSync: true, want: 0},
+		{name: "关闭时本机复制也不响", mode: soundOff, fromSync: false, want: 0},
+		{name: "仅同步时同步到达响", mode: soundSync, fromSync: true, want: 1},
+		{name: "仅同步时本机复制不响", mode: soundSync, fromSync: false, want: 0},
+		{name: "所有新内容时本机复制响", mode: soundAll, fromSync: false, want: 1},
+		{name: "所有新内容时同步到达也响", mode: soundAll, fromSync: true, want: 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			sound := &recordingSound{}
 			app := newApplication()
 			app.soundMode = tc.mode
 			app.sound = sound
-			app.lastChime = base
 
-			app.playArrivalChime(tc.fromSync, base.Add(tc.gap))
+			app.playArrivalChime(tc.fromSync)
 
 			if sound.plays != tc.want {
 				t.Errorf("响了 %d 次，期望 %d 次", sound.plays, tc.want)
-			}
-			if tc.want == 1 && !app.lastChime.Equal(base.Add(tc.gap)) {
-				t.Errorf("合并窗口没有前移到 %v，而是 %v", base.Add(tc.gap), app.lastChime)
 			}
 		})
 	}
 }
 
-// TestReceiveClipChimesOnce 检查对方连发两条内容只响一声，隔开足够久再收到就再响。
-func TestReceiveClipChimesOnce(t *testing.T) {
+// TestReceiveClipChimesEveryArrival 检查对方连发两条就响两声：每条到达都是独立的
+// 「刚进来了东西」，不合并成一声。
+func TestReceiveClipChimesEveryArrival(t *testing.T) {
 	app, _ := syncApp()
 	sound := &recordingSound{}
 	app.sound = sound
@@ -93,15 +87,9 @@ func TestReceiveClipChimesOnce(t *testing.T) {
 
 	app.receiveClip(textClip("第一条"), from)
 	app.receiveClip(textClip("第二条"), from)
-	if sound.plays != 1 {
-		t.Fatalf("连发两条响了 %d 次，期望 1 次", sound.plays)
-	}
 
-	// 越过合并窗口后再到达一次：窗口按真实时间算，这里把上次时刻挪到窗口之前。
-	app.lastChime = time.Now().Add(-2 * chimeWindow)
-	app.receiveClip(textClip("第三条"), from)
 	if sound.plays != 2 {
-		t.Fatalf("窗口之外再到达后共响 %d 次，期望 2 次", sound.plays)
+		t.Fatalf("连发两条响了 %d 次，期望 2 次", sound.plays)
 	}
 }
 
@@ -190,5 +178,27 @@ func TestChimeSamples(t *testing.T) {
 	}
 	if last := samples[len(samples)-1]; math.Abs(float64(last)) > 0.001 {
 		t.Errorf("最后一个样本 = %v，淡出没有收在静音", last)
+	}
+}
+
+// interruptingPlayer 记下自己被停掉的那一刻，按发生顺序写进共享的事件表。
+type interruptingPlayer struct{ events *[]string }
+
+func (p interruptingPlayer) Stop() { *p.events = append(*p.events, "stop") }
+
+// TestChimeInterruptsThePreviousSound 检查新的一声先把上一声停掉再播：连发时听到的
+// 是几声分开的响，而不是叠在一起的一团。
+func TestChimeInterruptsThePreviousSound(t *testing.T) {
+	var events []string
+	c := &chime{newPlayer: func() chimePlayer {
+		events = append(events, "play")
+		return interruptingPlayer{events: &events}
+	}}
+
+	c.Play()
+	c.Play()
+
+	if want := []string{"play", "stop", "play"}; !slices.Equal(events, want) {
+		t.Errorf("事件顺序 = %v，期望 %v", events, want)
 	}
 }

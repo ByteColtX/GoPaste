@@ -882,7 +882,7 @@ func (a *application) receiveClip(clip lansync.Clip, from lansync.Device) {
 		}
 	}
 	// 内容已经落到剪贴板，算一次到达：装载历史期间收到的也一样响。
-	a.playArrivalChime(true, time.Now())
+	a.playArrivalChime(true)
 	if !a.historyReady {
 		if len(a.pendingClips) < maxPendingClips {
 			a.pendingClips = append(a.pendingClips, item)

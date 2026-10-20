@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	"time"
 
 	"gopaste/internal/capture"
 	"gopaste/internal/clipboard"
@@ -328,7 +327,7 @@ func (a *application) appendCaptured(item history.Item) {
 		return
 	}
 	// 本机复制到的新内容：只有「所有新内容」档位才响，回声写入已在上一步返回。
-	a.playArrivalChime(false, time.Now())
+	a.playArrivalChime(false)
 	if err := a.history.Append(item); err != nil {
 		return
 	}
