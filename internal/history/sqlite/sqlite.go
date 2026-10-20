@@ -68,6 +68,15 @@ CREATE TABLE history_deliveries (
 	`
 ALTER TABLE history_items ADD COLUMN html TEXT NOT NULL DEFAULT '';
 `,
+	// v3 adds the preview a file payload carries: a downscaled picture or a
+	// short excerpt, materialised once where the content landed. The file's own
+	// bytes stay on disk, so a row keeps only what the preview pane draws.
+	`
+ALTER TABLE history_items ADD COLUMN file_preview_png BLOB;
+ALTER TABLE history_items ADD COLUMN file_preview_width INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE history_items ADD COLUMN file_preview_height INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE history_items ADD COLUMN file_preview_text TEXT NOT NULL DEFAULT '';
+`,
 }
 
 // Repository is a history.Repository backed by a local SQLite database.
@@ -114,7 +123,9 @@ func Open(ctx context.Context, path string) (*Repository, error) {
 func (r *Repository) Load(ctx context.Context) ([]history.Item, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, kind, content, html, image_png, image_width, image_height,
-		        file_size, source_device_id, created_at_ms, favorite, sync_state
+		        file_size, source_device_id, created_at_ms, favorite, sync_state,
+		        file_preview_png, file_preview_width, file_preview_height,
+		        file_preview_text
 		 FROM history_items
 		 ORDER BY created_at_ms DESC, rowid DESC`)
 	if err != nil {
@@ -159,20 +170,26 @@ func (r *Repository) Put(ctx context.Context, items ...history.Item) error {
 	upsertItem, err := tx.PrepareContext(ctx, `
 		INSERT INTO history_items (
 			id, kind, content, html, image_png, image_width, image_height,
-			file_size, source_device_id, created_at_ms, favorite, sync_state
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			file_size, source_device_id, created_at_ms, favorite, sync_state,
+			file_preview_png, file_preview_width, file_preview_height,
+			file_preview_text
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT (id) DO UPDATE SET
-			kind             = excluded.kind,
-			content          = excluded.content,
-			html             = excluded.html,
-			image_png        = excluded.image_png,
-			image_width      = excluded.image_width,
-			image_height     = excluded.image_height,
-			file_size        = excluded.file_size,
-			source_device_id = excluded.source_device_id,
-			created_at_ms    = excluded.created_at_ms,
-			favorite         = excluded.favorite,
-			sync_state       = excluded.sync_state`)
+			kind                = excluded.kind,
+			content             = excluded.content,
+			html                = excluded.html,
+			image_png           = excluded.image_png,
+			image_width         = excluded.image_width,
+			image_height        = excluded.image_height,
+			file_size           = excluded.file_size,
+			source_device_id    = excluded.source_device_id,
+			created_at_ms       = excluded.created_at_ms,
+			favorite            = excluded.favorite,
+			sync_state          = excluded.sync_state,
+			file_preview_png    = excluded.file_preview_png,
+			file_preview_width  = excluded.file_preview_width,
+			file_preview_height = excluded.file_preview_height,
+			file_preview_text   = excluded.file_preview_text`)
 	if err != nil {
 		return fmt.Errorf("history/sqlite: put items: %w", err)
 	}
@@ -204,6 +221,7 @@ func (r *Repository) Put(ctx context.Context, items ...history.Item) error {
 			width = item.Image.Width
 			height = item.Image.Height
 		}
+		previewPNG, previewWidth, previewHeight, previewText := previewColumns(item.FilePreview)
 		if _, err := upsertItem.ExecContext(ctx,
 			item.ID,
 			int(item.Kind),
@@ -217,6 +235,10 @@ func (r *Repository) Put(ctx context.Context, items ...history.Item) error {
 			item.CreatedAt.UnixMilli(),
 			boolToInt(item.Favorite),
 			int(item.Sync),
+			previewPNG,
+			previewWidth,
+			previewHeight,
+			previewText,
 		); err != nil {
 			return fmt.Errorf("history/sqlite: put item %s: %w", item.ID, err)
 		}
@@ -392,14 +414,18 @@ func dataSourceName(path string) string {
 
 func scanItem(rows *sql.Rows) (history.Item, error) {
 	var (
-		item      history.Item
-		kind      int
-		png       []byte
-		width     int
-		height    int
-		createdMS int64
-		favorite  int
-		syncState int
+		item          history.Item
+		kind          int
+		png           []byte
+		width         int
+		height        int
+		createdMS     int64
+		favorite      int
+		syncState     int
+		previewPNG    []byte
+		previewWidth  int
+		previewHeight int
+		previewText   string
 	)
 	if err := rows.Scan(
 		&item.ID,
@@ -414,6 +440,10 @@ func scanItem(rows *sql.Rows) (history.Item, error) {
 		&createdMS,
 		&favorite,
 		&syncState,
+		&previewPNG,
+		&previewWidth,
+		&previewHeight,
+		&previewText,
 	); err != nil {
 		return history.Item{}, fmt.Errorf("history/sqlite: read item row: %w", err)
 	}
@@ -421,10 +451,39 @@ func scanItem(rows *sql.Rows) (history.Item, error) {
 	if png != nil {
 		item.Image = &history.Image{PNG: png, Width: width, Height: height}
 	}
+	item.FilePreview = previewFromColumns(previewPNG, previewWidth, previewHeight, previewText)
 	item.CreatedAt = time.UnixMilli(createdMS).UTC()
 	item.Favorite = favorite != 0
 	item.Sync = history.SyncState(syncState)
 	return item, nil
+}
+
+// previewColumns flattens a file preview into the columns that store it. A nil
+// preview, and one with neither a picture nor an excerpt, store nothing, which
+// reads back as nil.
+func previewColumns(preview *history.FilePreview) (png []byte, width, height int, text string) {
+	if preview == nil {
+		return nil, 0, 0, ""
+	}
+	if preview.Image != nil && len(preview.Image.PNG) > 0 {
+		png = preview.Image.PNG
+		width = preview.Image.Width
+		height = preview.Image.Height
+	}
+	return png, width, height, preview.Text
+}
+
+// previewFromColumns rebuilds a stored preview. Empty columns mean the item has
+// no preview, which is how every row written before previews existed loads.
+func previewFromColumns(png []byte, width, height int, text string) *history.FilePreview {
+	if png == nil && text == "" {
+		return nil
+	}
+	preview := &history.FilePreview{Text: text}
+	if png != nil {
+		preview.Image = &history.Image{PNG: png, Width: width, Height: height}
+	}
+	return preview
 }
 
 func boolToInt(value bool) int {
