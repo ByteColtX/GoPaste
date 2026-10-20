@@ -281,6 +281,12 @@ type application struct {
 	syncEnabled     bool
 	autoSendEnabled bool
 	fileSyncEnabled bool
+	// soundMode 是同步页的提示音档位，sound 是它的出口（nil 表示不响：测试默认
+	// 如此，不会在 CI 上出声）。lastChime 是上一次响的时刻，用来把连发的内容
+	// 合并成一声，见 playArrivalChime。
+	soundMode soundMode
+	sound     soundPlayer
+	lastChime time.Time
 	// fileSyncDir 是用户选的文件保存位置，空表示用 fileSyncDirDefault。
 	// receivedFilesDir 是当前真正落盘的那个根目录：它是两者之一，同步服务、用量
 	// 统计与清理都看它。

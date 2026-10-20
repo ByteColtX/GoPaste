@@ -209,3 +209,32 @@ func TestEveryPageRenders(t *testing.T) {
 		tt.Frame()
 	}
 }
+
+// TestSyncSettingsSoundRow 检查同步页的提示音行：三档都渲染出来，默认停在「仅同步」，
+// 点选另一档会改内存状态（测试器不在主线程上，落盘由 settingsPath 为空跳过）。
+func TestSyncSettingsSoundRow(t *testing.T) {
+	app := previewApp("")
+	app.setPage(pageSettings)
+	app.settingsArea = settingsSync
+	app.soundMode = soundSync
+
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	for _, want := range []string{
+		app.t(msgSettingsSound),
+		app.t(msgSettingsSoundOff),
+		app.t(msgSettingsSoundSync),
+		app.t(msgSettingsSoundAll),
+	} {
+		if !tt.HasText(want) {
+			t.Errorf("同步页应显示 %q，实际显示：%q", want, tt.Texts())
+		}
+	}
+
+	if err := tt.Click(app.t(msgSettingsSoundAll)); err != nil {
+		t.Fatalf("点击「所有新内容」失败：%v", err)
+	}
+	tt.Frame()
+	if app.soundMode != soundAll {
+		t.Errorf("点击后档位 = %v，期望 %v", app.soundMode, soundAll)
+	}
+}

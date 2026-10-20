@@ -215,6 +215,25 @@ func (a *application) syncSettings(c *ui.Context, theme *ui.Theme) {
 				a.setAutoSendEnabled(a.autoSendEnabled)
 			}
 		})
+		settingsRule(c, theme)
+		// 提示音不跟总开关联动置灰：「所有新内容」管的是本机捕获，同步关着也照样
+		// 有意义。
+		a.settingsRow(c, theme, a.t(msgSettingsSound), a.t(msgSettingsSoundDesc), func() {
+			selected := int(a.soundMode)
+			control := segmentedField(c, theme, "settings-sound", &selected, a.t(msgSettingsSound), []string{
+				a.t(msgSettingsSoundOff),
+				a.t(msgSettingsSoundSync),
+				a.t(msgSettingsSoundAll),
+			}).Height(controlHeightSize(c, theme, controlHeight))
+			if a.compactDetailLayout(c, theme) {
+				control.FillWidth()
+			} else {
+				control.Width(320)
+			}
+			if control.Changed() {
+				a.setSoundMode(soundMode(selected))
+			}
+		})
 	})
 
 	a.settingsSubheading(c, a.t(msgSettingsSyncFiles), theme)
