@@ -362,11 +362,14 @@ func TestSaveLoadRoundTripFileSyncLimit(t *testing.T) {
 }
 
 // TestSyncDefaultsWhenAbsent 检查没有 sync 对象时每一项都读成默认：开关全开、
-// 配额 2 GB、期限 24 小时、目录留空交给应用自己决定。
+// 配额 2 GB、期限 24 小时、目录留空交给应用自己决定、提示音只在同步到达时响。
 func TestSyncDefaultsWhenAbsent(t *testing.T) {
 	file := File{}
 	if !file.SyncEnabled() || !file.AutoSendEnabled() {
 		t.Error("缺省的同步与自动发送应为开")
+	}
+	if got := file.SoundMode(); got != SoundSync {
+		t.Errorf("缺省提示音 = %q，期望 %q", got, SoundSync)
 	}
 	if !file.FileSyncEnabled() || !file.FileAutoCleanEnabled() {
 		t.Error("缺省的文件同步与自动清理应为开")
@@ -420,6 +423,29 @@ func TestSaveLoadSyncRoundTrip(t *testing.T) {
 	}
 	if got := got.FileRetentionHours(); got != 0 {
 		t.Errorf("期限 = %d，期望 0（不限）", got)
+	}
+}
+
+// TestSaveLoadSoundRoundTrip 检查提示音的两个非默认档都能原样存进文件再读回来，
+// 认不出的写法回退到默认。
+func TestSaveLoadSoundRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	for _, want := range []string{SoundOff, SoundAll} {
+		if err := Save(path, File{Sync: &Sync{Sound: want}}); err != nil {
+			t.Fatalf("Save(%q) 出错: %v", want, err)
+		}
+		got, err := Load(path)
+		if err != nil {
+			t.Fatalf("Load(%q) 出错: %v", want, err)
+		}
+		if got.SoundMode() != want {
+			t.Errorf("提示音 = %q，期望 %q", got.SoundMode(), want)
+		}
+	}
+	// 手改坏的取值不让整份文件读失败，读成默认的「仅同步」。
+	file := File{Sync: &Sync{Sound: "loud"}}
+	if got := file.SoundMode(); got != SoundSync {
+		t.Errorf("认不出的取值 = %q，期望回退到 %q", got, SoundSync)
 	}
 }
 
