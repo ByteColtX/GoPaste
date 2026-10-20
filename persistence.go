@@ -313,6 +313,8 @@ func (a *application) installHistory(items []history.Item, persistence *historyP
 	a.persistence = persistence
 	a.historyBitmaps = nil
 	a.codeHighlights = nil
+	a.filePreviews = nil
+	a.filePreviewPending = nil
 	a.historyReady = true
 	for _, item := range a.pendingClips {
 		if err := a.history.Append(item); err != nil {

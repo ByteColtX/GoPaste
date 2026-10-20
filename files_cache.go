@@ -117,6 +117,7 @@ func (a *application) applyFileCacheCleanup(removed []string) {
 		}
 		delete(a.historyBitmaps, id)
 		delete(a.codeHighlights, id)
+		a.forgetFilePreview(id)
 		a.persistDelete(id)
 	}
 	if len(dirs) > 0 {

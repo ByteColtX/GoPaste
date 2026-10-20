@@ -368,9 +368,6 @@ func TestFileItemTravelsWithItsContent(t *testing.T) {
 	if entry.FileSize != int64(len(payload)) {
 		t.Errorf("stored size = %d, want %d", entry.FileSize, len(payload))
 	}
-	if entry.FilePreview != nil {
-		t.Error("a received file item carries no preview, like a local one")
-	}
 }
 
 // TestReceiverDirectionRefusesContent 检查接收端自己的方向设置说了算：设成「仅

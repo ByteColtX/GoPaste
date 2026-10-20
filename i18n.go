@@ -137,6 +137,7 @@ const (
 	msgHistoryImageLabel         messageKey = "history.imageLabel"
 	msgHistoryImageShort         messageKey = "history.imageShort"
 	msgHistoryFilePreviewGone    messageKey = "history.filePreviewUnavailable"
+	msgHistoryFilePreviewPending messageKey = "history.filePreviewPending"
 	msgHistoryFileMoreFormat     messageKey = "history.fileMoreFormat"
 	msgHistoryFileMoreFormatOne  messageKey = "history.fileMoreFormatOne"
 	msgHistoryCopy               messageKey = "history.copy"
@@ -515,6 +516,7 @@ var simplifiedChineseCatalog = catalog{
 	msgHistoryImageLabel:         "图像（%d×%d）",
 	msgHistoryImageShort:         "图像",
 	msgHistoryFilePreviewGone:    "无法预览此文件",
+	msgHistoryFilePreviewPending: "正在生成预览…",
 	msgHistoryFileMoreFormat:     "另有 %d 个文件",
 	msgHistoryFileMoreFormatOne:  "另有 %d 个文件",
 	msgHistoryCopy:               "拷贝",
@@ -871,6 +873,7 @@ var englishCatalog = catalog{
 	msgHistoryImageLabel:         "Image (%d×%d)",
 	msgHistoryImageShort:         "Image",
 	msgHistoryFilePreviewGone:    "Can't preview this file",
+	msgHistoryFilePreviewPending: "Generating preview…",
 	msgHistoryFileMoreFormat:     "%d more files",
 	msgHistoryFileMoreFormatOne:  "%d more file",
 	msgHistoryCopy:               "Copy",
