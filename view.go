@@ -924,9 +924,12 @@ func (a *application) capturePausedNotice(c *ui.Context, theme *ui.Theme) {
 	if !a.capturePaused {
 		return
 	}
-	ui.Row(c.Key("capture-paused-notice")).FillWidth().Shrink(0).
+	// 与列表行同一套几何：左右边与行卡片对齐，内部留白与 listRow 一致，
+	// 提示里的状态点因此正好落在行的图标块那一列上。
+	ui.Row(c.Key("capture-paused-notice")).AlignSelf(ui.Stretch).Shrink(0).
 		AlignItems(ui.Center).Gap(space(theme, 2)).
-		Padding(space(theme, 1.5), space(theme, 2.5), space(theme, 1.5), space(theme, 2.5)).
+		Padding(space(theme, 1.5), space(theme, 2), space(theme, 1.5), space(theme, 2)).
+		Margin(space(theme, listRowGap/2), spaceDIP(theme, paneSideInset), space(theme, listRowGap/2), 0).
 		Radius(radius(theme, controlRadius)).Background(theme.Warning.Alpha(0.12)).
 		Children(func() {
 			statusDot(c, theme.Warning, space(theme, 2))

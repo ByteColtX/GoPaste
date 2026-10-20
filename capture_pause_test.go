@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"image"
+	"image/color"
 	"os"
 	"path/filepath"
 	"testing"
@@ -41,6 +43,71 @@ func TestCapturePausedNoticeAppearsAndResumes(t *testing.T) {
 	}
 	if tt.HasText(title) {
 		t.Errorf("恢复捕获后不该再显示暂停提示，实际显示：%q", tt.Texts())
+	}
+}
+
+// pixelRun 是一段连续像素的起止坐标。
+type pixelRun struct{ min, max int }
+
+// verticalRuns 返回某一列上 from..to 之间连续非底色的色段，用来找卡片卡在哪里。
+func verticalRuns(img *image.RGBA, x, from, to int, background color.RGBA) []pixelRun {
+	var runs []pixelRun
+	start := -1
+	for y := from; y <= to; y++ {
+		ink := y < to && img.RGBAAt(x, y) != background
+		switch {
+		case ink && start < 0:
+			start = y
+		case !ink && start >= 0:
+			runs = append(runs, pixelRun{start, y - 1})
+			start = -1
+		}
+	}
+	return runs
+}
+
+// horizontalRun 返回某一行上 from..to 之间非底色像素的范围。
+func horizontalRun(img *image.RGBA, y, from, to int, background color.RGBA) pixelRun {
+	run := pixelRun{min: -1}
+	for x := from; x < to; x++ {
+		if img.RGBAAt(x, y) == background {
+			continue
+		}
+		if run.min < 0 {
+			run.min = x
+		}
+		run.max = x
+	}
+	return run
+}
+
+// TestCapturePausedNoticeAlignsWithHistoryRows 检查暂停提示与历史记录行左右对齐。
+// 两者是同一个列表里的卡片，边不齐看起来就像贴错了一层；只改内边距或外边距
+// 很容易把右边推出去 4 DIP，所以用像素量一遍。
+func TestCapturePausedNoticeAlignsWithHistoryRows(t *testing.T) {
+	app := previewApp("")
+	app.setCapturePaused(true)
+	tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+	tt.Frame()
+
+	img := tt.Image()
+	// 列表空白处的底色：用它区分卡片与页面。
+	background := img.RGBAAt(250, 400)
+	// 从提示标题往上找提示卡片的上边，再往下就是第一行。
+	title, ok := tt.Find(app.t(msgCapturePausedTitle))
+	if !ok {
+		t.Fatalf("暂停提示里应显示标题，实际显示：%q", tt.Texts())
+	}
+	bands := verticalRuns(img, 236, int(title.Y)-10, 260, background)
+	if len(bands) < 2 {
+		t.Fatalf("应能找到暂停提示与历史记录行两段卡片，实际 %d 段", len(bands))
+	}
+	// 量卡片竖直方向的中点：圆角只在上下两端收窄，中间才是卡片的完整宽度。
+	// 横向扫到分隔线之前（分隔线在 538），超出列表列的东西不算卡片。
+	notice := horizontalRun(img, (bands[0].min+bands[0].max)/2, 220, 536, background)
+	row := horizontalRun(img, (bands[1].min+bands[1].max)/2, 220, 536, background)
+	if notice != row {
+		t.Errorf("暂停提示与历史记录行左右未对齐：提示 %v，行 %v", notice, row)
 	}
 }
 
