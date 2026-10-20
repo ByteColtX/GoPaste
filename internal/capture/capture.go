@@ -154,6 +154,12 @@ type Options struct {
 	// read. One copy produces one signal per representation it carries, so
 	// Quiet turns that burst into a single reading. Zero means 400ms.
 	Quiet time.Duration
+	// SkipStartRead starts Loop without its opening read. The opening read
+	// exists so a capture that begins with content already on the clipboard
+	// does not miss it; a capture resuming after the user paused capture must
+	// not pick up what was copied while nothing was watching, so that path
+	// sets this.
+	SkipStartRead bool
 	// Now returns the current time. Tests set it; nil means time.Now.
 	Now func() time.Time
 }
@@ -171,8 +177,9 @@ func New(src Source, trigger Trigger, opts Options) *Capture {
 }
 
 // Loop reads the clipboard once, then once per settled change, calling emit
-// for each reading worth keeping until ctx ends. emit runs on Loop's
-// goroutine: it must publish to the UI thread itself and must not block.
+// for each reading worth keeping until ctx ends. The opening read is skipped
+// when Options.SkipStartRead is set. emit runs on Loop's goroutine: it must
+// publish to the UI thread itself and must not block.
 //
 // A representation that cannot be read is skipped rather than reported,
 // because the next change reads it again. Loop reports an error only when the
@@ -184,8 +191,12 @@ func (c *Capture) Loop(ctx context.Context, emit func(Snapshot)) error {
 	}
 
 	// Read once at start, before any change is signalled, so a capture that
-	// starts with content already on the clipboard does not miss it.
-	c.emitReading(ctx, emit)
+	// starts with content already on the clipboard does not miss it. A resumed
+	// capture skips this: what was copied while capture was paused is not
+	// history.
+	if !c.opts.SkipStartRead {
+		c.emitReading(ctx, emit)
+	}
 
 	changes := c.trigger.Watch(ctx)
 	var timer *time.Timer
