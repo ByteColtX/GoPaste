@@ -693,9 +693,21 @@ func (s *Service) installFileTransfer(transfer *fileTransfer, top []string) (Cli
 		Kind:       history.KindFile,
 		Files:      transfer.offer.Paths,
 		LocalFiles: local,
+		Preview:    s.previewOf(local),
 		FileSize:   directorySize(final),
 		CreatedAt:  transfer.createdAt,
 	}, nil
+}
+
+// previewOf builds the preview for a payload that just landed, from the first
+// file the item holds. It runs on the transfer goroutine: the interface must
+// never wait for a decode, and an item that arrived with its preview needs no
+// second pass over the history.
+func (s *Service) previewOf(local []string) *history.FilePreview {
+	if s.options.PreviewFile == nil || len(local) == 0 {
+		return nil
+	}
+	return s.options.PreviewFile(local[0])
 }
 
 // topLevelPaths joins the names of an item directory's top-level entries onto it.

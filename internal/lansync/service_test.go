@@ -34,14 +34,14 @@ type testService struct {
 // newTestService starts a service on a free port without discovery: the tests
 // hand each service the peer list, so they do not depend on multicast reaching
 // anywhere.
-func newTestService(t *testing.T, name string) *testService {
+func newTestService(t *testing.T, name string, configure ...func(*Options)) *testService {
 	t.Helper()
 	recorder := &testService{
 		deliveries:   map[string][]history.DeviceDelivery{},
 		codes:        make(chan string, 4),
 		pairFailures: make(chan error, 4),
 	}
-	service, err := NewService(Options{
+	options := Options{
 		StorePath: filepath.Join(t.TempDir(), "devices.json"),
 		Name:      name,
 		Platform:  "macOS",
@@ -75,7 +75,11 @@ func newTestService(t *testing.T, name string) *testService {
 			default:
 			}
 		},
-	})
+	}
+	for _, apply := range configure {
+		apply(&options)
+	}
+	service, err := NewService(options)
 	if err != nil {
 		t.Fatalf("NewService: %v", err)
 	}
@@ -369,7 +373,53 @@ func TestFileItemTravelsWithItsContent(t *testing.T) {
 		t.Errorf("stored size = %d, want %d", entry.FileSize, len(payload))
 	}
 	if entry.FilePreview != nil {
-		t.Error("a received file item carries no preview, like a local one")
+		t.Error("a receiver with no preview hook must not invent a preview")
+	}
+}
+
+// TestReceivedFileCarriesItsPreview 检查接收端的预览钩子：文件落盘之后、回到界面
+// 线程之前调用一次，参数是本地路径（不是发送端的路径），结果跟着 Clip 与条目一起
+// 交给应用，所以条目第一次出现在列表里就带预览。
+func TestReceivedFileCarriesItsPreview(t *testing.T) {
+	var previewed []string
+	receiver := newTestService(t, "工作室 PC", func(options *Options) {
+		options.PreviewFile = func(path string) *history.FilePreview {
+			previewed = append(previewed, path)
+			return &history.FilePreview{Text: "本地生成的摘录"}
+		}
+	})
+	sender := newTestService(t, "MacBook Pro")
+	pairWith(t, sender, receiver)
+
+	source := filepath.Join(t.TempDir(), "notes.md")
+	if err := os.WriteFile(source, []byte("# 标题"), 0o600); err != nil {
+		t.Fatalf("write the source file: %v", err)
+	}
+	paths := []string{source}
+	item := history.Item{
+		ID:        history.ContentID(history.Content{Kind: history.KindFile, Files: paths}),
+		Kind:      history.KindFile,
+		Text:      source,
+		FileSize:  8,
+		CreatedAt: time.Now(),
+	}
+	sender.service.Send(item)
+
+	waitFor(t, func() bool { return len(receiver.received()) == 1 })
+	clip := receiver.received()[0]
+	if len(previewed) != 1 {
+		t.Fatalf("preview hook called %d times, want 1", len(previewed))
+	}
+	if len(clip.LocalFiles) != 1 || previewed[0] != clip.LocalFiles[0] {
+		t.Errorf("preview built from %q, want the landed local path %q", previewed[0], clip.LocalFiles)
+	}
+	if clip.Preview == nil || clip.Preview.Text != "本地生成的摘录" {
+		t.Errorf("clip preview = %#v, want the generated excerpt", clip.Preview)
+	}
+
+	entry := clip.HistoryItem(sender.service.Identity().ID, time.Now())
+	if entry.FilePreview == nil || entry.FilePreview.Text != "本地生成的摘录" {
+		t.Errorf("item preview = %#v, want the generated excerpt", entry.FilePreview)
 	}
 }
 

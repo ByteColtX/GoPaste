@@ -10,6 +10,7 @@ import (
 
 	"gopaste/internal/capture"
 	"gopaste/internal/clipboard"
+	"gopaste/internal/filepreview"
 	"gopaste/internal/history"
 	"gopaste/internal/history/sqlite"
 )
@@ -290,9 +291,26 @@ func (r *applicationRuntime) captured(snapshot capture.Snapshot) {
 	if !ok {
 		return
 	}
+	// 预览在捕获 goroutine 上生成：它要读盘与解码，而发布之后这条记录就已经
+	// 在列表里了，界面线程不该为它等。
+	item = withFilePreview(item)
 	r.window.Update(func() {
 		r.app.appendCaptured(item)
 	})
+}
+
+// withFilePreview 给文件条目补上预览内容，其它类型原样返回。
+//
+// 文件内容留在磁盘上，所以预览只能在内容出现的那一刻生成一次；多文件复制只预览
+// 第一个，列表行标题用的也是它。
+func withFilePreview(item history.Item) history.Item {
+	if item.Kind != kindFile {
+		return item
+	}
+	if paths := filePaths(item.Text); len(paths) > 0 {
+		item.FilePreview = filepreview.Generate(paths[0])
+	}
+	return item
 }
 
 // stopCapture 停止剪贴板监听。捕获 goroutine 会随上下文结束退出。

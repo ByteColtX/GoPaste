@@ -6,10 +6,13 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"gopaste/internal/capture"
 	"gopaste/internal/filetype"
 	"gopaste/internal/history"
 
@@ -224,6 +227,95 @@ func TestFilePreviewFallsBackToANote(t *testing.T) {
 		if !tt.HasText(want) {
 			t.Errorf("文件预览缺少 %q，实际显示：%q", want, tt.Texts())
 		}
+	}
+}
+
+// capturedFile runs one file copy through the capture path the way the running
+// application does: the snapshot becomes an item, and the preview is generated
+// from the file on disk.
+func capturedFile(t *testing.T, paths ...string) history.Item {
+	t.Helper()
+	item, ok := (capture.Snapshot{Kind: kindFile, Files: paths}).Item()
+	if !ok {
+		t.Fatalf("捕获 %v 没有产出条目", paths)
+	}
+	return withFilePreview(item)
+}
+
+// writeTestFile writes body into a temporary file with the supplied name, so
+// the preview path sees a real file with a real extension.
+func writeTestFile(t *testing.T, name string, body []byte) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		t.Fatalf("写入 %s 失败: %v", name, err)
+	}
+	return path
+}
+
+// TestCapturedFileGetsItsPreview covers the seam the bug was in: a captured
+// file item carries the preview the capture path generated, so the preview
+// pane has something to draw instead of the "no preview" note.
+func TestCapturedFileGetsItsPreview(t *testing.T) {
+	imageItem := capturedFile(t, writeTestFile(t, "screenshot.png", fileTestPNG(t)))
+	if imageItem.FilePreview == nil || imageItem.FilePreview.Image == nil {
+		t.Fatalf("复制的图片文件应带图片预览，实际 %#v", imageItem.FilePreview)
+	}
+	if imageItem.FilePreview.Image.Width != 4 || imageItem.FilePreview.Image.Height != 3 {
+		t.Errorf("缩略图尺寸 = %dx%d，期望 4x3",
+			imageItem.FilePreview.Image.Width, imageItem.FilePreview.Image.Height)
+	}
+
+	textItem := capturedFile(t, writeTestFile(t, "notes.md", []byte("# 标题\n\n正文\n")))
+	if textItem.FilePreview == nil || !strings.Contains(textItem.FilePreview.Text, "# 标题") {
+		t.Fatalf("复制的 Markdown 文件应带文本摘录，实际 %#v", textItem.FilePreview)
+	}
+
+	// A format with nothing to preview keeps no payload, and a copy of several
+	// files previews the first one — the same file the list row names.
+	if zipItem := capturedFile(t, writeTestFile(t, "release.zip", []byte("PK\x03\x04"))); zipItem.FilePreview != nil {
+		t.Errorf("压缩包不该有预览，实际 %#v", zipItem.FilePreview)
+	}
+	many := capturedFile(t,
+		writeTestFile(t, "first.txt", []byte("第一个文件\n")),
+		writeTestFile(t, "second.png", fileTestPNG(t)),
+	)
+	if many.FilePreview == nil || !strings.Contains(many.FilePreview.Text, "第一个文件") {
+		t.Errorf("多文件复制应只预览第一个文件，实际 %#v", many.FilePreview)
+	}
+}
+
+// TestCapturedPreviewReachesThePreviewPane checks the whole path the user sees:
+// the captured item renders its picture or excerpt rather than the "no
+// preview" note.
+func TestCapturedPreviewReachesThePreviewPane(t *testing.T) {
+	imageItem := capturedFile(t, writeTestFile(t, "screenshot.png", fileTestPNG(t)))
+	imageApp := fileApp(imageItem)
+	tt := ui.NewTester(imageApp.view, defaultWindowWidth, 720)
+	if tt.HasText(imageApp.t(msgHistoryFilePreviewGone)) {
+		t.Errorf("带缩略图的图片文件不该显示「无预览」提示，实际显示：%q", tt.Texts())
+	}
+	if bitmap := imageApp.filePreviewBitmap(imageItem); bitmap == nil {
+		t.Errorf("图片文件的缩略图应能解码成位图")
+	}
+
+	textItem := capturedFile(t, writeTestFile(t, "notes.md", []byte("# 标题\n\n正文\n")))
+	app := fileApp(textItem)
+	tt = ui.NewTester(app.view, defaultWindowWidth, 720)
+	if !tt.HasText("# 标题") {
+		t.Errorf("文本文件的摘录应显示在预览区，实际显示：%q", tt.Texts())
+	}
+	if tt.HasText(app.t(msgHistoryFilePreviewGone)) {
+		t.Errorf("带摘录的文本文件不该显示「无预览」提示，实际显示：%q", tt.Texts())
+	}
+}
+
+// TestOtherKindsKeepTheirOwnPayload checks that the preview step only touches
+// file items: a text copy has no file payload to preview and must not gain one.
+func TestOtherKindsKeepTheirOwnPayload(t *testing.T) {
+	text := history.Item{ID: "text-1", Kind: kindText, Text: "hello"}
+	if got := withFilePreview(text); got.FilePreview != nil {
+		t.Errorf("文本条目不该带文件预览，实际 %#v", got.FilePreview)
 	}
 }
 

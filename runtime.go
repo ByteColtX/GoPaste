@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gopaste/internal/capture"
+	"gopaste/internal/filepreview"
 	"gopaste/internal/filescache"
 	"gopaste/internal/history"
 	"gopaste/internal/lansync"
@@ -542,6 +543,9 @@ func (r *applicationRuntime) startSyncService(ctx context.Context) {
 		Version:        settingsVersion,
 		FilesDir:       r.app.receivedFilesDir,
 		FileLimitBytes: r.app.fileSyncLimitBytes,
+		// 收到的文件跟本机复制的一样生成预览；调用发生在传输 goroutine 上，
+		// 界面线程不等解码。
+		PreviewFile: filepreview.Generate,
 		OnPeersChanged: func(peers []lansync.Peer) {
 			r.update(func() { r.app.applySyncPeers(peers) })
 		},

@@ -81,6 +81,11 @@ type Clip struct {
 	// file transfer landed. It is empty on the sending side, where Files is
 	// already local, and never travels.
 	LocalFiles []string
+	// Preview is the preview generated for a file payload once its content
+	// landed here, so the item arrives with something to draw. Like LocalFiles
+	// it exists only on the receiving side and never travels: each device
+	// previews the files it holds.
+	Preview *history.FilePreview
 	// FileSize is the byte size of a file payload as it arrived, zero when the
 	// item carries no files.
 	FileSize int64
@@ -145,6 +150,7 @@ func (c Clip) HistoryItem(sourceDeviceID string, at time.Time) history.Item {
 		}
 		item.Text = strings.Join(local, "\n")
 		item.FileSize = c.FileSize
+		item.FilePreview = c.Preview
 	}
 	return item
 }
@@ -226,6 +232,11 @@ type Options struct {
 	// larger is sent, and nothing larger is accepted. Zero or negative means
 	// DefaultFileLimitBytes.
 	FileLimitBytes int64
+	// PreviewFile builds the preview to store for a file payload that just
+	// landed, given the local path of its first file. It is called on the
+	// transfer goroutine, never on the UI thread, because it reads and decodes
+	// the file; nil means received files arrive without a preview.
+	PreviewFile func(path string) *history.FilePreview
 
 	// OnPeersChanged reports the devices seen on the network.
 	OnPeersChanged func([]Peer)
