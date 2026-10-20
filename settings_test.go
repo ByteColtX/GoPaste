@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math"
 	"testing"
 
 	"github.com/egoist/mygo/ui"
@@ -236,5 +237,43 @@ func TestSyncSettingsSoundRow(t *testing.T) {
 	tt.Frame()
 	if app.soundMode != soundAll {
 		t.Errorf("点击后档位 = %v，期望 %v", app.soundMode, soundAll)
+	}
+}
+
+// TestSegmentedControlSegmentsAreEven 检查分段控件的三段等宽：等分之后相邻文字的中心
+// 等距，而文字本身的宽度各不相同。两处调用（外观、提示音）与两种语言都过一遍——正是
+// 长短不一的标签才暴露「按内容定宽」的老行为。
+func TestSegmentedControlSegmentsAreEven(t *testing.T) {
+	for _, lang := range []languagePreference{languagePreferenceSimplifiedChinese, languagePreferenceEnglish} {
+		for _, area := range []settingsArea{settingsSync, settingsAppearance} {
+			app := previewApp("")
+			app.languagePreference = lang
+			app.applyLanguage()
+			app.setPage(pageSettings)
+			app.settingsArea = area
+
+			labels := []string{
+				app.appearanceModeLabel(appearanceSystem),
+				app.appearanceModeLabel(appearanceLight),
+				app.appearanceModeLabel(appearanceDark),
+			}
+			if area == settingsSync {
+				labels = []string{app.t(msgSettingsSoundOff), app.t(msgSettingsSoundSync), app.t(msgSettingsSoundAll)}
+			}
+
+			tt := ui.NewTester(app.view, defaultWindowWidth, defaultWindowHeight)
+			var centers []float64
+			for _, label := range labels {
+				rect, ok := tt.Find(label)
+				if !ok {
+					t.Fatalf("%v 语言下没找到分段 %q", lang, label)
+				}
+				centers = append(centers, float64(rect.X+rect.W/2))
+			}
+			first, second := centers[1]-centers[0], centers[2]-centers[1]
+			if math.Abs(first-second) > 0.5 {
+				t.Errorf("%v 语言、%v 栏：分段中心间距 %.2f / %.2f，不等分", lang, area, first, second)
+			}
+		}
 	}
 }
