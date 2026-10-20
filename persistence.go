@@ -326,6 +326,8 @@ func (a *application) appendCaptured(item history.Item) {
 	if a.consumeClipboardEcho(item.ID) {
 		return
 	}
+	// 本机复制到的新内容：只有「所有新内容」档位才响，回声写入已在上一步返回。
+	a.playArrivalChime(false)
 	if err := a.history.Append(item); err != nil {
 		return
 	}

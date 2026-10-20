@@ -128,10 +128,12 @@ func (a *application) applySyncSettings(sync *settings.Sync) {
 	a.fileSyncEnabled = true
 	a.fileAutoClean = true
 	a.fileRetentionHours = settings.DefaultFileRetentionHours
+	a.soundMode = soundSync
 	if sync == nil {
 		a.applyFileSyncDir("")
 		return
 	}
+	a.soundMode = soundModeFromName(sync.Sound)
 	if sync.Enabled != nil {
 		a.syncEnabled = *sync.Enabled
 	}
@@ -167,6 +169,7 @@ func (a *application) syncSettingsFile() *settings.Sync {
 		off := false
 		sync.AutoSend = &off
 	}
+	sync.Sound = soundModeName(a.soundMode)
 	files := settings.SyncFiles{}
 	filesChanged := false
 	if !a.fileSyncEnabled {
@@ -195,8 +198,15 @@ func (a *application) syncSettingsFile() *settings.Sync {
 	if filesChanged {
 		sync.Files = &files
 	}
-	if sync.Enabled == nil && sync.AutoSend == nil && sync.Files == nil {
+	if sync.Enabled == nil && sync.AutoSend == nil && sync.Files == nil && sync.Sound == "" {
 		return nil
 	}
 	return &sync
+}
+
+// setSoundMode 记下用户选的提示音档位并落盘。改成「关闭」不额外提示，改成另外两档
+// 也不当场试听：这一项只在内容真的到达时才发声，与它自身的语义一致。
+func (a *application) setSoundMode(mode soundMode) {
+	a.soundMode = mode
+	a.saveSettings()
 }

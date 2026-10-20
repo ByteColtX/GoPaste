@@ -46,7 +46,19 @@ type Sync struct {
 	Enabled  *bool      `json:"enabled,omitempty"`
 	AutoSend *bool      `json:"autoSend,omitempty"`
 	Files    *SyncFiles `json:"files,omitempty"`
+	// Sound is the arrival chime: SoundOff, SoundSync or SoundAll. Empty means
+	// the user never changed it, which reads back as SoundSync.
+	Sound string `json:"sound,omitempty"`
 }
+
+// The arrival chime choices, as the settings file spells them. SoundSync is the
+// default: content arriving from a paired device chimes, while a copy made on
+// this device stays quiet.
+const (
+	SoundOff  = "off"
+	SoundSync = "sync"
+	SoundAll  = "all"
+)
 
 // SyncFiles is the file sync block: its own switch plus where received files
 // land and how long the cache may grow.
@@ -126,6 +138,17 @@ func (f File) AutoSendEnabled() bool { return onByDefault(f.sync().AutoSend) }
 // FileSyncEnabled reports whether file content may travel. An absent field
 // means on.
 func (f File) FileSyncEnabled() bool { return onByDefault(f.files().Enabled) }
+
+// SoundMode returns the arrival chime setting. An absent or unrecognized value
+// reads back as SoundSync, the default.
+func (f File) SoundMode() string {
+	switch sound := f.sync().Sound; sound {
+	case SoundOff, SoundAll:
+		return sound
+	default:
+		return SoundSync
+	}
+}
 
 // FileAutoCleanEnabled reports whether expired files are deleted on their own.
 // An absent field means on.

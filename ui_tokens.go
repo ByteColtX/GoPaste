@@ -607,6 +607,9 @@ func selectField[T comparable](
 
 // segmentedField 渲染分段控件（模式切换），并让选中的那一段使用与行、筛选项
 // 相同的选中样式：淡强调色底 + 淡描边，而不是一块自带的凸起白片。
+//
+// 每一段等宽（`Grow(1)`，与 CSS 的 flex: 1 一样从零尺寸起步），不按文字长短定宽：
+// 选中的那块因此不会随选项名字的长短变宽变窄，整条控件的宽度只由调用方给。
 func segmentedField(
 	c *ui.Context,
 	theme *ui.Theme,
@@ -623,7 +626,7 @@ func segmentedField(
 		Border(1, borderColor(theme)).Label(label)
 	track.Children(func() {
 		for index, text := range labels {
-			segment := parts.Segment(index).Shrink(0).Center().
+			segment := parts.Segment(index).Shrink(0).Grow(1).Center().
 				Padding(space(theme, 1), space(theme, 2.5)).
 				Radius(radius(theme, controlRadius)).Border(1, ui.Transparent).
 				TextColor(secondaryText(theme)).Transition(motionColors)

@@ -33,6 +33,8 @@ func newApplication() *application {
 		fileSyncEnabled:    true,
 		fileAutoClean:      true,
 		fileRetentionHours: settings.DefaultFileRetentionHours,
+		// 提示音默认只在同步到达时响：装上就有效果，本机复制又不制造噪音。
+		soundMode:          soundSync,
 		pairedDevices:      previewDevices(),
 		languagePreference: languagePreferenceSystem,
 		language:           languageSimplifiedChinese,
@@ -879,6 +881,8 @@ func (a *application) receiveClip(clip lansync.Clip, from lansync.Device) {
 			a.clipboard.WriteText(clip.Text)
 		}
 	}
+	// 内容已经落到剪贴板，算一次到达：装载历史期间收到的也一样响。
+	a.playArrivalChime(true)
 	if !a.historyReady {
 		if len(a.pendingClips) < maxPendingClips {
 			a.pendingClips = append(a.pendingClips, item)

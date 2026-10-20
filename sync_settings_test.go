@@ -24,6 +24,7 @@ func TestSyncSettingsPersist(t *testing.T) {
 	app.editFileRetention(0)
 	app.editFileAutoClean(false)
 	app.setFileSyncDir("/Users/me/GoPasteFiles")
+	app.setSoundMode(soundOff)
 
 	file, err := settings.Load(path)
 	if err != nil {
@@ -44,6 +45,9 @@ func TestSyncSettingsPersist(t *testing.T) {
 	if got := file.FileSyncDir(); got != "/Users/me/GoPasteFiles" {
 		t.Errorf("保存位置 = %q", got)
 	}
+	if got := file.SoundMode(); got != settings.SoundOff {
+		t.Errorf("提示音 = %q，期望 %q", got, settings.SoundOff)
+	}
 }
 
 // TestSyncSettingsRoundTrip 检查设置文件里的同步设置能原样回到内存状态。
@@ -55,6 +59,7 @@ func TestSyncSettingsRoundTrip(t *testing.T) {
 		Sync: &settings.Sync{
 			Enabled:  &off,
 			AutoSend: &off,
+			Sound:    settings.SoundAll,
 			Files: &settings.SyncFiles{
 				Enabled:        &off,
 				Dir:            "/Users/me/GoPasteFiles",
@@ -82,6 +87,9 @@ func TestSyncSettingsRoundTrip(t *testing.T) {
 	}
 	if app.fileSyncDir != "/Users/me/GoPasteFiles" {
 		t.Errorf("保存位置 = %q", app.fileSyncDir)
+	}
+	if app.soundMode != soundAll {
+		t.Errorf("提示音档位 = %v，期望 %v", app.soundMode, soundAll)
 	}
 	// 还没启动同步服务，默认目录也还没解析；选过的目录直接生效。
 	if app.receivedFilesDir != "/Users/me/GoPasteFiles" {

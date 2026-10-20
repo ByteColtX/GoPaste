@@ -121,6 +121,8 @@ func (r *applicationRuntime) ready() {
 		r.app.applyLanguage()
 	})
 	r.app.clipboard = mygoClipboardWriter{}
+	// 提示音的出口在运行时里装：界面状态本身只存档位，不依赖 MyGo 的音频。
+	r.app.sound = newChime()
 	// 设置要在窗口打开之前读：首帧就知道要不要显示首次启动向导，用哪种语言、哪种
 	// 外观，以及缩放多少，否则界面会先闪一下默认值再切过去。语言与外观要在主线程
 	// 上解析并应用，所以放在读完之后、开窗之前。

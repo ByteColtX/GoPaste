@@ -396,6 +396,11 @@ const (
 	msgSettingsSyncEnabledDesc          messageKey = "settings.syncEnabledDesc"
 	msgSettingsAutoSend                 messageKey = "settings.autoSend"
 	msgSettingsAutoSendDesc             messageKey = "settings.autoSendDesc"
+	msgSettingsSound                    messageKey = "settings.sound"
+	msgSettingsSoundDesc                messageKey = "settings.soundDesc"
+	msgSettingsSoundOff                 messageKey = "settings.sound.off"
+	msgSettingsSoundSync                messageKey = "settings.sound.sync"
+	msgSettingsSoundAll                 messageKey = "settings.sound.all"
 	msgSettingsSyncFiles                messageKey = "settings.syncFiles"
 	msgSettingsFileSyncEnabled          messageKey = "settings.fileSyncEnabled"
 	msgSettingsFileSyncEnabledDesc      messageKey = "settings.fileSyncEnabledDesc"
@@ -750,6 +755,11 @@ var simplifiedChineseCatalog = catalog{
 	msgSettingsSyncEnabledDesc:          "关闭后，此设备不发送也不接收内容。各设备自己的同步设置会保留。",
 	msgSettingsAutoSend:                 "自动发送新内容",
 	msgSettingsAutoSendDesc:             "新的剪贴板内容会自动发送到已配对的设备。关闭后，可在预览区手动发送。",
+	msgSettingsSound:                    "提示音",
+	msgSettingsSoundDesc:                "收到内容时响一声。「仅同步」只在已配对设备发来内容时响，「所有新内容」连本机复制的也响。",
+	msgSettingsSoundOff:                 "关闭",
+	msgSettingsSoundSync:                "仅同步",
+	msgSettingsSoundAll:                 "所有新内容",
 	msgSettingsSyncFiles:                "文件同步",
 	msgSettingsFileSyncEnabled:          "同步文件",
 	msgSettingsFileSyncEnabledDesc:      "在设备之间发送和接收文件。关闭后，文件不会收发，文字、图片与富文本仍会同步。",
@@ -1096,6 +1106,11 @@ var englishCatalog = catalog{
 	msgSettingsSyncEnabledDesc:          "When off, this device doesn't send or receive content. Each device keeps its own sync settings.",
 	msgSettingsAutoSend:                 "Send new content automatically",
 	msgSettingsAutoSendDesc:             "New clipboard content is sent to paired devices automatically. When off, send items manually from the preview.",
+	msgSettingsSound:                    "Sound",
+	msgSettingsSoundDesc:                "Chime when content arrives. \"Sync only\" chimes for content from a paired device; \"All copies\" also chimes for copies made on this device.",
+	msgSettingsSoundOff:                 "Off",
+	msgSettingsSoundSync:                "Sync only",
+	msgSettingsSoundAll:                 "All copies",
 	msgSettingsSyncFiles:                "File sync",
 	msgSettingsFileSyncEnabled:          "Sync files",
 	msgSettingsFileSyncEnabledDesc:      "Send and receive files between devices. When off, files aren't sent or received; text, images, and rich text still sync.",
