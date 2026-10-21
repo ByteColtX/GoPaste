@@ -26,7 +26,7 @@ import (
 
 // HTTP paths of the file transfer. One item takes two requests: the receiving
 // device answers before any bytes are written, so a refusal reaches the sender as
-// a reason instead of a broken connection (see SPEC.md, 文件项).
+// a reason instead of a broken connection.
 const (
 	pathFilesOffer = "/v1/files/offer"
 	// pathFilesUpload is followed by the token the offer reply handed out.
